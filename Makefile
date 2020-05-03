@@ -1,4 +1,5 @@
-CFLAGS= -std=c++14 -g -static
+CXX := clang++
+CXXFLAGS := -std=c++14 -g -static
 
 kcc: kcc.cc
 
