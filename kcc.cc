@@ -1,8 +1,98 @@
+#include <cctype>
 #include <cstdio>
+#include <fstream>
 #include <string>
 
 #include <stdio.h>
 #include <stdlib.h>
+
+struct token;
+
+token *tk;
+
+typedef enum {
+  TK_RESERVED,
+  TK_NUM,
+  TK_EOF,
+} token_kind;
+
+struct token {
+  token_kind kind;
+  token *next;
+  int val;
+  char *str;
+};
+
+void error(const char *fmt, ...) {
+  va_list ap;
+  va_start(ap, fmt);
+  vfprintf(stderr, fmt, ap);
+  fprintf(stderr, "\n");
+  exit(1);
+}
+
+bool consume(char op) {
+  if (tk->kind != TK_RESERVED || tk->str[0] != op) {
+    return false;
+  }
+  tk = tk->next;
+  return true;
+}
+
+void expect(char op) {
+  if (tk->kind != TK_RESERVED || tk->str[0] != op) {
+    error("'%c'ではありません", op);
+  }
+  tk = tk->next;
+}
+
+int expect_number() {
+  if (tk->kind != TK_NUM) {
+    error("数ではありません");
+  }
+  int val = tk->val;
+  tk = tk->next;
+  return val;
+}
+
+bool at_eof() { return tk->kind == TK_EOF; }
+
+token *new_token(token_kind kind, token *cur, char *str) {
+  token *t = new token[1];
+  t->kind = kind;
+  t->str = str;
+  cur->next = t;
+  return t;
+}
+
+token *tokenize(char *p) {
+  token head;
+  head.next = nullptr;
+  token *cur = &head;
+
+  while (*p) {
+    if (isspace(*p)) {
+      p++;
+      continue;
+    }
+
+    if (*p == '+' || *p == '-') {
+      cur = new_token(TK_RESERVED, cur, p++);
+      continue;
+    }
+
+    if (isdigit(*p)) {
+      cur = new_token(TK_NUM, cur, p);
+      cur->val = std::strtol(p, &p, 10);
+      continue;
+    }
+
+    error("トークナイズできません");
+  }
+
+  new_token(TK_EOF, cur, p);
+  return head.next;
+}
 
 int main(int argc, char *argv[]) {
 
@@ -11,28 +101,21 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
-  char *p = argv[1];
+  tk = tokenize(argv[1]);
 
   printf(".intel_syntax noprefix\n");
   printf(".global main\n");
   printf("main:\n");
-  printf("  mov rax, %ld\n", std::strtol(p, &p, 10));
+  printf("  mov rax, %d\n", expect_number());
 
-  while (*p) {
-    if (*p == '+') {
-      p++;
-      printf("  add rax, %ld\n", std::strtol(p, &p, 10));
+  while (!at_eof()) {
+    if (consume('+')) {
+      printf("  add rax, %d\n", expect_number());
       continue;
     }
 
-    if (*p == '-') {
-      p++;
-      printf("  sub rax, %ld\n", std::strtol(p, &p, 10));
-      continue;
-    }
-
-    fprintf(stderr, "予期しない文字です： '%c'\n", *p);
-    return 1;
+    expect('-');
+    printf("  sub rax, %d\n", expect_number());
   }
 
   printf("  ret\n");
