@@ -9,6 +9,7 @@
 struct token;
 
 token *tk;
+char *user_input;
 
 typedef enum {
   TK_RESERVED,
@@ -31,6 +32,19 @@ void error(const char *fmt, ...) {
   exit(1);
 }
 
+void error_at(char *loc, const char *fmt, ...) {
+  va_list ap;
+  va_start(ap, fmt);
+
+  int pos = loc - user_input;
+  fprintf(stderr, "%s\n", user_input);
+  fprintf(stderr, "%*s", pos, "");
+  fprintf(stderr, "^ ");
+  vfprintf(stderr, fmt, ap);
+  fprintf(stderr, "\n");
+  exit(1);
+}
+
 bool consume(char op) {
   if (tk->kind != TK_RESERVED || tk->str[0] != op) {
     return false;
@@ -41,14 +55,14 @@ bool consume(char op) {
 
 void expect(char op) {
   if (tk->kind != TK_RESERVED || tk->str[0] != op) {
-    error("'%c'ではありません", op);
+    error_at(tk->str, "'%c'ではありません", op);
   }
   tk = tk->next;
 }
 
 int expect_number() {
   if (tk->kind != TK_NUM) {
-    error("数ではありません");
+    error_at(tk->str, "数ではありません");
   }
   int val = tk->val;
   tk = tk->next;
@@ -87,7 +101,7 @@ token *tokenize(char *p) {
       continue;
     }
 
-    error("トークナイズできません");
+    error_at(p, "トークナイズできません");
   }
 
   new_token(TK_EOF, cur, p);
@@ -101,6 +115,7 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
+  user_input = argv[1];
   tk = tokenize(argv[1]);
 
   printf(".intel_syntax noprefix\n");
