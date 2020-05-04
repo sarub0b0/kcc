@@ -1,7 +1,12 @@
 CXX := clang++
 CXXFLAGS := -std=c++14 -g -static
+SRCS := $(wildcard *.cc)
+OBJS := $(SRCS:.cc=.o)
 
-kcc: kcc.cc
+kcc: $(OBJS)
+	$(CXX) -o $@ $(OBJS) $(LDFLAGS)
+
+$(OBJS): kcc.h
 
 test: kcc
 	./test.sh
