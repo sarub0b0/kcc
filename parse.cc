@@ -1,9 +1,14 @@
 #include <cstdio>
+#include <cstring>
 
 #include <string>
 
 #include "kcc.h"
 
+node *code[100];
+
+node *assign();
+node *stmt();
 node *expr();
 node *equality();
 node *relational();
@@ -12,16 +17,17 @@ node *mul();
 node *unary();
 node *primary();
 
-void expect(char op) {
-  if (tk->kind != TK_RESERVED || tk->str[0] != op) {
-    error_at(tk->str.c_str(), "'%c'ではありません", op);
+void expect(const char *op) {
+  if (tk->kind != TK_RESERVED || tk->str.size() != std::strlen(op) ||
+      tk->str.compare(op)) {
+    error_at(tk->pos, "'%s'ではありません", op);
   }
   tk = tk->next;
 }
 
 int expect_number() {
   if (tk->kind != TK_NUM) {
-    error_at(tk->str.c_str(), "数ではありません");
+    error_at(tk->pos, "数ではありません");
   }
   int val = tk->val;
   tk = tk->next;
@@ -31,7 +37,7 @@ int expect_number() {
 bool at_eof() { return tk->kind == TK_EOF; }
 
 node *new_node(node_kind kind, node *lhs, node *rhs) {
-  node *n = new node[1];
+  node *n = new node;
   n->kind = kind;
   n->lhs = lhs;
   n->rhs = rhs;
@@ -66,21 +72,39 @@ node *new_node(node_kind kind, node *lhs, node *rhs) {
   case ND_GT:
     n->str = ">";
     break;
+  case ND_ASSIGN:
+    n->str = "=";
+    break;
   case ND_NUM:
+  case ND_LVAR:
     break;
   }
   return n;
 }
 
 node *new_node_num(int val) {
-  node *n = new node[1];
+  node *n = new node;
   n->kind = ND_NUM;
   n->val = val;
   n->str = std::to_string(val);
   return n;
 }
 
-node *expr() { return equality(); }
+node *assign() {
+  node *n = equality();
+  if (consume("=")) {
+    n = new_node(ND_ASSIGN, n, assign());
+  }
+  return n;
+}
+
+node *expr() { return assign(); }
+
+node *stmt() {
+  node *n = expr();
+  expect(";");
+  return n;
+}
 
 node *equality() {
   node *n = relational();
@@ -142,8 +166,17 @@ node *mul() {
 node *primary() {
   if (consume("(")) {
     node *n = expr();
-    expect(')');
+    expect(")");
     n->str = "(" + n->str + ")";
+    return n;
+  }
+
+  token *tok = consume_ident();
+  if (tok) {
+    node *n = new node;
+    n->kind = ND_LVAR;
+    n->offset = (tok->str[0] - 'a' + 1) * 8;
+    n->str = tok->str;
     return n;
   }
 
@@ -161,3 +194,10 @@ node *unary() {
   return primary();
 }
 
+void program() {
+  int i = 0;
+  while (!at_eof()) {
+    code[i++] = stmt();
+  }
+  code[i] = nullptr;
+}

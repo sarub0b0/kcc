@@ -1,5 +1,5 @@
-#include <stdio.h>
-#include <stdlib.h>
+#include <cstdio>
+#include <cstdlib>
 
 #include "kcc.h"
 
@@ -60,6 +60,18 @@ void print_tree(node *root, trunk *prev, bool isLeft) {
   tr->str = "    |";
   print_tree(root->rhs, tr, false);
 }
+
+void header() {
+  printf(".intel_syntax noprefix\n");
+  printf(".global main\n");
+  printf("main:\n");
+}
+
+void prologue() {
+  printf("  push rbp\n");
+  printf("  mov rbp, rsp\n");
+  printf("  sub rsp, 208\n");
+}
 int main(int argc, char *argv[]) {
 
   if (argc != 2) {
@@ -70,17 +82,21 @@ int main(int argc, char *argv[]) {
   user_input = argv[1];
   tk = tokenize(argv[1]);
 
-  node *n = expr();
+  program();
 
-  // print_tree(n, nullptr, false);
+  // print_tree(code[0], nullptr, false);
 
-  printf(".intel_syntax noprefix\n");
-  printf(".global main\n");
-  printf("main:\n");
+  header();
+  prologue();
 
-  gen(n);
+  for (auto &&c : code) {
+    gen(c);
 
-  printf("  pop rax\n");
+    printf("  pop rax\n");
+  }
+
+  printf("  mov rsp, rbp\n");
+  printf("  pop rbp\n");
   printf("  ret\n");
 
   return 0;

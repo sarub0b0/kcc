@@ -19,10 +19,20 @@ bool consume(const char *op) {
   return true;
 }
 
+token *consume_ident() {
+  token *tok = tk;
+  if (tk->kind == TK_IDENT) {
+    tk = tk->next;
+    return tok;
+  }
+  return nullptr;
+}
+
 token *new_token(token_kind kind, token *cur, char *str, int len) {
-  token *t = new token[1];
+  token *t = new token;
   t->kind = kind;
   t->str = std::string(str, len);
+  t->pos = str;
   cur->next = t;
   return t;
 }
@@ -42,6 +52,11 @@ token *tokenize(char *p) {
         starts_with(p, "<=")) {
       cur = new_token(TK_RESERVED, cur, p, 2);
       p += 2;
+      continue;
+    }
+
+    if ('a' <= *p && *p <= 'z') {
+      cur = new_token(TK_IDENT, cur, p++, 1);
       continue;
     }
 
@@ -66,6 +81,6 @@ token *tokenize(char *p) {
     error_at(p, "トークナイズできません");
   }
 
-  new_token(TK_EOF, cur, p, 0);
+  new_token(TK_EOF, cur, p, 1);
   return head.next;
 }
