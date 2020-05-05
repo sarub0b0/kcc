@@ -117,7 +117,17 @@ node *assign() {
 node *expr() { return assign(); }
 
 node *stmt() {
-  node *n = expr();
+  node *n;
+
+  if (tk->kind == TK_RETURN) {
+    tk = tk->next;
+    n = new node;
+    n->kind = ND_RETURN;
+    n->lhs = expr();
+  } else {
+    n = expr();
+  }
+
   expect(";");
   return n;
 }

@@ -16,6 +16,7 @@ enum token_kind {
   TK_RESERVED,
   TK_IDENT,
   TK_NUM,
+  TK_RETURN,
   TK_EOF,
 };
 
@@ -41,6 +42,7 @@ enum node_kind {
   ND_ASSIGN,
   ND_LVAR,
   ND_NUM,
+  ND_RETURN,
 };
 
 struct node {
