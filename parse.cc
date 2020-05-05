@@ -5,7 +5,7 @@
 
 #include "kcc.h"
 
-node *code[100];
+lvar *locals;
 
 node *assign();
 node *stmt();
@@ -32,6 +32,22 @@ int expect_number() {
   int val = tk->val;
   tk = tk->next;
   return val;
+}
+
+void print_lvar(lvar *lv) {
+  printf("lvar name(%s)\n", lv->name.c_str());
+  printf("lvar offset(%d)\n", lv->offset);
+  printf("lvar next(0x%p)\n", lv->next);
+}
+
+lvar *find_lvar(token *tok) {
+  for (lvar *var = locals; var; var = var->next) {
+    if (var->name.size() == tok->str.size() &&
+        var->name.compare(tok->str) == 0) {
+      return var;
+    }
+  }
+  return nullptr;
 }
 
 bool at_eof() { return tk->kind == TK_EOF; }
@@ -175,8 +191,19 @@ node *primary() {
   if (tok) {
     node *n = new node;
     n->kind = ND_LVAR;
-    n->offset = (tok->str[0] - 'a' + 1) * 8;
-    n->str = tok->str;
+
+    lvar *lvar = find_lvar(tok);
+    if (lvar) {
+      n->offset = lvar->offset;
+    } else {
+      lvar = new struct lvar;
+      lvar->next = locals;
+      lvar->name = tok->str;
+      lvar->offset = locals->offset + 8;
+      n->offset = lvar->offset;
+      locals = lvar;
+    }
+
     return n;
   }
 
@@ -197,7 +224,6 @@ node *unary() {
 void program() {
   int i = 0;
   while (!at_eof()) {
-    code[i++] = stmt();
+    code.push_back(stmt());
   }
-  code[i] = nullptr;
 }

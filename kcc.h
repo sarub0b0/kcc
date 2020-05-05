@@ -4,6 +4,13 @@
 #pragma once
 
 #include <string>
+#include <vector>
+
+struct lvar {
+  lvar *next;
+  std::string name;
+  int offset;
+};
 
 enum token_kind {
   TK_RESERVED,
@@ -66,6 +73,8 @@ void program();
 
 extern char *user_input;
 extern token *tk;
-extern node *code[100];
+extern std::vector<node *> code;
+
+extern lvar *locals;
 
 #endif

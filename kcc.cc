@@ -5,6 +5,7 @@
 
 token *tk;
 char *user_input;
+std::vector<node *> code;
 
 void error(const char *fmt, ...) {
   va_list ap;
@@ -79,6 +80,7 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
+  locals = new lvar;
   user_input = argv[1];
   tk = tokenize(argv[1]);
 

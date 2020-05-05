@@ -12,6 +12,6 @@ test: kcc
 	./test.sh
 
 clean:
-	rm -f kcc *.o tmp
+	rm -f kcc *.o tmp*
 
 .PHONY: test clean
