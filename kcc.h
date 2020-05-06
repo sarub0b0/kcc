@@ -15,8 +15,8 @@ struct lvar {
 enum token_kind {
   TK_RESERVED,
   TK_IDENT,
+  TK_STR,
   TK_NUM,
-  TK_RETURN,
   TK_EOF,
 };
 
@@ -43,12 +43,21 @@ enum node_kind {
   ND_LVAR,
   ND_NUM,
   ND_RETURN,
+  ND_IF,
+  ND_FOR,
+  ND_LABEL,
 };
 
 struct node {
   node_kind kind;
   node *lhs;
   node *rhs;
+
+  // if, for
+  node *cond;
+  node *then;
+  node *els;
+
   int val;
   std::string str;
   int offset;
@@ -72,6 +81,8 @@ node *expr();
 bool consume(const char *);
 token *consume_ident();
 void program();
+
+bool equal(token *, std::string const &);
 
 extern char *user_input;
 extern token *tk;

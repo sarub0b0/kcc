@@ -2,6 +2,8 @@
 
 #include "kcc.h"
 
+int label_seq = 0;
+
 void gen_lval(node *node) {
   if (node->kind != ND_LVAR) {
     error("代入の左辺値が変数ではありません");
@@ -10,6 +12,55 @@ void gen_lval(node *node) {
   printf("  mov rax, rbp\n");
   printf("  sub rax, %d\n", node->offset);
   printf("  push rax\n");
+}
+
+void gen_if(node *node) {
+  // if (expr) stmt (else stmt);
+  //
+  // if (expr) stmt;
+  //   n->condをコンパイル
+  //   pop rax
+  //   cmp rax, 0
+  //   je  .LendXXX
+  //   n->thenをコンパイル
+  // .LendXXX
+  //
+  // if (expr) stmt else stmt;
+  //   n->condをコンパイル
+  //   pop rax
+  //   cmp rax, 0
+  //   je  .LendXXX
+  //   n->thenをコンパイル
+  //   jmp .LendXXX
+  // .LelseXXX
+  //   n->elsをコンパイル
+  // .LendXXX
+
+  gen(node->cond);
+  printf("  pop rax\n");
+  printf("  cmp rax, 0\n");
+
+  if (node->els) {
+    printf("  je  .L.else.%03d\n", label_seq);
+
+    gen(node->then);
+
+    printf("  jmp  .L.end.%03d\n", label_seq);
+    printf(".L.else.%03d:\n", label_seq);
+
+    gen(node->els);
+
+    printf(".L.end.%03d:\n", label_seq);
+  } else {
+
+    printf("  je  .L.end.%03d\n", label_seq);
+
+    gen(node->then);
+
+    printf(".L.end.%03d:\n", label_seq);
+
+    label_seq++;
+  }
 }
 
 void gen(node *node) {
@@ -41,6 +92,9 @@ void gen(node *node) {
     printf("  mov rsp, rbp\n");
     printf("  pop rbp\n");
     printf("  ret\n");
+    return;
+  case ND_IF:
+    gen_if(node);
     return;
   }
 
@@ -94,13 +148,8 @@ void gen(node *node) {
     printf("  setg al\n");
     printf("  movzb rax, al\n");
     break;
-  case ND_NUM:
-  case ND_LVAR:
-  case ND_ASSIGN:
-    break;
   }
 
 out:
   printf("  push rax\n");
 }
-

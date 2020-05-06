@@ -17,6 +17,13 @@ node *mul();
 node *unary();
 node *primary();
 
+token *skip(token *tk, std::string const &op) {
+  if (!equal(tk, op))
+    error("expected '%s', but op is '%s'", op.c_str(), tk->str.c_str());
+
+  return tk->next;
+}
+
 void expect(const char *op) {
   if (tk->kind != TK_RESERVED || tk->str.size() != std::strlen(op) ||
       tk->str.compare(op)) {
@@ -91,6 +98,12 @@ node *new_node(node_kind kind, node *lhs, node *rhs) {
   case ND_ASSIGN:
     n->str = "=";
     break;
+  case ND_IF:
+    n->str = "if";
+    break;
+  case ND_RETURN:
+    n->str = "return";
+    break;
   case ND_NUM:
   case ND_LVAR:
     break;
@@ -119,16 +132,34 @@ node *expr() { return assign(); }
 node *stmt() {
   node *n;
 
-  if (tk->kind == TK_RETURN) {
+  if (equal(tk, "return")) {
     tk = tk->next;
-    n = new node;
-    n->kind = ND_RETURN;
+    n = new_node(ND_RETURN, nullptr, nullptr);
     n->lhs = expr();
-  } else {
-    n = expr();
+    tk = skip(tk, ";");
+    return n;
   }
 
+  if (equal(tk, "if")) {
+    n = new_node(ND_IF, nullptr, nullptr);
+
+    tk = skip(tk->next, "(");
+    n->cond = expr();
+    tk = skip(tk, ")");
+
+    n->then = stmt();
+
+    if (equal(tk, "else")) {
+      tk = tk->next;
+      n->els = stmt();
+    }
+
+    return n;
+  }
+
+  n = expr();
   expect(";");
+
   return n;
 }
 

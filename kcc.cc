@@ -71,7 +71,7 @@ void header() {
 void prologue() {
   printf("  push rbp\n");
   printf("  mov rbp, rsp\n");
-  printf("  sub rsp, 208\n");
+  printf("  sub rsp, 512\n");
 }
 int main(int argc, char *argv[]) {
 
