@@ -176,6 +176,28 @@ node *stmt() {
   }
 
   // "for" "(" expr? ";" expr? ";" expr? ")" stmt
+  if (equal(tk, "for")) {
+    n = new_node(ND_FOR, nullptr, nullptr);
+    skip(tk->next, "(");
+    if (!equal(tk, ";")) {
+      n->init = expr();
+    }
+    skip(tk, ";");
+
+    if (!equal(tk, ";")) {
+      n->cond = expr();
+    }
+    skip(tk, ";");
+
+    if (!equal(tk, ")")) {
+      n->inc = expr();
+    }
+    skip(tk, ")");
+
+    n->then = stmt();
+
+    return n;
+  }
 
   n = expr();
   expect(";");

@@ -51,4 +51,7 @@ assert 1 'if (1==1) return 1;'
 assert 2 'if (1!=1) return 1; else return 2;'
 assert 0 'i=0;while(i<3) return 0; return 1;'
 assert 3 'i=0;while(i<3) i=i+1; return i;'
+assert 0 'i=0;while(i<3) return 0; return 1;'
+assert 3 'for(i = 0; i<3; i=i+1) 0; return i;'
+assert 0 'for(;;) return 0;'
 echo OK

@@ -83,12 +83,16 @@ void gen_for(node *node) {
   }
   printf(".L.begin.%03d:\n", label_seq);
 
-  gen(node->cond);
+  if (node->cond) {
+    gen(node->cond);
+  }
   printf("  pop rax\n");
   printf("  cmp rax, 0\n");
   printf("  je  .L.end.%03d\n", label_seq);
 
-  gen(node->then);
+  if (node->then) {
+    gen(node->then);
+  }
 
   if (node->inc) {
     gen(node->inc);
