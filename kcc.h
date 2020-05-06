@@ -47,6 +47,14 @@ enum node_kind {
   ND_FOR,
   ND_LABEL,
   ND_BLOCK,
+  ND_FUNC,
+  ND_VAR,
+};
+
+struct var {
+  var *next;
+  std::string name;
+  bool is_local;
 };
 
 struct node {
@@ -64,6 +72,9 @@ struct node {
   // block statement
   node *body;
   node *next;
+
+  // function call
+  std::vector<std::string> args;
 
   int val;
   std::string str;

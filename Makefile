@@ -1,6 +1,6 @@
 CXX := clang++
 CXXFLAGS := -std=c++14 -g -O0 -static
-SRCS := $(wildcard *.cc)
+SRCS := $(filter-out foo.cc, $(wildcard *.cc))
 OBJS := $(SRCS:.cc=.o)
 
 kcc: $(OBJS)
@@ -8,7 +8,10 @@ kcc: $(OBJS)
 
 $(OBJS): kcc.h
 
-test: kcc
+foo: foo.c
+	cc -O0 -c $<
+
+test: kcc foo
 	./test.sh
 
 clean:

@@ -108,6 +108,9 @@ node *new_node(node_kind kind, node *lhs, node *rhs) {
   case ND_RETURN:
     n->str = "return";
     break;
+  case ND_FUNC:
+    n->str = "func";
+    break;
   case ND_NUM:
   case ND_LVAR:
     break;
@@ -218,6 +221,10 @@ node *stmt() {
 
   n = expr();
   expect(";");
+  // if (equal(tk, ";")) {
+  //   skip(tk, ";");
+  // } else {
+  // }
 
   return n;
 }
@@ -280,8 +287,9 @@ node *mul() {
 }
 
 node *primary() {
+  node *n;
   if (consume("(")) {
-    node *n = expr();
+    n = expr();
     expect(")");
     n->str = "(" + n->str + ")";
     return n;
@@ -289,19 +297,27 @@ node *primary() {
 
   token *tok = consume_ident();
   if (tok) {
-    node *n = new node;
-    n->kind = ND_LVAR;
+    if (equal(tk, "(")) {
+      n = new_node(ND_FUNC, nullptr, nullptr);
+      n->str = tok->str;
+      tk = tk->next;
+      skip(tk, ")");
 
-    lvar *lvar = find_lvar(tok);
-    if (lvar) {
-      n->offset = lvar->offset;
     } else {
-      lvar = new struct lvar;
-      lvar->next = locals;
-      lvar->name = tok->str;
-      lvar->offset = locals->offset + 8;
-      n->offset = lvar->offset;
-      locals = lvar;
+
+      n = new_node(ND_LVAR, nullptr, nullptr);
+
+      lvar *lvar = find_lvar(tok);
+      if (lvar) {
+        n->offset = lvar->offset;
+      } else {
+        lvar = new struct lvar;
+        lvar->next = locals;
+        lvar->name = tok->str;
+        lvar->offset = locals->offset + 8;
+        n->offset = lvar->offset;
+        locals = lvar;
+      }
     }
 
     return n;

@@ -86,15 +86,11 @@ int main(int argc, char *argv[]) {
 
   program();
 
-  // print_tree(code[0], nullptr, false);
-
   header();
   prologue();
 
   for (auto &&c : code) {
     gen_code(c);
-
-    printf("  pop rax\n");
   }
 
   printf("  mov rsp, rbp\n");

@@ -22,6 +22,28 @@ assert() {
     num=$(( $num + 1 ))
 }
 
+assert_link() {
+    expected="$1"
+    input="$2"
+    link="$3"
+
+    ./kcc "$input" > tmp.s
+    cc -c ${link}.c
+    cc -o tmp tmp.s ${link}.o
+    ./tmp
+    actual="$?"
+
+    printf "% 2d: " $num
+    if [[ "$actual" = "$expected" ]]; then
+        echo "'$input' => $actual"
+    else
+        echo "'$input' => $expected expected, but got $actual"
+        echo NG
+        exit 1
+    fi
+    num=$(( $num + 1 ))
+}
+
 assert 0 '0;'
 assert 42 '42;'
 assert 21 "5+20-4;"
@@ -57,4 +79,8 @@ assert 0 'for(;;) return 0;'
 assert 3 '{i=1; i= i+1; i=i+1; return i;}'
 assert 6 'for(i = 0; i<5; i=i+1){i = i +1; i= i+1;} return i;'
 assert 10 'i=0; if(i==0) { i=5; return 10; }'
+
+assert_link 5 'a=0;a = foo(); return a;' foo
+assert_link 0 'a=0;bar(); return a;' foo
+
 echo OK

@@ -4,7 +4,7 @@
 
 int label_seq = 0;
 
-void gen(node *);
+int gen(node *);
 
 void gen_lval(node *node) {
   if (node->kind != ND_LVAR) {
@@ -118,7 +118,12 @@ void gen_block(node *node) {
   }
 }
 
-void gen(node *node) {
+void gen_func(node *node) {
+  printf("  call %s\n", node->str.c_str());
+  return;
+}
+
+int gen(node *node) {
   if (!node) {
     goto out;
   }
@@ -126,37 +131,43 @@ void gen(node *node) {
   switch (node->kind) {
   case ND_NUM:
     printf("  push %d\n", node->val);
-    return;
+    return 0;
   case ND_LVAR:
     gen_lval(node);
     printf("  pop rax\n");
     printf("  mov rax, [rax]\n");
     printf("  push rax\n");
-    return;
+    return 0;
   case ND_ASSIGN:
     gen_lval(node->lhs);
     gen(node->rhs);
+    if (node->rhs->kind == ND_FUNC) {
+      printf("  push rax\n");
+    }
     printf("  pop rdi\n");
     printf("  pop rax\n");
     printf("  mov [rax], rdi\n");
     printf("  push rdi\n");
-    return;
+    return 0;
   case ND_RETURN:
     gen(node->lhs);
     printf("  pop rax\n");
     printf("  mov rsp, rbp\n");
     printf("  pop rbp\n");
     printf("  ret\n");
-    return;
+    return 0;
   case ND_IF:
     gen_if(node);
-    return;
+    return 0;
   case ND_FOR:
     gen_for(node);
-    return;
+    return 0;
   case ND_BLOCK:
     gen_block(node);
-    return;
+    return 0;
+  case ND_FUNC:
+    gen_func(node);
+    return 0;
   }
 
   gen(node->lhs);
@@ -213,6 +224,11 @@ void gen(node *node) {
 
 out:
   printf("  push rax\n");
+  return 0;
 }
 
-void gen_code(node *node) { gen(node); }
+void gen_code(node *node) {
+  if (gen(node) == 0) {
+    printf("  pop rax\n");
+  }
+}
