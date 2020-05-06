@@ -17,11 +17,12 @@ node *mul();
 node *unary();
 node *primary();
 
-token *skip(token *tk, std::string const &op) {
-  if (!equal(tk, op))
-    error("expected '%s', but op is '%s'", op.c_str(), tk->str.c_str());
+void skip(token *token, std::string const &op) {
+  if (!equal(token, op)) {
+    error("expected '%s', but op is '%s'", op.c_str(), token->str.c_str());
+  }
 
-  return tk->next;
+  tk = token->next;
 }
 
 void expect(const char *op) {
@@ -101,6 +102,9 @@ node *new_node(node_kind kind, node *lhs, node *rhs) {
   case ND_IF:
     n->str = "if";
     break;
+  case ND_FOR:
+    n->str = "for/while";
+    break;
   case ND_RETURN:
     n->str = "return";
     break;
@@ -135,17 +139,20 @@ node *stmt() {
   if (equal(tk, "return")) {
     tk = tk->next;
     n = new_node(ND_RETURN, nullptr, nullptr);
+
     n->lhs = expr();
-    tk = skip(tk, ";");
+
+    skip(tk, ";");
     return n;
   }
 
+  // "if" "(" expr ")" stmt ("else" stmt)?
   if (equal(tk, "if")) {
     n = new_node(ND_IF, nullptr, nullptr);
 
-    tk = skip(tk->next, "(");
+    skip(tk->next, "(");
     n->cond = expr();
-    tk = skip(tk, ")");
+    skip(tk, ")");
 
     n->then = stmt();
 
@@ -156,6 +163,19 @@ node *stmt() {
 
     return n;
   }
+
+  // "while" "(" expr ")" stmt
+  if (equal(tk, "while")) {
+    n = new_node(ND_FOR, nullptr, nullptr);
+    skip(tk->next, "(");
+    n->cond = expr();
+    skip(tk, ")");
+    n->then = stmt();
+
+    return n;
+  }
+
+  // "for" "(" expr? ";" expr? ";" expr? ")" stmt
 
   n = expr();
   expect(";");

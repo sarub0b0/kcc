@@ -47,4 +47,8 @@ assert 15 'foo=3;bar=foo+12;'
 assert 15 'foo=3;foo=foo+12;'
 assert 5 'return 5;'
 assert 15 'a=10; return (a+5);'
+assert 1 'if (1==1) return 1;'
+assert 2 'if (1!=1) return 1; else return 2;'
+assert 0 'i=0;while(i<3) return 0; return 1;'
+assert 3 'i=0;while(i<3) i=i+1; return i;'
 echo OK

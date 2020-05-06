@@ -57,6 +57,8 @@ struct node {
   node *cond;
   node *then;
   node *els;
+  node *init;
+  node *inc;
 
   int val;
   std::string str;

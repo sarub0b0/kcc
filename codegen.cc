@@ -63,6 +63,42 @@ void gen_if(node *node) {
   }
 }
 
+void gen_for(node *node) {
+  // while (A) B -> for (;B;) D
+  // for (A; B; C) D
+  //
+  //   cond->initをコンパイル
+  // .L.begin.XXX:
+  //   Bをコンパイル
+  //   pop rax
+  //   cmp rax, 0
+  //   je  .L.end.XXX
+  //   Dをコンパイル
+  //   Cをコンパイル
+  //   jmp .L.begin.XXX
+  // .L.end.XXX
+
+  if (node->init) {
+    gen(node->init);
+  }
+  printf(".L.begin.%03d:\n", label_seq);
+
+  gen(node->cond);
+  printf("  pop rax\n");
+  printf("  cmp rax, 0\n");
+  printf("  je  .L.end.%03d\n", label_seq);
+
+  gen(node->then);
+
+  if (node->inc) {
+    gen(node->inc);
+  }
+  printf("  jmp .L.begin.%03d\n", label_seq);
+  printf(".L.end.%03d:\n", label_seq);
+
+  label_seq++;
+}
+
 void gen(node *node) {
   if (!node) {
     goto out;
@@ -95,6 +131,9 @@ void gen(node *node) {
     return;
   case ND_IF:
     gen_if(node);
+    return;
+  case ND_FOR:
+    gen_for(node);
     return;
   }
 

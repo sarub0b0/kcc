@@ -50,7 +50,9 @@ int is_alnum(char c) {
 }
 
 bool is_keyword(std::string &str) {
-  std::unordered_set<std::string> keyword{"return", "if", "else", "for"};
+  std::unordered_set<std::string> keyword{
+      "return", "if", "else", "for", "while",
+  };
 
   return keyword.find(str) != keyword.end();
 }
