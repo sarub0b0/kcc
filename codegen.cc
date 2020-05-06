@@ -4,6 +4,8 @@
 
 int label_seq = 0;
 
+void gen(node *);
+
 void gen_lval(node *node) {
   if (node->kind != ND_LVAR) {
     error("代入の左辺値が変数ではありません");
@@ -108,6 +110,12 @@ void gen_for(node *node) {
   label_seq++;
 }
 
+void gen_block(node *node) {
+  for (struct node *n = node->body; n; n = n->next) {
+    gen(n);
+  }
+}
+
 void gen(node *node) {
   if (!node) {
     goto out;
@@ -143,6 +151,9 @@ void gen(node *node) {
     return;
   case ND_FOR:
     gen_for(node);
+    return;
+  case ND_BLOCK:
+    gen_block(node);
     return;
   }
 
@@ -201,3 +212,5 @@ void gen(node *node) {
 out:
   printf("  push rax\n");
 }
+
+void gen_code(node *node) { gen(node); }

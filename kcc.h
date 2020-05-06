@@ -46,6 +46,7 @@ enum node_kind {
   ND_IF,
   ND_FOR,
   ND_LABEL,
+  ND_BLOCK,
 };
 
 struct node {
@@ -59,6 +60,10 @@ struct node {
   node *els;
   node *init;
   node *inc;
+
+  // block statement
+  node *body;
+  node *next;
 
   int val;
   std::string str;
@@ -78,7 +83,7 @@ void error(const char *fmt, ...);
 void error_at(const char *, const char *, ...);
 
 token *tokenize(char *);
-void gen(node *);
+void gen_code(node *);
 node *expr();
 bool consume(const char *);
 token *consume_ident();

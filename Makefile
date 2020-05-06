@@ -1,5 +1,5 @@
 CXX := clang++
-CXXFLAGS := -std=c++14 -g -static
+CXXFLAGS := -std=c++14 -g -O0 -static
 SRCS := $(wildcard *.cc)
 OBJS := $(SRCS:.cc=.o)
 

@@ -92,7 +92,7 @@ int main(int argc, char *argv[]) {
   prologue();
 
   for (auto &&c : code) {
-    gen(c);
+    gen_code(c);
 
     printf("  pop rax\n");
   }

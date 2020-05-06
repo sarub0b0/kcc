@@ -199,6 +199,23 @@ node *stmt() {
     return n;
   }
 
+  if (equal(tk, "{")) {
+    tk = tk->next;
+    n = new_node(ND_BLOCK, nullptr, nullptr);
+
+    node head = {};
+    node *cur = &head;
+
+    while (!equal(tk, "}")) {
+      cur = cur->next = stmt();
+    }
+
+    n->body = head.next;
+
+    skip(tk, "}");
+    return n;
+  }
+
   n = expr();
   expect(";");
 
