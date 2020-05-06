@@ -56,4 +56,5 @@ assert 3 'for(i = 0; i<3; i=i+1) 0; return i;'
 assert 0 'for(;;) return 0;'
 assert 3 '{i=1; i= i+1; i=i+1; return i;}'
 assert 6 'for(i = 0; i<5; i=i+1){i = i +1; i= i+1;} return i;'
+assert 10 'i=0; if(i==0) { i=5; return 10; }'
 echo OK

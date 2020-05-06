@@ -85,13 +85,14 @@ void gen_for(node *node) {
 
   if (node->init) {
     gen(node->init);
+    printf("  pop rax\n");
   }
   printf(".L.begin.%03d:\n", label_seq);
 
   if (node->cond) {
     gen(node->cond);
+    printf("  pop rax\n");
   }
-  printf("  pop rax\n");
   printf("  cmp rax, 0\n");
   printf("  je  .L.end.%03d\n", label_seq);
 
@@ -113,6 +114,7 @@ void gen_for(node *node) {
 void gen_block(node *node) {
   for (struct node *n = node->body; n; n = n->next) {
     gen(n);
+    printf("  pop rax\n");
   }
 }
 
