@@ -44,11 +44,13 @@ void gen_if(node *node) {
     printf("  je  .L.else.%03d\n", label_seq);
 
     gen(node->then);
+    printf("  pop rax\n");
 
     printf("  jmp  .L.end.%03d\n", label_seq);
     printf(".L.else.%03d:\n", label_seq);
 
     gen(node->els);
+    printf("  pop rax\n");
 
     printf(".L.end.%03d:\n", label_seq);
   } else {
@@ -56,6 +58,7 @@ void gen_if(node *node) {
     printf("  je  .L.end.%03d\n", label_seq);
 
     gen(node->then);
+    printf("  pop rax\n");
 
     printf(".L.end.%03d:\n", label_seq);
 
@@ -92,10 +95,12 @@ void gen_for(node *node) {
 
   if (node->then) {
     gen(node->then);
+    printf("  pop rax\n");
   }
 
   if (node->inc) {
     gen(node->inc);
+    printf("  pop rax\n");
   }
   printf("  jmp .L.begin.%03d\n", label_seq);
   printf(".L.end.%03d:\n", label_seq);
