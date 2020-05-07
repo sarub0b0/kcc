@@ -41,6 +41,7 @@ enum node_kind {
   ND_GE,
   ND_ASSIGN,
   ND_LVAR,
+  ND_COMMA,
   ND_NUM,
   ND_RETURN,
   ND_IF,
@@ -74,7 +75,8 @@ struct node {
   node *next;
 
   // function call
-  std::vector<std::string> args;
+  std::vector<node *> args;
+  int nargs;
 
   int val;
   std::string str;

@@ -2,6 +2,13 @@
 
 #include "kcc.h"
 
+const char *argreg64[] = {
+    "rdi", "rsi", "rdx", "rcx", "r8", "r9",
+};
+
+char *regs[] = {};
+int nargs;
+
 int label_seq = 0;
 
 int gen(node *);
@@ -119,6 +126,14 @@ void gen_block(node *node) {
 }
 
 void gen_func(node *node) {
+  // for (struct node *n = node->lhs; n; n = n->lhs) {
+  //   gen(n);
+  // }
+
+  for (int i = nargs; 0 <= i; i--) {
+    printf("  pop %s\n", argreg64[i]);
+  }
+
   printf("  call %s\n", node->str.c_str());
   return;
 }
@@ -151,6 +166,9 @@ int gen(node *node) {
     return 0;
   case ND_RETURN:
     gen(node->lhs);
+    if (node->lhs->kind == ND_FUNC) {
+      printf("  push rax\n");
+    }
     printf("  pop rax\n");
     printf("  mov rsp, rbp\n");
     printf("  pop rbp\n");
@@ -166,7 +184,13 @@ int gen(node *node) {
     gen_block(node);
     return 0;
   case ND_FUNC:
+    gen(node->lhs);
     gen_func(node);
+    return 0;
+  case ND_COMMA:
+    gen(node->lhs);
+    gen(node->rhs);
+    nargs++;
     return 0;
   }
 

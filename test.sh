@@ -82,5 +82,8 @@ assert 10 'i=0; if(i==0) { i=5; return 10; }'
 
 assert_link 5 'a=0;a = foo(); return a;' foo
 assert_link 0 'a=0;bar(); return a;' foo
+assert_link 11 'a=3; a= foo2(a, 3+ 5); return a;' foo
+assert_link 6 'a= foo3( 1, 2, 3);return a;' foo
+assert_link 6 'return foo3( 1, 2, 3);' foo
 
 echo OK

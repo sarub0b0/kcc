@@ -16,6 +16,7 @@ node *add();
 node *mul();
 node *unary();
 node *primary();
+node *funcall();
 
 void skip(token *token, std::string const &op) {
   if (!equal(token, op)) {
@@ -131,10 +132,20 @@ node *assign() {
   if (consume("=")) {
     n = new_node(ND_ASSIGN, n, assign());
   }
+
   return n;
 }
 
-node *expr() { return assign(); }
+node *expr() {
+  node *n = assign();
+
+  if (equal(tk, ",")) {
+    tk = tk->next;
+    n = new_node(ND_COMMA, n, expr());
+  }
+
+  return n;
+}
 
 node *stmt() {
   node *n;
@@ -301,6 +312,14 @@ node *primary() {
       n = new_node(ND_FUNC, nullptr, nullptr);
       n->str = tok->str;
       tk = tk->next;
+
+      node head = {};
+      node *cur = &head;
+
+      if (tk->kind == TK_IDENT || tk->kind == TK_NUM) {
+        n->lhs = expr();
+      }
+
       skip(tk, ")");
 
     } else {
