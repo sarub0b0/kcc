@@ -353,6 +353,12 @@ node *unary() {
     return new_node(ND_SUB, new_node_num(0), primary());
   }
 
+  if (consume("*")) {
+    return new_node(ND_DEREF, unary(), nullptr);
+  }
+  if (consume("&")) {
+    return new_node(ND_ADDR, unary(), nullptr);
+  }
   return primary();
 }
 

@@ -192,6 +192,15 @@ int gen(node *node) {
     gen(node->rhs);
     nargs++;
     return 0;
+  case ND_ADDR:
+    gen_lval(node->lhs);
+    return 0;
+  case ND_DEREF:
+    gen(node->lhs);
+    printf("  pop rax\n");
+    printf("  mov rax, [rax]\n");
+    printf("  push rax\n");
+    return 0;
   }
 
   gen(node->lhs);

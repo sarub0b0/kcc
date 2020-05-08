@@ -50,6 +50,8 @@ enum node_kind {
   ND_BLOCK,
   ND_FUNC,
   ND_VAR,
+  ND_ADDR,
+  ND_DEREF,
 };
 
 struct var {

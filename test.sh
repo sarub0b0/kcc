@@ -86,4 +86,7 @@ assert_link 11 'a=3; a= foo2(a, 3+ 5); return a;' foo
 assert_link 6 'a= foo3( 1, 2, 3);return a;' foo
 assert_link 6 'return foo3( 1, 2, 3);' foo
 
+assert 3 'x = 3; y = &x; return *y;'
+assert 3 'x = 3; y = 5; z = &y + 8; return *z;'
+
 echo OK
