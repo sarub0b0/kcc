@@ -9,6 +9,17 @@
 
 using uset_str = std::unordered_set<std::string>;
 
+const char *token_kind_str[TK_KIND_NUM] = {
+    "reserved", "identifier", "string", "number", "eof",
+};
+
+void print_tokens(token *token) {
+
+  for (struct token *t = token; t->kind != TK_EOF; t = t->next) {
+    printf("%*s %s\n", 12, token_kind_str[t->kind], t->str.c_str());
+  }
+}
+
 int starts_with(const char *p, const char *q) {
   return std::strncmp(p, q, std::strlen(q)) == 0;
 }

@@ -3,14 +3,9 @@
 
 #pragma once
 
+#include <list>
 #include <string>
 #include <vector>
-
-struct lvar {
-  lvar *next;
-  std::string name;
-  int offset;
-};
 
 enum token_kind {
   TK_RESERVED,
@@ -18,6 +13,7 @@ enum token_kind {
   TK_STR,
   TK_NUM,
   TK_EOF,
+  TK_KIND_NUM, // Tokenの種類の数
 };
 
 struct token {
@@ -40,7 +36,6 @@ enum node_kind {
   ND_GT,
   ND_GE,
   ND_ASSIGN,
-  ND_LVAR,
   ND_COMMA,
   ND_NUM,
   ND_RETURN,
@@ -48,24 +43,34 @@ enum node_kind {
   ND_FOR,
   ND_LABEL,
   ND_BLOCK,
-  ND_FUNC,
+  ND_FUNCALL,
   ND_VAR,
   ND_ADDR,
   ND_DEREF,
+  ND_EXPR_STMT,
 };
 
 struct var {
   var *next;
   std::string name;
-  bool is_local;
+  // bool is_local;
+
+  // local
+  int offset;
+
+  // global
+  // int is_static;
+  // char *init_data;
 };
 
 struct node {
   node_kind kind;
+  std::string str;
+
   node *lhs;
   node *rhs;
 
-  // if, for
+  // if, for. while
   node *cond;
   node *then;
   node *els;
@@ -77,12 +82,24 @@ struct node {
   node *next;
 
   // function call
-  std::vector<node *> args;
+  node *args;
+  // var **args;
   int nargs;
 
+  // variable
+  var *var;
+
   int val;
-  std::string str;
-  int offset;
+};
+
+struct function {
+  std::string name;
+  var *params;
+
+  node *stmt;
+
+  var *locals;
+  int stack_size;
 };
 
 struct trunk {
@@ -98,18 +115,22 @@ void error(const char *fmt, ...);
 void error_at(const char *, const char *, ...);
 
 token *tokenize(char *);
-void gen_code(node *);
+void gen_code(function *);
 node *expr();
 bool consume(const char *);
 token *consume_ident();
 void program();
 
 bool equal(token *, std::string const &);
+void print_tokens(token *);
+void print_ast(std::vector<function *> &);
 
 extern char *user_input;
 extern token *tk;
 extern std::vector<node *> code;
 
-extern lvar *locals;
+extern var *locals;
+extern std::vector<function *> functions;
+extern int verbose;
 
 #endif

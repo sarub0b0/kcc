@@ -6,20 +6,34 @@ const char *argreg64[] = {
     "rdi", "rsi", "rdx", "rcx", "r8", "r9",
 };
 
+void gen_expr();
+void gen_lval(node *);
+
 char *regs[] = {};
-int nargs;
 
 int label_seq = 0;
 
-int gen(node *);
+int gen_expr(node *);
+void gen_stmt(node *);
+
+void gen_addr(node *n) {
+  switch (n->kind) {
+  case ND_VAR:
+    gen_lval(n);
+    return;
+  case ND_DEREF:
+    gen_expr(n->lhs);
+    return;
+  }
+}
 
 void gen_lval(node *node) {
-  if (node->kind != ND_LVAR) {
+  if (node->kind != ND_VAR) {
     error("代入の左辺値が変数ではありません");
   }
 
   printf("  mov rax, rbp\n");
-  printf("  sub rax, %d\n", node->offset);
+  printf("  sub rax, %d\n", node->var->offset);
   printf("  push rax\n");
 }
 
@@ -45,20 +59,20 @@ void gen_if(node *node) {
   //   n->elsをコンパイル
   // .LendXXX
 
-  gen(node->cond);
+  gen_expr(node->cond);
   printf("  pop rax\n");
   printf("  cmp rax, 0\n");
 
   if (node->els) {
     printf("  je  .L.else.%03d\n", label_seq);
 
-    gen(node->then);
+    gen_stmt(node->then);
     printf("  pop rax\n");
 
     printf("  jmp  .L.end.%03d\n", label_seq);
     printf(".L.else.%03d:\n", label_seq);
 
-    gen(node->els);
+    gen_stmt(node->els);
     printf("  pop rax\n");
 
     printf(".L.end.%03d:\n", label_seq);
@@ -66,7 +80,7 @@ void gen_if(node *node) {
 
     printf("  je  .L.end.%03d\n", label_seq);
 
-    gen(node->then);
+    gen_stmt(node->then);
     printf("  pop rax\n");
 
     printf(".L.end.%03d:\n", label_seq);
@@ -91,25 +105,25 @@ void gen_for(node *node) {
   // .L.end.XXX
 
   if (node->init) {
-    gen(node->init);
+    gen_stmt(node->init);
     printf("  pop rax\n");
   }
   printf(".L.begin.%03d:\n", label_seq);
 
   if (node->cond) {
-    gen(node->cond);
+    gen_expr(node->cond);
     printf("  pop rax\n");
   }
   printf("  cmp rax, 0\n");
   printf("  je  .L.end.%03d\n", label_seq);
 
   if (node->then) {
-    gen(node->then);
+    gen_stmt(node->then);
     printf("  pop rax\n");
   }
 
   if (node->inc) {
-    gen(node->inc);
+    gen_stmt(node->inc);
     printf("  pop rax\n");
   }
   printf("  jmp .L.begin.%03d\n", label_seq);
@@ -119,92 +133,70 @@ void gen_for(node *node) {
 }
 
 void gen_block(node *node) {
-  for (struct node *n = node->body; n; n = n->next) {
-    gen(n);
-    printf("  pop rax\n");
-  }
+  for (struct node *n = node->body; n; n = n->next)
+    gen_stmt(n);
 }
 
 void gen_func(node *node) {
-  // for (struct node *n = node->lhs; n; n = n->lhs) {
-  //   gen(n);
-  // }
+  int nargs = 0;
+  for (struct node *n = node->args; n; n = n->next) {
+    gen_expr(n);
+    nargs++;
+  }
 
-  for (int i = nargs; 0 <= i; i--) {
+  for (int i = nargs - 1; 0 <= i; i--) {
     printf("  pop %s\n", argreg64[i]);
   }
 
   printf("  call %s\n", node->str.c_str());
+  printf("  push rax\n");
   return;
 }
 
-int gen(node *node) {
+int gen_expr(node *node) {
   if (!node) {
-    goto out;
+    return 0;
   }
 
   switch (node->kind) {
   case ND_NUM:
     printf("  push %d\n", node->val);
     return 0;
-  case ND_LVAR:
-    gen_lval(node);
+  case ND_VAR:
+    gen_addr(node);
     printf("  pop rax\n");
     printf("  mov rax, [rax]\n");
     printf("  push rax\n");
     return 0;
   case ND_ASSIGN:
-    gen_lval(node->lhs);
-    gen(node->rhs);
-    if (node->rhs->kind == ND_FUNC) {
-      printf("  push rax\n");
-    }
+    gen_addr(node->lhs);
+    gen_expr(node->rhs);
+    // 返り値を持つ関数の時にpush raxしたい
+    // if (node->rhs->kind == ND_FUNCALL) {
+    // printf("  push rax\n");
+    // }
     printf("  pop rdi\n");
     printf("  pop rax\n");
     printf("  mov [rax], rdi\n");
     printf("  push rdi\n");
     return 0;
-  case ND_RETURN:
-    gen(node->lhs);
-    if (node->lhs->kind == ND_FUNC) {
-      printf("  push rax\n");
-    }
-    printf("  pop rax\n");
-    printf("  mov rsp, rbp\n");
-    printf("  pop rbp\n");
-    printf("  ret\n");
-    return 0;
-  case ND_IF:
-    gen_if(node);
-    return 0;
-  case ND_FOR:
-    gen_for(node);
-    return 0;
-  case ND_BLOCK:
-    gen_block(node);
-    return 0;
-  case ND_FUNC:
-    gen(node->lhs);
+  case ND_FUNCALL:
+    gen_expr(node->lhs);
     gen_func(node);
     return 0;
-  case ND_COMMA:
-    gen(node->lhs);
-    gen(node->rhs);
-    nargs++;
-    return 0;
   case ND_ADDR:
-    gen_lval(node->lhs);
+    gen_addr(node->lhs);
     return 0;
   case ND_DEREF:
-    gen(node->lhs);
+    gen_expr(node->lhs);
     printf("  pop rax\n");
     printf("  mov rax, [rax]\n");
     printf("  push rax\n");
     return 0;
   }
 
-  gen(node->lhs);
-  gen(node->rhs);
+  gen_expr(node->lhs);
+  gen_expr(node->rhs);
 
   printf("  pop rdi\n");
   printf("  pop rax\n");
@@ -260,8 +252,95 @@ out:
   return 0;
 }
 
-void gen_code(node *node) {
-  if (gen(node) == 0) {
+void gen_stmt(node *node) {
+  switch (node->kind) {
+  case ND_RETURN:
+    gen_expr(node->lhs);
+    if (node->lhs->kind == ND_FUNCALL) {
+      printf("  push rax\n");
+    }
     printf("  pop rax\n");
+    printf("  mov rsp, rbp\n");
+    printf("  pop rbp\n");
+    printf("  ret\n");
+    return;
+  case ND_IF:
+    gen_if(node);
+    return;
+  case ND_FOR:
+    gen_for(node);
+    return;
+  case ND_BLOCK:
+    gen_block(node);
+    return;
+  case ND_EXPR_STMT:
+    gen_expr(node->lhs);
+    return;
+  }
+}
+
+void header() { printf(".intel_syntax noprefix\n"); }
+
+void prologue(int stack_size) {
+  printf("  push rbp\n");
+  printf("  mov rbp, rsp\n");
+  printf("  sub rsp, %d\n", stack_size);
+}
+
+void epilogue() {
+  printf("  mov rsp, rbp\n");
+  printf("  pop rbp\n");
+  printf("  ret\n");
+}
+
+int stack_size(int offset) { return (offset + 15) & ~15; }
+
+void set_offset_and_stack_size(function *fn) {
+  int offset = 0;
+  for (var *v = fn->params; v; v = v->next) {
+    offset += 8;
+    v->offset = offset;
+  }
+
+  for (var *v = fn->locals; v; v = v->next) {
+    offset += 8;
+    v->offset = offset;
+  }
+
+  fn->stack_size = stack_size(offset);
+}
+
+int nargs(var *v) {
+  int n = 0;
+  for (var *i = v; i; i = i->next) {
+    n++;
+  }
+  return n;
+}
+
+void gen_code(function *func) {
+
+  header();
+
+  for (auto &&fn : functions) {
+    printf(".global %s\n", fn->name.c_str());
+
+    printf("%s:\n", fn->name.c_str());
+
+    set_offset_and_stack_size(fn);
+
+    prologue(fn->stack_size);
+
+    int params_num = nargs(fn->params);
+
+    for (var *v = fn->params; v; v = v->next) {
+      printf("  mov [rbp-%d], %s\n", v->offset, argreg64[--params_num]);
+    }
+    for (node *n = fn->stmt->body; n; n = n->next) {
+
+      gen_stmt(n);
+    }
+
+    epilogue();
   }
 }

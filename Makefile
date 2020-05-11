@@ -9,7 +9,7 @@ kcc: $(OBJS)
 $(OBJS): kcc.h
 
 foo: foo.c
-	cc -O0 -c $<
+	cc -O0 -g -c $<
 
 test: kcc foo
 	./test.sh

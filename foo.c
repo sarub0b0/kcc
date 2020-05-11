@@ -8,6 +8,8 @@ int foo() {
 void bar() { return; }
 
 int foo2(int x, int y) {
+  int a;
+  a = x + y;
   printf("OK: %d\n", x + y);
   return x + y;
 }
