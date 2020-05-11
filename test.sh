@@ -92,5 +92,6 @@ assert 5 'foo() {return 5;} main() { return foo();}'
 assert 10 'foo() {return 5;} main() { a = foo() + 5; return a;}'
 assert 10 'foo(x) {return x;} main() { a = foo(5) + 5; return a;}'
 assert 1 'main(){return sub(5, 2) -sub(5, 3);} sub(x,y){return x -y;}'
+assert 55 'fib(n){if(n<=1) return 1; return fib(n-1) + fib(n-2);} main(){return fib(9);}'
 
 echo OK
