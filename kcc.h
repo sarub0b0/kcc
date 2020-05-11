@@ -53,14 +53,9 @@ enum node_kind {
 struct var {
   var *next;
   std::string name;
-  // bool is_local;
 
   // local
   int offset;
-
-  // global
-  // int is_static;
-  // char *init_data;
 };
 
 struct node {
@@ -100,6 +95,15 @@ struct function {
 
   var *locals;
   int stack_size;
+};
+
+enum type_kind {
+  TY_INT,
+};
+
+struct type {
+  type_kind kind;
+  std::string name;
 };
 
 struct trunk {
