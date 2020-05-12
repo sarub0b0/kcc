@@ -96,6 +96,7 @@ assert 55 'int fib(int n){if(n<=1) return 1; return fib(n-1) + fib(n-2);} int ma
 
 assert 3 'int main(){int x; int *y; y = &x; *y = 3; return x;}'
 assert 3 'int main(){int x; int *y; y = &x; *y = 3; return x;}'
+assert 8 'int main(){int x; int y; x = 3; y = 5; return add(&x, &y);} int add(int *x,int *y){return *x + *y;}'
 
 
 

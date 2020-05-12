@@ -374,8 +374,10 @@ var *funcdef_args(token *tok) {
   // while (!equal(tk, ")")) {
 
   type *ty = typespec(tk);
-  var = new_lvar(tk);
-  var->type = ty;
+  node *n = declarator(ty);
+  var = n->var;
+  // var = new_lvar(tk);
+  // var->type = ty;
 
   tk = tk->next;
   if (equal(tk, ","))
@@ -663,7 +665,8 @@ node *funcall(token *token) {
 
   skip(tk, "(");
 
-  if (tk->kind == TK_IDENT || tk->kind == TK_NUM) {
+  if (tk->kind == TK_IDENT || tk->kind == TK_NUM || equal(tk, "&") ||
+      equal(tk, "*")) {
     while (!equal(tk, ")")) {
       if (cur != &head)
         skip(tk, ",");
