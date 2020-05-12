@@ -308,9 +308,6 @@ function *funcdef() {
   function *fn = new function;
   type *type = typespec(tk);
 
-  // ident
-  // func_name = consume_ident();
-  // if (func_name) {
   node *n = declarator(fn->type);
   fn->type = n->var->type;
   fn->name = n->str;
@@ -320,7 +317,6 @@ function *funcdef() {
   fn->params = type_suffix(tk->next);
   fn->stmt = compound_stmt();
   fn->locals = locals;
-  // }
 
   return fn;
 }
@@ -338,14 +334,9 @@ node *declarator(type *ty) {
     error_at(tk->pos, "expected a variable name");
   }
 
-  // type-suffix?
-
   var *v;
-  // var *var_type_suffix = type_suffix();
-  // if (var_type_suffix) {
   v = new_lvar(tk);
   v->type = ty;
-  // }
 
   n = new_node_lvar(v, ty);
   return n;
@@ -367,23 +358,14 @@ var *type_suffix(token *tok) {
 
 var *funcdef_args(token *tok) {
   var *var = nullptr;
-  // tk = tok;
-
-  // skip(tk, "(");
-
-  // while (!equal(tk, ")")) {
 
   type *ty = typespec(tk);
   node *n = declarator(ty);
   var = n->var;
-  // var = new_lvar(tk);
-  // var->type = ty;
 
   tk = tk->next;
   if (equal(tk, ","))
     tk = tk->next;
-  // }
-  // skip(tk, ")");
 
   return var;
 }
@@ -395,20 +377,6 @@ node *declaration() {
 
   base_ty = typespec(tk);
   n = declarator(base_ty);
-
-  // type *ty = base_ty;
-
-  // while (consume("*")) {
-  //   ty = pointer_to(ty);
-  // }
-
-  // if (tk->kind != TK_IDENT) {
-  //   error_at(tk->pos, "expected a variable name");
-  // }
-
-  // var *v = new_lvar(tk);
-  // v->type = ty;
-  // n = new_node_lvar(v, ty);
 
   skip(tk->next, ";");
 
@@ -539,10 +507,6 @@ node *stmt() {
 
   n = new_node_expr(tk);
   expect(";");
-  // if (equal(tk, ";")) {
-  //   skip(tk, ";");
-  // } else {
-  // }
 
   return n;
 }
@@ -665,14 +629,11 @@ node *funcall(token *token) {
 
   skip(tk, "(");
 
-  if (tk->kind == TK_IDENT || tk->kind == TK_NUM || equal(tk, "&") ||
-      equal(tk, "*")) {
-    while (!equal(tk, ")")) {
-      if (cur != &head)
-        skip(tk, ",");
+  while (!equal(tk, ")")) {
+    if (cur != &head)
+      skip(tk, ",");
 
-      cur = cur->next = assign();
-    }
+    cur = cur->next = assign();
   }
   skip(tk, ")");
 
