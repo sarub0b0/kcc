@@ -90,8 +90,14 @@ assert 15 'int main(){int foo; foo=3;return foo+12;}'
 # assert 5 'foo() {return 5;} main() { return foo();}'
 # assert 10 'foo() {return 5;} main() { a = foo() + 5; return a;}'
 assert 10 'int foo(int x) {return x;} int main() { int a; a= foo(5) + 5; return a;}'
+assert 3 'int main(){return sub(5, 2);} int sub(int x,int y){return x -y;}'
 assert 1 'int main(){return sub(5, 2) -sub(5, 3);} int sub(int x,int y){return x -y;}'
 assert 55 'int fib(int n){if(n<=1) return 1; return fib(n-1) + fib(n-2);} int main(){return fib(9);}'
+
+assert 3 'int main(){int x; int *y; y = &x; *y = 3; return x;}'
+assert 3 'int main(){int x; int *y; y = &x; *y = 3; return x;}'
+
+
 
 
 

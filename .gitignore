@@ -3,3 +3,4 @@ tmp*
 kcc
 a.out
 .bash_history
+.lldb

@@ -50,9 +50,22 @@ enum node_kind {
   ND_EXPR_STMT,
 };
 
+enum type_kind {
+  INT,
+  PTR,
+};
+
+struct type {
+  type_kind kind;
+  type *ptr_to;
+  // type_kind kind;
+  // std::string name;
+};
+
 struct var {
   var *next;
   std::string name;
+  type *type;
 
   // local
   int offset;
@@ -61,6 +74,7 @@ struct var {
 struct node {
   node_kind kind;
   std::string str;
+  type *type;
 
   node *lhs;
   node *rhs;
@@ -89,21 +103,13 @@ struct node {
 
 struct function {
   std::string name;
+  type *type;
   var *params;
 
   node *stmt;
 
   var *locals;
   int stack_size;
-};
-
-enum type_kind {
-  TY_INT,
-};
-
-struct type {
-  type_kind kind;
-  std::string name;
 };
 
 struct trunk {
@@ -129,6 +135,9 @@ bool equal(token *, std::string const &);
 void print_tokens(token *);
 void print_ast(std::vector<function *> &);
 
+void add_type(node *);
+type *pointer_to(type *);
+
 extern char *user_input;
 extern token *tk;
 extern std::vector<node *> code;
@@ -136,5 +145,7 @@ extern std::vector<node *> code;
 extern var *locals;
 extern std::vector<function *> functions;
 extern int verbose;
+
+extern type *ty_int;
 
 #endif

@@ -9,7 +9,9 @@ std::vector<function *> functions;
 var *locals;
 
 function *funcdef();
-var *funcdef_args();
+node *declarator(type *);
+var *funcdef_args(token *);
+var *type_suffix(token *);
 node *compound_stmt();
 node *assign();
 node *stmt();
@@ -266,11 +268,12 @@ node *new_node_num(int val) {
   return n;
 }
 
-node *new_node_lvar(var *var) {
+node *new_node_lvar(var *var, type *ty) {
   node *n = new node;
   n->kind = ND_VAR;
   n->var = var;
   n->str = var->name;
+  n->type = ty;
   return n;
 }
 
@@ -294,78 +297,116 @@ var *new_lvar(token *token) {
   return v;
 }
 
-void *typespec(token *tok) {
+type *typespec(token *tok) {
   skip(tok, "int");
-  return nullptr;
+  return ty_int;
 }
 
 function *funcdef() {
-  function *fn = nullptr;
-  node *n = nullptr;
-  token *func_name = nullptr;
+  locals = nullptr;
+
+  function *fn = new function;
+  type *type = typespec(tk);
+
+  // ident
+  // func_name = consume_ident();
+  // if (func_name) {
+  node *n = declarator(fn->type);
+  fn->type = n->var->type;
+  fn->name = n->str;
 
   locals = nullptr;
 
-  typespec(tk);
-
-  // ident
-  func_name = consume_ident();
-  if (func_name) {
-    fn = new function;
-    fn->name = func_name->str;
-    fn->params = funcdef_args();
-    fn->stmt = compound_stmt();
-    fn->locals = locals;
-  }
+  fn->params = type_suffix(tk->next);
+  fn->stmt = compound_stmt();
+  fn->locals = locals;
+  // }
 
   return fn;
 }
 
-var *funcdef_args() {
+node *declarator(type *ty) {
+  node *n;
+
+  type *type = ty;
+
+  while (consume("*")) {
+    type = pointer_to(type);
+  }
+  // ident
+  if (tk->kind != TK_IDENT) {
+    error_at(tk->pos, "expected a variable name");
+  }
+
+  // type-suffix?
+
+  var *v;
+  // var *var_type_suffix = type_suffix();
+  // if (var_type_suffix) {
+  v = new_lvar(tk);
+  v->type = ty;
+  // }
+
+  n = new_node_lvar(v, ty);
+  return n;
+}
+
+var *type_suffix(token *tok) {
   var *var = nullptr;
+  tk = tok;
 
   skip(tk, "(");
 
   while (!equal(tk, ")")) {
-    typespec(tk);
-
-    var = new_lvar(tk);
-
-    tk = tk->next;
-    if (equal(tk, ","))
-      tk = tk->next;
+    var = funcdef_args(tk);
   }
   skip(tk, ")");
 
   return var;
 }
 
-node *declarator() {
-  // node *n;
+var *funcdef_args(token *tok) {
+  var *var = nullptr;
+  // tk = tok;
 
-  // if (tk->kind == TK_IDENT) {
+  // skip(tk, "(");
 
-  // } else {
-  //   error_at(tk->pos, "expected a variable name");
+  // while (!equal(tk, ")")) {
+
+  type *ty = typespec(tk);
+  var = new_lvar(tk);
+  var->type = ty;
+
+  tk = tk->next;
+  if (equal(tk, ","))
+    tk = tk->next;
   // }
+  // skip(tk, ")");
 
-  // return n;
-  return nullptr;
+  return var;
 }
 
 node *declaration() {
   node *n;
-  var *v;
 
-  typespec(tk);
+  type *base_ty;
 
-  if (tk->kind == TK_IDENT) {
-    v = new_lvar(tk);
-    n = new_node_lvar(v);
+  base_ty = typespec(tk);
+  n = declarator(base_ty);
 
-  } else {
-    return nullptr;
-  }
+  // type *ty = base_ty;
+
+  // while (consume("*")) {
+  //   ty = pointer_to(ty);
+  // }
+
+  // if (tk->kind != TK_IDENT) {
+  //   error_at(tk->pos, "expected a variable name");
+  // }
+
+  // var *v = new_lvar(tk);
+  // v->type = ty;
+  // n = new_node_lvar(v, ty);
 
   skip(tk->next, ";");
 
@@ -640,12 +681,13 @@ node *funcall(token *token) {
 }
 
 // program = funcdef*
+// funcdef = typespec declarator type-suffix compound-stmt
 // typespec = "int"
-// funcdef = typespec declarator compound-stmt
-// declarator = ident ("(" funcdef-args? ")" )?
+// declarator = "*"* ident
+// type-suffix = "(" funcdef-args? ")"
 // funcdef-args = param ( "," param )*
 // param = typespec declarator
-// declaration = typespec ident ";"
+// declaration = typespec declarator ";"
 // compound-stmt = "{" ( declaration | stmt )* "}"
 // stmt = expr ";"
 //      | "{" stmt* "}"
