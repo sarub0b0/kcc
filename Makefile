@@ -1,10 +1,10 @@
-CXX := clang++
-CXXFLAGS := -std=c++14 -g -O0 -static
-SRCS := $(filter-out foo.cc, $(wildcard *.cc))
-OBJS := $(SRCS:.cc=.o)
+CC := clang
+CFLAGS := -g -O0 -static -Wno-switch
+SRCS := $(filter-out foo.c, $(wildcard *.c))
+OBJS := $(SRCS:.c=.o)
 
 kcc: $(OBJS)
-	$(CXX) -o $@ $(OBJS) $(LDFLAGS)
+	$(CC) -o $@ $(OBJS) $(LDFLAGS)
 
 $(OBJS): kcc.h
 

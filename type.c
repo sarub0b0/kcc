@@ -1,16 +1,18 @@
+#include <stdlib.h>
+
 #include "kcc.h"
 
-type ty_int_ = (type){INT};
-type *ty_int = &ty_int_;
+struct type ty_int_ = (struct type){INT};
+struct type *ty_int = &ty_int_;
 
-type *pointer_to(type *base) {
-  type *ty = new type;
+struct type *pointer_to(struct type *base) {
+  struct type *ty = calloc(1, sizeof(struct type));
   ty->ptr_to = base;
   ty->kind = PTR;
   return ty;
 }
 
-void add_type(node *n) {
+void add_type(struct node *n) {
   if (!n || n->type)
     return;
 
@@ -23,7 +25,7 @@ void add_type(node *n) {
   add_type(n->init);
   add_type(n->inc);
 
-  for (node *nn = n->body; nn; nn = nn->next) {
+  for (struct node *nn = n->body; nn; nn = nn->next) {
     add_type(nn);
   }
 

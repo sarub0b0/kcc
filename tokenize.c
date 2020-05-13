@@ -1,0 +1,152 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include <ctype.h>
+
+#include "kcc.h"
+
+const char *token_kind_str[TK_KIND_NUM] = {
+    "reserved",
+    "identifier",
+    "string",
+    "number",
+    "eof",
+};
+
+void print_tokens(struct token *token) {
+
+    for (struct token *t = token; t->kind != TK_EOF; t = t->next) {
+        printf("%*s %s\n", 12, token_kind_str[t->kind], t->str);
+    }
+}
+
+int starts_with(const char *p, const char *q) {
+    return strncmp(p, q, strlen(q)) == 0;
+}
+
+bool equal(struct token *token, char *op) {
+    return token->len == strlen(op) &&
+           strncmp(token->str, op, strlen(op)) == 0;
+}
+
+bool consume(char *op) {
+    if (equal(tk, op)) {
+        tk = tk->next;
+        return true;
+    }
+    return false;
+}
+
+struct token *consume_ident() {
+    struct token *tok = tk;
+    if (tk->kind == TK_IDENT) {
+        tk = tk->next;
+        return tok;
+    }
+    return NULL;
+}
+
+struct token *consume_num() {
+    struct token *tok = tk;
+    if (tk->kind == TK_IDENT) {
+        tk = tk->next;
+        return tok;
+    }
+    return NULL;
+}
+
+struct token *new_token(enum token_kind kind,
+                        struct token *cur,
+                        char *loc,
+                        int len) {
+    struct token *t = calloc(1, sizeof(struct token));
+    t->kind         = kind;
+    t->len          = len;
+    t->str          = strndup(loc, len);
+    t->loc          = loc;
+    cur->next       = t;
+    return t;
+}
+
+int is_alpha(char c) {
+    return ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z') || (c == '_');
+}
+
+int is_alnum(char c) {
+    return is_alpha(c) || ('0' <= c && c <= '9');
+}
+
+bool is_keyword(struct token *tok) {
+    char *keyword[] = {"return", "if", "else", "for", "while", "int"};
+
+    for (int i = 0; i < sizeof(keyword) / sizeof(*keyword); i++) {
+        if (equal(tok, keyword[i])) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+void convert_ident_to_reserved(struct token *token) {
+    for (struct token *tok = token; tok; tok = tok->next) {
+        if (tok->kind == TK_IDENT && is_keyword(tok)) {
+            tok->kind = TK_RESERVED;
+            continue;
+        }
+    }
+}
+
+struct token *tokenize(char *p) {
+    struct token head = {};
+    struct token *cur = &head;
+
+    while (*p) {
+        if (isspace(*p)) {
+            p++;
+            continue;
+        }
+
+        if (starts_with(p, "==") || starts_with(p, "!=") ||
+            starts_with(p, ">=") || starts_with(p, "<=")) {
+            cur = new_token(TK_RESERVED, cur, p, 2);
+            p += 2;
+            continue;
+        }
+
+        if (is_alpha(*p)) {
+            char *q = p;
+            while (is_alnum(*p)) {
+                p++;
+            }
+            cur = new_token(TK_IDENT, cur, q, p - q);
+            continue;
+        }
+
+        if (*p == '+' || *p == '-' || *p == '*' || *p == '/') {
+            cur = new_token(TK_RESERVED, cur, p++, 1);
+            continue;
+        }
+
+        if (ispunct(*p)) {
+            cur = new_token(TK_RESERVED, cur, p++, 1);
+            continue;
+        }
+
+        if (isdigit(*p)) {
+            char *prev = p;
+            cur        = new_token(TK_NUM, cur, p, 1);
+            cur->val   = strtol(p, &p, 10);
+            cur->len   = p - prev;
+            cur->str   = strndup(prev, cur->len);
+            continue;
+        }
+
+        error_at(p, "トークナイズできません");
+    }
+
+    new_token(TK_EOF, cur, p, 0);
+    convert_ident_to_reserved(head.next);
+    return head.next;
+}

@@ -1,151 +1,138 @@
 #ifndef __KCC_H
 #define __KCC_H
 
-#pragma once
-
-#include <list>
-#include <string>
-#include <vector>
+#include <stdbool.h>
 
 enum token_kind {
-  TK_RESERVED,
-  TK_IDENT,
-  TK_STR,
-  TK_NUM,
-  TK_EOF,
-  TK_KIND_NUM, // Tokenの種類の数
+    TK_RESERVED,
+    TK_IDENT,
+    TK_STR,
+    TK_NUM,
+    TK_EOF,
+    TK_KIND_NUM, // Tokenの種類の数
 };
 
 struct token {
-  token_kind kind;
-  token *next;
-  int val;
-  std::string str;
-  char *pos;
+    enum token_kind kind;
+    struct token *next;
+    int val;
+    char *str;
+    char *loc;
+    int len;
 };
 
 enum node_kind {
-  ND_ADD,
-  ND_SUB,
-  ND_MUL,
-  ND_DIV,
-  ND_EQ,
-  ND_NE,
-  ND_LT,
-  ND_LE,
-  ND_GT,
-  ND_GE,
-  ND_ASSIGN,
-  ND_COMMA,
-  ND_NUM,
-  ND_RETURN,
-  ND_IF,
-  ND_FOR,
-  ND_LABEL,
-  ND_BLOCK,
-  ND_FUNCALL,
-  ND_VAR,
-  ND_ADDR,
-  ND_DEREF,
-  ND_EXPR_STMT,
+    ND_ADD,
+    ND_SUB,
+    ND_MUL,
+    ND_DIV,
+    ND_EQ,
+    ND_NE,
+    ND_LT,
+    ND_LE,
+    ND_GT,
+    ND_GE,
+    ND_ASSIGN,
+    ND_NUM,
+    ND_RETURN,
+    ND_IF,
+    ND_FOR,
+    ND_LABEL,
+    ND_BLOCK,
+    ND_FUNCALL,
+    ND_VAR,
+    ND_ADDR,
+    ND_DEREF,
+    ND_EXPR_STMT,
 };
 
 enum type_kind {
-  INT,
-  PTR,
+    INT,
+    PTR,
 };
 
 struct type {
-  type_kind kind;
-  type *ptr_to;
-  // type_kind kind;
-  // std::string name;
+    enum type_kind kind;
+    struct type *ptr_to;
+    // type_kind kind;
+    // std::string name;
 };
 
 struct var {
-  var *next;
-  std::string name;
-  type *type;
+    struct var *next;
+    char *name;
+    struct type *type;
 
-  // local
-  int offset;
+    // local
+    int offset;
 };
 
 struct node {
-  node_kind kind;
-  std::string str;
-  type *type;
+    enum node_kind kind;
+    char *str;
+    struct type *type;
 
-  node *lhs;
-  node *rhs;
+    struct node *lhs;
+    struct node *rhs;
 
-  // if, for. while
-  node *cond;
-  node *then;
-  node *els;
-  node *init;
-  node *inc;
+    // if, for. while
+    struct node *cond;
+    struct node *then;
+    struct node *els;
+    struct node *init;
+    struct node *inc;
 
-  // block statement
-  node *body;
-  node *next;
+    // block statement
+    struct node *body;
+    struct node *next;
 
-  // function call
-  node *args;
-  // var **args;
-  int nargs;
+    // function call
+    struct node *args;
+    // var **args;
+    int nargs;
 
-  // variable
-  var *var;
+    // variable
+    struct var *var;
 
-  int val;
+    int val;
 };
 
 struct function {
-  std::string name;
-  type *type;
-  var *params;
+    char *name;
+    struct function *next;
+    struct type *type;
+    struct var *params;
 
-  node *stmt;
+    struct node *stmt;
 
-  var *locals;
-  int stack_size;
-};
-
-struct trunk {
-  trunk *prev;
-  std::string str;
-  trunk(trunk *prev, std::string str) {
-    this->prev = prev;
-    this->str = str;
-  }
+    struct var *locals;
+    int stack_size;
 };
 
 void error(const char *fmt, ...);
 void error_at(const char *, const char *, ...);
 
-token *tokenize(char *);
-void gen_code(function *);
-node *expr();
-bool consume(const char *);
-token *consume_ident();
+struct token *tokenize(char *);
+void gen_code(struct function *);
+struct node *expr();
+bool consume(char *);
+struct token *consume_ident();
 void program();
 
-bool equal(token *, std::string const &);
-void print_tokens(token *);
-void print_ast(std::vector<function *> &);
+bool equal(struct token *, char *);
+void print_tokens(struct token *);
+void print_ast(struct function *);
 
-void add_type(node *);
-type *pointer_to(type *);
+void add_type(struct node *);
+struct type *pointer_to(struct type *);
 
 extern char *user_input;
-extern token *tk;
-extern std::vector<node *> code;
+extern struct token *tk;
 
-extern var *locals;
-extern std::vector<function *> functions;
+extern struct var *locals;
+extern struct function *functions;
 extern int verbose;
 
-extern type *ty_int;
+extern struct type *ty_int;
 
 #endif
