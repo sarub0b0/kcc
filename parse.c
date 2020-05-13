@@ -342,6 +342,54 @@ struct node *new_node_expr(struct token *tk) {
     return n;
 }
 
+struct node *new_add(struct node *lhs, struct node *rhs) {
+    add_type(lhs);
+    add_type(rhs);
+
+    // num + num
+    if (lhs->type->kind == INT && rhs->type->kind == INT) {
+        return new_node_binary(ND_ADD, lhs, rhs);
+    }
+
+    // num + ptr to ptr + num
+    if (!lhs->type->ptr_to && rhs->type->ptr_to) {
+        struct node *tmp;
+        tmp = lhs;
+        lhs = rhs;
+        rhs = tmp;
+    }
+
+    // ptr + num
+    // num * sizeof(type)
+    rhs = new_node_binary(ND_MUL, rhs, new_node_num(8));
+    return new_node_binary(ND_ADD, lhs, rhs);
+}
+
+struct node *new_sub(struct node *lhs, struct node *rhs) {
+    add_type(lhs);
+    add_type(rhs);
+
+    // num - num
+    if (lhs->type->kind == INT && rhs->type->kind == INT) {
+        return new_node_binary(ND_SUB, lhs, rhs);
+    }
+
+    // ptr - num
+    if (lhs->type->ptr_to && rhs->type->kind == INT) {
+        rhs = new_node_binary(ND_MUL, rhs, new_node_num(8));
+        return new_node_binary(ND_SUB, lhs, rhs);
+    }
+
+    // ptr - ptr
+    if (lhs->type->ptr_to && rhs->type->kind == INT) {
+        struct node *sub = new_node_binary(ND_SUB, lhs, rhs);
+        return new_node_binary(ND_DIV, sub, new_node_num(8));
+    }
+
+    error_at(tk->loc, "invalid operands");
+    return NULL;
+}
+
 struct var *new_lvar(struct token *token) {
     struct var *v = calloc(1, sizeof(struct var));
     v->name       = token->str;
@@ -605,10 +653,11 @@ struct node *add() {
     struct node *n = mul();
     while (true) {
         if (consume("+")) {
-            n      = new_node_binary(ND_ADD, n, mul());
+            // n      = new_node_binary(ND_ADD, n, mul());
+            n      = new_add(n, mul());
             n->str = "+";
         } else if (consume("-")) {
-            n      = new_node_binary(ND_SUB, n, mul());
+            n      = new_sub(n, mul());
             n->str = "-";
         } else {
             return n;

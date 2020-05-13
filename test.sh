@@ -89,7 +89,7 @@ assert 15 'int main(){int foo; foo=3;return foo+12;}'
 # assert 3 'main(){x = 3; y = 5; z = &y - 8; return *z;}'
 # assert 5 'foo() {return 5;} main() { return foo();}'
 # assert 10 'foo() {return 5;} main() { a = foo() + 5; return a;}'
-assert 10 'int foo(int x) {return x;} int main() { int a; a= foo(5) + 5; return a;}'
+assert 10 'int foo(int x) {return x;} int main() { int a1; a1= foo(5) + 5; return a1;}'
 assert 3 'int main(){return sub(5, 2);} int sub(int x,int y){return x -y;}'
 assert 1 'int main(){return sub(5, 2) -sub(5, 3);} int sub(int x,int y){return x -y;}'
 assert 55 'int fib(int n){if(n<=1) return 1; return fib(n-1) + fib(n-2);} int main(){return fib(9);}'
@@ -97,8 +97,10 @@ assert 55 'int fib(int n){if(n<=1) return 1; return fib(n-1) + fib(n-2);} int ma
 assert 3 'int main(){int x; int *y; y = &x; *y = 3; return x;}'
 assert 3 'int main(){int x; int *y; y = &x; *y = 3; return x;}'
 assert 8 'int main(){int x; int y; x = 3; y = 5; return add(&x, &y);} int add(int *x,int *y){return *x + *y;}'
+assert 3 'int main(){int x; x = 3; return *&x;}'
 
-
+assert 5 'int main() { int x; x=3; int y;y=5; return *(&x+1); }'
+assert 3 'int main() { int x; x=3; int y;y=5; return *(&y-1); }'
 
 
 
