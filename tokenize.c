@@ -12,6 +12,7 @@ const char *token_kind_str[TK_KIND_NUM] = {
     "string",
     "number",
     "eof",
+    "sizeof",
 };
 
 void print_tokens(struct token *token) {
@@ -78,7 +79,8 @@ int is_alnum(char c) {
 }
 
 bool is_keyword(struct token *tok) {
-    char *keyword[] = {"return", "if", "else", "for", "while", "int"};
+    char *keyword[] = {
+        "return", "if", "else", "for", "while", "int", "sizeof"};
 
     for (int i = 0; i < sizeof(keyword) / sizeof(*keyword); i++) {
         if (equal(tok, keyword[i])) {
@@ -93,6 +95,9 @@ void convert_ident_to_reserved(struct token *token) {
     for (struct token *tok = token; tok; tok = tok->next) {
         if (tok->kind == TK_IDENT && is_keyword(tok)) {
             tok->kind = TK_RESERVED;
+            if (equal(tok, "sizeof")) {
+                tok->kind = TK_SIZEOF;
+            }
             continue;
         }
     }

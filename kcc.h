@@ -9,6 +9,7 @@ enum token_kind {
     TK_STR,
     TK_NUM,
     TK_EOF,
+    TK_SIZEOF,
     TK_KIND_NUM, // Tokenの種類の数
 };
 
@@ -53,7 +54,9 @@ enum type_kind {
 
 struct type {
     enum type_kind kind;
+    int size;
     struct type *ptr_to;
+
     // type_kind kind;
     // std::string name;
 };

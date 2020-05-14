@@ -65,6 +65,7 @@ assert 1 'int main(){return 1 < 2;}'
 assert 5 'int main(){int a; a=3;return a+2;}'
 assert 2 'int main(){int a; int b; a=b=2; return a;}'
 assert 15 'int main(){int foo; foo=3;return foo+12;}'
+
 # assert 15 'main(){int a=10; return (a+5);}'
 # assert 1 'main(){if (1==1) return 1;}'
 # assert 2 'main(){if (1!=1) return 1; else return 2;}'
@@ -89,6 +90,7 @@ assert 15 'int main(){int foo; foo=3;return foo+12;}'
 # assert 3 'main(){x = 3; y = 5; z = &y - 8; return *z;}'
 # assert 5 'foo() {return 5;} main() { return foo();}'
 # assert 10 'foo() {return 5;} main() { a = foo() + 5; return a;}'
+
 assert 10 'int foo(int x) {return x;} int main() { int a1; a1= foo(5) + 5; return a1;}'
 assert 3 'int main(){return sub(5, 2);} int sub(int x,int y){return x -y;}'
 assert 1 'int main(){return sub(5, 2) -sub(5, 3);} int sub(int x,int y){return x -y;}'
@@ -101,6 +103,13 @@ assert 3 'int main(){int x; x = 3; return *&x;}'
 
 assert 5 'int main() { int x; x=3; int y;y=5; return *(&x+1); }'
 assert 3 'int main() { int x; x=3; int y;y=5; return *(&y-1); }'
+assert 4 'int main() { int x; return sizeof(x); }'
+assert 8 'int main() { int *x; return sizeof(x); }'
+assert 4 'int main() { int x; return sizeof(x + 3); }'
+assert 8 'int main() { int *x; return sizeof(x + 5); }'
+assert 4 'int main() { int *x; return sizeof(*x); }'
+assert 4 'int main() { return sizeof(1); }'
+assert 4 'int main() { return sizeof(sizeof(1)); }'
 
 
 

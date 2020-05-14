@@ -361,7 +361,7 @@ struct node *new_add(struct node *lhs, struct node *rhs) {
 
     // ptr + num
     // num * sizeof(type)
-    rhs = new_node_binary(ND_MUL, rhs, new_node_num(8));
+    rhs = new_node_binary(ND_MUL, rhs, new_node_num(lhs->type->size));
     return new_node_binary(ND_ADD, lhs, rhs);
 }
 
@@ -376,14 +376,14 @@ struct node *new_sub(struct node *lhs, struct node *rhs) {
 
     // ptr - num
     if (lhs->type->ptr_to && rhs->type->kind == INT) {
-        rhs = new_node_binary(ND_MUL, rhs, new_node_num(8));
+        rhs = new_node_binary(ND_MUL, rhs, new_node_num(lhs->type->size));
         return new_node_binary(ND_SUB, lhs, rhs);
     }
 
     // ptr - ptr
     if (lhs->type->ptr_to && rhs->type->kind == INT) {
         struct node *sub = new_node_binary(ND_SUB, lhs, rhs);
-        return new_node_binary(ND_DIV, sub, new_node_num(8));
+        return new_node_binary(ND_DIV, sub, new_node_num(lhs->type->size));
     }
 
     error_at(tk->loc, "invalid operands");
@@ -437,9 +437,9 @@ struct node *declarator(struct type *ty) {
 
     struct var *v;
     v       = new_lvar(tk);
-    v->type = ty;
+    v->type = type;
 
-    n = new_node_lvar(v, ty);
+    n = new_node_lvar(v, type);
     return n;
 }
 
@@ -706,6 +706,14 @@ struct node *primary() {
 }
 
 struct node *unary() {
+
+    if (tk->kind == TK_SIZEOF) {
+        skip(tk, "sizeof");
+        struct node *node = unary();
+        add_type(node);
+        return new_node_num(node->type->size);
+    }
+
     if (consume("+")) {
         return unary();
     }
@@ -764,7 +772,7 @@ struct node *funcall(struct token *token) {
 // relational = add ( "<" add | "<=" add | ">" add | ">=" add )*
 // add = mul ( "+" mul | "-" mul )*
 // mul = unary ( "*" unary | "/" unary )*
-// unary = ( "+" | "-" | "*" | "&" )? unary | primary
+// unary = "sizeof" unary | ( "+" | "-" | "*" | "&" )? unary | primary
 // primary = num | ident funcall-args?  | "(" expr ")"
 // funcall = ident "(" funcall-args ")"
 // funcall-args = assign ( "," assign )*

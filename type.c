@@ -2,13 +2,13 @@
 
 #include "kcc.h"
 
-struct type ty_int_ = (struct type){INT};
-struct type *ty_int = &ty_int_;
+struct type *ty_int = &(struct type){INT, 4};
 
 struct type *pointer_to(struct type *base) {
     struct type *ty = calloc(1, sizeof(struct type));
     ty->ptr_to      = base;
     ty->kind        = PTR;
+    ty->size        = 8;
     return ty;
 }
 
