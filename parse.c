@@ -20,6 +20,7 @@ struct node *relational();
 struct node *add();
 struct node *mul();
 struct node *unary();
+struct node *postfix();
 struct node *primary();
 
 struct node *funcall(struct token *token);
@@ -337,9 +338,11 @@ struct node *new_node_lvar(struct var *var, struct type *ty) {
     return n;
 }
 
-struct node *new_node_unary(enum node_kind kind, struct token *token) {
+struct node *new_node_unary(enum node_kind kind,
+                            struct node *expr,
+                            struct token *token) {
     struct node *n = new_node(kind, token);
-    n->lhs         = unary();
+    n->lhs         = expr;
     return n;
 }
 
@@ -678,7 +681,6 @@ struct node *add() {
     struct node *n = mul();
     while (true) {
         if (consume("+")) {
-            // n      = new_node_binary(ND_ADD, n, mul());
             n      = new_add(n, mul());
             n->str = "+";
         } else if (consume("-")) {
@@ -705,6 +707,46 @@ struct node *mul() {
     }
 }
 
+struct node *unary() {
+
+    if (tk->kind == TK_SIZEOF) {
+        skip(tk, "sizeof");
+        struct node *node = unary();
+        add_type(node);
+        return new_node_num(node->type->size);
+    }
+
+    if (consume("+")) {
+        return unary();
+    }
+    if (consume("-")) {
+        return new_node_binary(ND_SUB, new_node_num(0), unary());
+    }
+
+    if (consume("*")) {
+        return new_node_unary(ND_DEREF, unary(), tk);
+    }
+    if (consume("&")) {
+        return new_node_unary(ND_ADDR, unary(), tk);
+    }
+    // return primary();
+    return postfix();
+}
+
+struct node *postfix() {
+    struct node *n = primary();
+
+    if (n->kind != ND_NUM) {
+        struct token *start = tk->next;
+        while (consume("[")) {
+            struct node *index = expr();
+            skip(tk, "]");
+            n = new_node_unary(ND_DEREF, new_add(n, index), start);
+        }
+    }
+    return n;
+}
+
 struct node *primary() {
     struct node *n;
     if (consume("(")) {
@@ -726,31 +768,6 @@ struct node *primary() {
     }
 
     return new_node_num(expect_number());
-}
-
-struct node *unary() {
-
-    if (tk->kind == TK_SIZEOF) {
-        skip(tk, "sizeof");
-        struct node *node = unary();
-        add_type(node);
-        return new_node_num(node->type->size);
-    }
-
-    if (consume("+")) {
-        return unary();
-    }
-    if (consume("-")) {
-        return new_node_binary(ND_SUB, new_node_num(0), unary());
-    }
-
-    if (consume("*")) {
-        return new_node_unary(ND_DEREF, tk);
-    }
-    if (consume("&")) {
-        return new_node_unary(ND_ADDR, tk);
-    }
-    return primary();
 }
 
 struct node *funcall(struct token *token) {
@@ -800,6 +817,7 @@ struct node *funcall(struct token *token) {
 // add = mul ( "+" mul | "-" mul )*
 // mul = unary ( "*" unary | "/" unary )*
 // unary = "sizeof" unary | ( "+" | "-" | "*" | "&" )? unary | primary
+// postfix = primary ( "[" expr "]" )*
 // primary = num | ident funcall-args?  | "(" expr ")"
 // funcall = ident "(" funcall-args ")"
 // funcall-args = assign ( "," assign )*
