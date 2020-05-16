@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <assert.h>
 
 #include "kcc.h"
 
@@ -11,9 +12,17 @@ const char *argreg64[] = {
     "r9",
 };
 
-void gen_lval(struct node *);
+const char *reg[] = {
+    "r10",
+    "r11",
+    "r12",
+    "r13",
+    "r14",
+    "r15",
+};
 
-char *regs[] = {};
+int inc = 0;
+struct function *current_fn;
 
 int label_seq = 0;
 
@@ -23,22 +32,12 @@ void gen_stmt(struct node *);
 void gen_addr(struct node *n) {
     switch (n->kind) {
         case ND_VAR:
-            gen_lval(n);
+            printf("  lea %s, [rbp-%d]\n", reg[inc++], n->var->offset);
             return;
         case ND_DEREF:
             gen_expr(n->lhs);
             return;
     }
-}
-
-void gen_lval(struct node *node) {
-    if (node->kind != ND_VAR) {
-        error("代入の左辺値が変数ではありません");
-    }
-
-    printf("  mov rax, rbp\n");
-    printf("  sub rax, %d\n", node->var->offset);
-    printf("  push rax\n");
 }
 
 void gen_if(struct node *node) {
@@ -148,12 +147,24 @@ void gen_func(struct node *node) {
     }
 
     for (int i = nargs - 1; 0 <= i; i--) {
-        printf("  pop %s\n", argreg64[i]);
+        printf("  mov %s, %s\n", argreg64[i], reg[--inc]);
     }
 
     printf("  call %s\n", node->str);
-    printf("  push rax\n");
+    printf("  mov %s, rax\n", reg[inc++]);
     return;
+}
+
+void load(struct type *type) {
+    if (type->kind == ARRAY) {
+        return;
+    }
+    printf("  mov %s, [%s]\n", reg[inc - 1], reg[inc - 1]);
+}
+
+void store() {
+    printf("  mov [%s], %s\n", reg[inc - 1], reg[inc - 2]);
+    inc--;
 }
 
 int gen_expr(struct node *node) {
@@ -163,28 +174,16 @@ int gen_expr(struct node *node) {
 
     switch (node->kind) {
         case ND_NUM:
-            printf("  push %d\n", node->val);
+            printf("  mov %s, %d\n", reg[inc++], node->val);
             return 0;
         case ND_VAR:
             gen_addr(node);
-            if (node->type->kind == ARRAY) {
-                return 0;
-            }
-            printf("  pop rax\n");
-            printf("  mov rax, [rax]\n");
-            printf("  push rax\n");
+            load(node->type);
             return 0;
         case ND_ASSIGN:
-            gen_addr(node->lhs);
             gen_expr(node->rhs);
-            // 返り値を持つ関数の時にpush raxしたい
-            // if (node->rhs->kind == ND_FUNCALL) {
-            // printf("  push rax\n");
-            // }
-            printf("  pop rdi\n");
-            printf("  pop rax\n");
-            printf("  mov [rax], rdi\n");
-            printf("  push rdi\n");
+            gen_addr(node->lhs);
+            store();
             return 0;
         case ND_FUNCALL:
             gen_expr(node->lhs);
@@ -195,66 +194,65 @@ int gen_expr(struct node *node) {
             return 0;
         case ND_DEREF:
             gen_expr(node->lhs);
-            printf("  pop rax\n");
-            printf("  mov rax, [rax]\n");
-            printf("  push rax\n");
+            load(node->type);
             return 0;
     }
 
     gen_expr(node->lhs);
     gen_expr(node->rhs);
 
-    printf("  pop rdi\n");
-    printf("  pop rax\n");
+    const char *rs = reg[inc - 1];
+    const char *rd = reg[inc - 2];
+    inc--;
 
     switch (node->kind) {
         case ND_ADD:
-            printf("  add rax, rdi\n");
+            printf("  add %s, %s\n", rd, rs);
             break;
         case ND_SUB:
-            printf("  sub rax, rdi\n");
+            printf("  sub %s, %s\n", rd, rs);
             break;
         case ND_MUL:
-            printf("  imul rax, rdi\n");
+            printf("  imul %s, %s\n", rd, rs);
             break;
         case ND_DIV:
+            printf("  mov rax, %s\n", rd);
             printf("  cqo\n");
-            printf("  idiv rdi\n");
+            printf("  idiv %s\n", rs);
+            printf("  mov %s, rax\n", rd);
             break;
         case ND_EQ:
-            printf("  cmp rax, rdi\n");
+            printf("  cmp %s, %s\n", rd, rs);
             printf("  sete al\n");
-            printf("  movzb rax, al\n");
+            printf("  movzb %s, al\n", rd);
             break;
         case ND_NE:
-            printf("  cmp rax, rdi\n");
+            printf("  cmp %s, %s\n", rd, rs);
             printf("  setne al\n");
-            printf("  movzb rax, al\n");
+            printf("  movzb %s, al\n", rd);
             break;
         case ND_LE:
-            printf("  cmp rax, rdi\n");
+            printf("  cmp %s, %s\n", rd, rs);
             printf("  setle al\n");
-            printf("  movzb rax, al\n");
+            printf("  movzb %s, al\n", rd);
             break;
         case ND_LT:
-            printf("  cmp rax, rdi\n");
+            printf("  cmp %s, %s\n", rd, rs);
             printf("  setl al\n");
-            printf("  movzb rax, al\n");
+            printf("  movzb %s, al\n", rd);
             break;
         case ND_GE:
-            printf("  cmp rax, rdi\n");
+            printf("  cmp %s, %s\n", rd, rs);
             printf("  setge al\n");
-            printf("  movzb rax, al\n");
+            printf("  movzb %s, al\n", rd);
             break;
         case ND_GT:
-            printf("  cmp rax, rdi\n");
+            printf("  cmp %s, %s\n", rd, rs);
             printf("  setg al\n");
-            printf("  movzb rax, al\n");
+            printf("  movzb %s, al\n", rd);
             break;
     }
 
-out:
-    printf("  push rax\n");
     return 0;
 }
 
@@ -265,10 +263,8 @@ void gen_stmt(struct node *node) {
             if (node->lhs->kind == ND_FUNCALL) {
                 printf("  push rax\n");
             }
-            printf("  pop rax\n");
-            printf("  mov rsp, rbp\n");
-            printf("  pop rbp\n");
-            printf("  ret\n");
+            printf("  mov rax, %s\n", reg[--inc]);
+            printf("  jmp .L.return.%s\n", current_fn->name);
             return;
         case ND_IF:
             gen_if(node);
@@ -281,6 +277,7 @@ void gen_stmt(struct node *node) {
             return;
         case ND_EXPR_STMT:
             gen_expr(node->lhs);
+            inc--;
             return;
     }
 }
@@ -295,7 +292,8 @@ void prologue(int stack_size) {
     printf("  sub rsp, %d\n", stack_size);
 }
 
-void epilogue() {
+void epilogue(char *func_name) {
+    printf(".L.return.%s:\n", func_name);
     printf("  mov rsp, rbp\n");
     printf("  pop rbp\n");
     printf("  ret\n");
@@ -307,11 +305,6 @@ int stack_size(int offset) {
 
 void set_offset_and_stack_size(struct function *fn) {
     int offset = 0;
-    for (struct var *v = fn->params; v; v = v->next) {
-        offset += v->type->size;
-        v->offset = offset;
-    }
-
     for (struct var *v = fn->locals; v; v = v->next) {
         offset += v->type->size;
         v->offset = offset;
@@ -333,6 +326,7 @@ void gen_code(struct function *func) {
     header();
 
     for (struct function *fn = func; fn; fn = fn->next) {
+        current_fn = fn;
 
         printf(".global %s\n", fn->name);
 
@@ -349,8 +343,9 @@ void gen_code(struct function *func) {
         }
         for (struct node *n = fn->stmt->body; n; n = n->next) {
             gen_stmt(n);
+            assert(inc == 0);
         }
 
-        epilogue();
+        epilogue(fn->name);
     }
 }

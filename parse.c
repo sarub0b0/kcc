@@ -219,7 +219,7 @@ void print_compound_stmt(struct node *stmt, bool is_next) {
     if (stmt) {
         prefix = strndup(global_prefix, MAX_LEN);
         printf("%s`-CompoundStmt\n", prefix);
-        snprintf(buf, 256, "%s ", prefix);
+        snprintf(buf, MAX_LEN, "%s ", prefix);
 
         prefix = buf;
 
@@ -368,7 +368,7 @@ struct node *new_add(struct node *lhs, struct node *rhs) {
 
     // ptr + num
     // num * sizeof(type)
-    rhs = new_node_binary(ND_MUL, rhs, new_node_num(lhs->type->size));
+    rhs = new_node_binary(ND_MUL, rhs, new_node_num(lhs->type->ptr_to->size));
     return new_node_binary(ND_ADD, lhs, rhs);
 }
 
@@ -383,14 +383,16 @@ struct node *new_sub(struct node *lhs, struct node *rhs) {
 
     // ptr - num
     if (lhs->type->ptr_to && rhs->type->kind == INT) {
-        rhs = new_node_binary(ND_MUL, rhs, new_node_num(lhs->type->size));
+        rhs = new_node_binary(
+            ND_MUL, rhs, new_node_num(lhs->type->ptr_to->size));
         return new_node_binary(ND_SUB, lhs, rhs);
     }
 
     // ptr - ptr
     if (lhs->type->ptr_to && rhs->type->kind == INT) {
         struct node *sub = new_node_binary(ND_SUB, lhs, rhs);
-        return new_node_binary(ND_DIV, sub, new_node_num(lhs->type->size));
+        return new_node_binary(
+            ND_DIV, sub, new_node_num(lhs->type->ptr_to->size));
     }
 
     error_at(tk->loc, "invalid operands");
@@ -534,6 +536,7 @@ struct node *compound_stmt() {
         } else {
             cur = cur->next = stmt();
         }
+        add_type(cur);
     }
 
     n->body = head.next;

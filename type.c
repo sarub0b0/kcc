@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <string.h>
 
 #include "kcc.h"
 
@@ -6,8 +7,8 @@ struct type *ty_int = &(struct type){INT, 8, ""};
 
 struct type *copy_type(struct type *ty) {
     struct type *ret = calloc(1, sizeof(struct type));
-    ret              = ty;
-    return ty;
+    memcpy(ret, ty, sizeof(struct type));
+    return ret;
 }
 
 struct type *pointer_to(struct type *base) {
@@ -43,6 +44,10 @@ void add_type(struct node *n) {
         add_type(nn);
     }
 
+    for (struct node *nn = n->args; nn; nn = nn->next) {
+        add_type(nn);
+    }
+
     switch (n->kind) {
         case ND_ADD:
         case ND_SUB:
@@ -61,15 +66,17 @@ void add_type(struct node *n) {
             n->type = ty_int;
             return;
         case ND_ADDR:
-
-            n->type = pointer_to(n->lhs->type);
+            if (n->lhs->type->kind == ARRAY) {
+                n->type = pointer_to(n->lhs->type->ptr_to);
+            } else {
+                n->type = pointer_to(n->lhs->type);
+            }
             return;
         case ND_DEREF:
-            if (n->lhs->type->kind == PTR) {
-                n->type = n->lhs->type->ptr_to;
-            } else {
-                n->type = ty_int;
+            if (!n->lhs->type->ptr_to) {
+                error("Invalid pointer deference");
             }
+            n->type = n->lhs->type->ptr_to;
             return;
         case ND_FUNCALL:
             n->type = ty_int;

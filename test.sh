@@ -65,6 +65,7 @@ assert 1 'int main(){return 1 < 2;}'
 assert 5 'int main(){int a; a=3;return a+2;}'
 assert 2 'int main(){int a; int b; a=b=2; return a;}'
 assert 15 'int main(){int foo; foo=3;return foo+12;}'
+# assert 15 'int main() {return add(5, 10);} int add(int a,int b) {return a + b;}'
 
 # assert 15 'main(){int a=10; return (a+5);}'
 # assert 1 'main(){if (1==1) return 1;}'
@@ -98,7 +99,7 @@ assert 15 'int main(){int foo; foo=3;return foo+12;}'
 
 assert 3 'int main(){int x; int *y; y = &x; *y = 3; return x;}'
 assert 3 'int main(){int x; int *y; y = &x; *y = 3; return x;}'
-assert 8 'int main(){int x; int y; x = 3; y = 5; return add(&x, &y);} int add(int *x,int *y){return *x + *y;}'
+assert 8 'int main(){int x; int y; x = 3; y = 5; return add(x, y);} int add(int x,int y){return x + y;}'
 assert 3 'int main(){int x; x = 3; return *&x;}'
 
 assert 5 'int main() { int x; x=3; int y;y=5; return *(&x+1); }'
@@ -118,6 +119,10 @@ assert 3 'int main() { int x[2]; int *y; y=&x; *y=3; return *x; }'
 assert 3 'int main() { int x[3]; *x=3; *(x+1)=4; *(x+2)=5; return *x; }'
 assert 4 'int main() { int x[3]; *x=3; *(x+1)=4; *(x+2)=5; return *(x+1); }'
 assert 5 'int main() { int x[3]; *x=3; *(x+1)=4; *(x+2)=5; return *(x+2); }'
+
+assert 1 'int main { int a[2]; *a = 1; *(a + 1) = 2; int *p; p = a; return *p; }'
+assert 2 'int main { int a[2]; *a = 1; *(a + 1) = 2; int *p; p = a; return *(p + 1); }'
+assert 3 'int main { int a[2]; *a = 1; *(a + 1) = 2; int *p; p = a; return *p + *(p + 1); }'
 
 # assert 0 'int main() { int x[2][3]; int *y; y=x; *y=0; return **x; }'
 # assert 1 'int main() { int x[2][3]; int *y; y=x; *(y+1)=1; return *(*x+1); }'
