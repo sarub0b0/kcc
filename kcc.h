@@ -1,6 +1,7 @@
 #ifndef __KCC_H
 #define __KCC_H
 
+#include <stddef.h>
 #include <stdbool.h>
 
 enum token_kind {
@@ -50,15 +51,21 @@ enum node_kind {
 enum type_kind {
     INT,
     PTR,
+    ARRAY,
 };
 
 struct type {
     enum type_kind kind;
-    int size;
+    size_t size;
+    char *name;
     struct type *ptr_to;
+    size_t array_size;
 
-    // type_kind kind;
-    // std::string name;
+    struct type *next;
+
+    // function
+    struct type *return_type;
+    struct type *params;
 };
 
 struct var {
@@ -127,7 +134,9 @@ void print_tokens(struct token *);
 void print_ast(struct function *);
 
 void add_type(struct node *);
+struct type *copy_type(struct type *);
 struct type *pointer_to(struct type *);
+struct type *array_to(struct type *, size_t len);
 
 extern char *user_input;
 extern struct token *tk;

@@ -167,6 +167,9 @@ int gen_expr(struct node *node) {
             return 0;
         case ND_VAR:
             gen_addr(node);
+            if (node->type->kind == ARRAY) {
+                return 0;
+            }
             printf("  pop rax\n");
             printf("  mov rax, [rax]\n");
             printf("  push rax\n");
@@ -305,12 +308,12 @@ int stack_size(int offset) {
 void set_offset_and_stack_size(struct function *fn) {
     int offset = 0;
     for (struct var *v = fn->params; v; v = v->next) {
-        offset += 8;
+        offset += v->type->size;
         v->offset = offset;
     }
 
     for (struct var *v = fn->locals; v; v = v->next) {
-        offset += 8;
+        offset += v->type->size;
         v->offset = offset;
     }
 
@@ -345,7 +348,6 @@ void gen_code(struct function *func) {
             printf("  mov [rbp-%d], %s\n", v->offset, argreg64[--params_num]);
         }
         for (struct node *n = fn->stmt->body; n; n = n->next) {
-
             gen_stmt(n);
         }
 

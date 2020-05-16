@@ -8,9 +8,9 @@ struct function *functions;
 struct var *locals;
 
 struct function *funcdef();
-struct node *declarator(struct type *);
-struct var *funcdef_args(struct token *);
-struct var *type_suffix(struct token *);
+struct type *declarator(struct type *);
+struct type *funcdef_args(struct token *, struct type *);
+struct type *type_suffix(struct token *, struct type *);
 struct node *compound_stmt();
 struct node *assign();
 struct node *stmt();
@@ -276,6 +276,13 @@ int expect_number() {
     return val;
 }
 
+int get_number(struct token *tok) {
+    if (tok->kind != TK_NUM) {
+        error_at(tok->loc, "expected an number");
+    }
+    return tok->val;
+}
+
 char *get_ident(struct token *tok) {
     if (tok->kind != TK_IDENT) {
         error_at(tok->loc, "expected an identifier");
@@ -390,17 +397,19 @@ struct node *new_sub(struct node *lhs, struct node *rhs) {
     return NULL;
 }
 
-struct var *new_lvar(struct token *token) {
+struct var *new_lvar(struct type *type) {
     struct var *v = calloc(1, sizeof(struct var));
-    v->name       = token->str;
+    v->name       = type->name;
     v->next       = locals;
+    v->type       = type;
     locals        = v;
     return v;
 }
 
 struct type *typespec(struct token *tok) {
     skip(tok, "int");
-    return ty_int;
+
+    return copy_type(ty_int);
 }
 
 struct function *funcdef() {
@@ -409,23 +418,24 @@ struct function *funcdef() {
     struct function *fn = calloc(1, sizeof(struct function));
     struct type *type   = typespec(tk);
 
-    struct node *n = declarator(type);
-    fn->type       = n->var->type;
-    fn->name       = n->str;
+    type     = declarator(type);
+    fn->name = type->name;
+    fn->type = type->return_type;
 
-    locals = NULL;
+    for (struct type *ty = type->params; ty; ty = ty->next) {
+        new_lvar(ty);
+    }
 
-    fn->params = type_suffix(tk->next);
+    fn->params = locals;
+
     fn->stmt   = compound_stmt();
     fn->locals = locals;
 
     return fn;
 }
 
-struct node *declarator(struct type *ty) {
-    struct node *n;
-
-    struct type *type = ty;
+struct type *declarator(struct type *base) {
+    struct type *type = base;
 
     while (consume("*")) {
         type = pointer_to(type);
@@ -435,52 +445,64 @@ struct node *declarator(struct type *ty) {
         error_at(tk->loc, "expected a variable name");
     }
 
-    struct var *v;
-    v       = new_lvar(tk);
-    v->type = type;
+    char *type_name = get_ident(tk);
 
-    n = new_node_lvar(v, type);
-    return n;
+    type       = type_suffix(tk->next, type);
+    type->name = type_name;
+
+    return type;
 }
 
-struct var *type_suffix(struct token *tok) {
-    struct var *var = NULL;
-    tk              = tok;
+struct type *type_suffix(struct token *tok, struct type *type) {
+    tk = tok;
 
-    skip(tk, "(");
+    if (consume("(")) {
+        return funcdef_args(tk, type);
+    }
 
+    if (consume("[")) {
+        int size = get_number(tk);
+        skip(tk->next, "]");
+        type = type_suffix(tk, type);
+        type = array_to(type, size);
+        return type;
+    }
+
+    return type;
+}
+
+struct type *funcdef_args(struct token *tok, struct type *type) {
+
+    struct type head = {};
+    struct type *cur = &head;
     while (!equal(tk, ")")) {
-        var = funcdef_args(tk);
+        if (cur != &head) {
+            skip(tk, ",");
+        }
+        struct type *ty;
+        ty = typespec(tk);
+        ty = declarator(ty);
+
+        cur = cur->next = copy_type(ty);
     }
     skip(tk, ")");
 
-    return var;
-}
-
-struct var *funcdef_args(struct token *tok) {
-    struct var *var = NULL;
-
-    struct type *ty = typespec(tk);
-    struct node *n  = declarator(ty);
-    var             = n->var;
-
-    tk = tk->next;
-    if (equal(tk, ",")) tk = tk->next;
-
-    return var;
+    type->return_type = type;
+    type->params      = head.next;
+    return type;
 }
 
 struct node *declaration() {
-    struct node *n;
 
-    struct type *base_ty;
+    struct type *type = typespec(tk);
 
-    base_ty = typespec(tk);
-    n       = declarator(base_ty);
+    type = declarator(type);
 
-    skip(tk->next, ";");
+    skip(tk, ";");
 
-    return n;
+    struct var *var = new_lvar(type);
+
+    return new_node_lvar(var, var->type);
 }
 
 struct node *assign() {
@@ -697,9 +719,7 @@ struct node *primary() {
             error_at(tok->loc, "変数%sは定義されていません", tok->str);
         }
 
-        n      = new_node(ND_VAR, tok);
-        n->var = lvar;
-        return n;
+        return new_node_lvar(lvar, lvar->type);
     }
 
     return new_node_num(expect_number());
@@ -752,10 +772,14 @@ struct node *funcall(struct token *token) {
 }
 
 // program = funcdef*
-// funcdef = typespec declarator type-suffix compound-stmt
 // typespec = "int"
-// declarator = "*"* ident
-// type-suffix = "(" funcdef-args? ")"
+// funcdef = typespec declarator compound-stmt
+// declarator = "*"* ident type-suffix
+//
+// あとで複数の[]に対応する
+// type-suffix = "[" num "]"
+//              | "(" funcdef-args? ")"
+//
 // funcdef-args = param ( "," param )*
 // param = typespec declarator
 // declaration = typespec declarator ";"

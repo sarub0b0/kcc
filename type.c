@@ -2,7 +2,13 @@
 
 #include "kcc.h"
 
-struct type *ty_int = &(struct type){INT, 4};
+struct type *ty_int = &(struct type){INT, 8, ""};
+
+struct type *copy_type(struct type *ty) {
+    struct type *ret = calloc(1, sizeof(struct type));
+    ret              = ty;
+    return ty;
+}
 
 struct type *pointer_to(struct type *base) {
     struct type *ty = calloc(1, sizeof(struct type));
@@ -10,6 +16,15 @@ struct type *pointer_to(struct type *base) {
     ty->kind        = PTR;
     ty->size        = 8;
     return ty;
+}
+
+struct type *array_to(struct type *base, size_t len) {
+    struct type *type = calloc(1, sizeof(struct type));
+    type->kind        = ARRAY;
+    type->size        = len * base->size;
+    type->array_size  = len;
+    type->ptr_to      = base;
+    return type;
 }
 
 void add_type(struct node *n) {

@@ -91,10 +91,10 @@ assert 15 'int main(){int foo; foo=3;return foo+12;}'
 # assert 5 'foo() {return 5;} main() { return foo();}'
 # assert 10 'foo() {return 5;} main() { a = foo() + 5; return a;}'
 
-assert 10 'int foo(int x) {return x;} int main() { int a1; a1= foo(5) + 5; return a1;}'
-assert 3 'int main(){return sub(5, 2);} int sub(int x,int y){return x -y;}'
-assert 1 'int main(){return sub(5, 2) -sub(5, 3);} int sub(int x,int y){return x -y;}'
-assert 55 'int fib(int n){if(n<=1) return 1; return fib(n-1) + fib(n-2);} int main(){return fib(9);}'
+# assert 10 'int foo(int x) {return x;} int main() { int a1; a1= foo(5) + 5; return a1;}'
+# assert 3 'int main(){return sub(5, 2);} int sub(int x,int y){return x -y;}'
+# assert 1 'int main(){return sub(5, 2) -sub(5, 3);} int sub(int x,int y){return x -y;}'
+# assert 55 'int fib(int n){if(n<=1) return 1; return fib(n-1) + fib(n-2);} int main(){return fib(9);}'
 
 assert 3 'int main(){int x; int *y; y = &x; *y = 3; return x;}'
 assert 3 'int main(){int x; int *y; y = &x; *y = 3; return x;}'
@@ -103,14 +103,41 @@ assert 3 'int main(){int x; x = 3; return *&x;}'
 
 assert 5 'int main() { int x; x=3; int y;y=5; return *(&x+1); }'
 assert 3 'int main() { int x; x=3; int y;y=5; return *(&y-1); }'
-assert 4 'int main() { int x; return sizeof(x); }'
+assert 8 'int main() { int x; return sizeof(x); }'
 assert 8 'int main() { int *x; return sizeof(x); }'
-assert 4 'int main() { int x; return sizeof(x + 3); }'
+assert 8 'int main() { int x; return sizeof(x + 3); }'
 assert 8 'int main() { int *x; return sizeof(x + 5); }'
-assert 4 'int main() { int *x; return sizeof(*x); }'
-assert 4 'int main() { return sizeof(1); }'
-assert 4 'int main() { return sizeof(sizeof(1)); }'
+assert 8 'int main() { int *x; return sizeof(*x); }'
+assert 8 'int main() { return sizeof(1); }'
+assert 9 'int main() { return sizeof(1) + 1; }'
+assert 8 'int main() { return sizeof(sizeof(1)); }'
 
+
+assert 3 'int main() { int x[2]; int *y; y=&x; *y=3; return *x; }'
+
+assert 3 'int main() { int x[3]; *x=3; *(x+1)=4; *(x+2)=5; return *x; }'
+assert 4 'int main() { int x[3]; *x=3; *(x+1)=4; *(x+2)=5; return *(x+1); }'
+assert 5 'int main() { int x[3]; *x=3; *(x+1)=4; *(x+2)=5; return *(x+2); }'
+
+# assert 0 'int main() { int x[2][3]; int *y; y=x; *y=0; return **x; }'
+# assert 1 'int main() { int x[2][3]; int *y; y=x; *(y+1)=1; return *(*x+1); }'
+# assert 2 'int main() { int x[2][3]; int *y; y=x; *(y+2)=2; return *(*x+2); }'
+# assert 3 'int main() { int x[2][3]; int *y; y=x; *(y+3)=3; return **(x+1); }'
+# assert 4 'int main() { int x[2][3]; int *y; y=x; *(y+4)=4; return *(*(x+1)+1); }'
+# assert 5 'int main() { int x[2][3]; int *y; y=x; *(y+5)=5; return *(*(x+1)+2); }'
+
+# assert 3 'int main() { int x[3]; *x=3; x[1]=4; x[2]=5; return *x; }'
+# assert 4 'int main() { int x[3]; *x=3; x[1]=4; x[2]=5; return *(x+1); }'
+# assert 5 'int main() { int x[3]; *x=3; x[1]=4; x[2]=5; return *(x+2); }'
+# assert 5 'int main() { int x[3]; *x=3; x[1]=4; x[2]=5; return *(x+2); }'
+# assert 5 'int main() { int x[3]; *x=3; x[1]=4; 2[x]=5; return *(x+2); }'
+
+# assert 0 'int main() { int x[2][3]; int *y=x; y[0]=0; return x[0][0]; }'
+# assert 1 'int main() { int x[2][3]; int *y=x; y[1]=1; return x[0][1]; }'
+# assert 2 'int main() { int x[2][3]; int *y=x; y[2]=2; return x[0][2]; }'
+# assert 3 'int main() { int x[2][3]; int *y=x; y[3]=3; return x[1][0]; }'
+# assert 4 'int main() { int x[2][3]; int *y=x; y[4]=4; return x[1][1]; }'
+# assert 5 'int main() { int x[2][3]; int *y=x; y[5]=5; return x[1][2]; }'
 
 
 echo OK
