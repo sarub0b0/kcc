@@ -78,6 +78,7 @@ assert 0 'int main(){for(;;) return 0;}'
 assert 3 'int main(){int i;i=1; i= i+1; i=i+1; return i;}'
 assert 6 'int main(){int i;for(i = 0; i<5; i=i+1){i = i +1; i= i+1;} return i;}'
 assert 5 'int main(){int i; i=0; if(i==0) { i=5; return 5; }}'
+assert 5 'int main(){int i; i=0; if(i==0) { i=5; return 5; }}'
 
 # assert_link 5 'main(){a=0;a = foo(); return a;}' foo
 # assert_link 10 'main(){a=0;a =5 + foo(); return a;}' foo

@@ -351,7 +351,7 @@ struct node *new_node_num(int val) {
     return n;
 }
 
-struct node *new_node_lvar(struct var *var, struct type *ty) {
+struct node *new_node_var(struct var *var, struct type *ty) {
     struct node *n = calloc(1, sizeof(struct node));
     n->kind        = ND_VAR;
     n->var         = var;
@@ -433,6 +433,13 @@ struct var *new_lvar(struct type *type) {
     locals        = v;
     return v;
 }
+
+char *gvar_name() {
+    char *buf      = calloc(24, sizeof(char));
+    static int inc = 0;
+    snprintf(buf, 24, ".LC%d", inc++);
+    return buf;
+}
 struct var *new_gvar(struct type *type) {
     struct var *v = calloc(1, sizeof(struct var));
     v->name       = type->name;
@@ -442,6 +449,15 @@ struct var *new_gvar(struct type *type) {
     globals       = v;
     return v;
 }
+
+struct var *new_string_literal(char *data, int len) {
+    struct type *type = array_to(ty_char, len);
+    struct var *v     = new_gvar(type);
+    v->name           = gvar_name();
+    v->data           = data;
+    return v;
+}
+
 struct type *typespec(struct token *tok) {
     if (consume("int")) {
         return copy_type(ty_int);
@@ -542,7 +558,7 @@ struct node *declaration() {
 
     struct var *var = new_lvar(type);
 
-    return new_node_lvar(var, var->type);
+    return new_node_var(var, var->type);
 }
 
 struct node *assign() {
@@ -764,7 +780,6 @@ struct node *unary() {
     if (consume("&")) {
         return new_node_unary(ND_ADDR, unary(), tk);
     }
-    // return primary();
     return postfix();
 }
 
@@ -801,18 +816,13 @@ struct node *primary() {
             error_at(tok->loc, "変数%sは定義されていません", tok->str);
         }
 
-        return new_node_lvar(var, var->type);
+        return new_node_var(var, var->type);
     }
 
     if (tk->kind == TK_STR) {
-        n               = new_node(ND_STR, tk);
-        n->type         = calloc(1, sizeof(struct type));
-        n->type->kind   = PTR;
-        n->type->ptr_to = ty_char;
-        n->string_idx   = tk->string_idx;
-        tk              = tk->next;
-
-        return n;
+        struct var *v = new_string_literal(tk->str, tk->len);
+        tk            = tk->next;
+        return new_node_var(v, v->type);
     }
 
     return new_node_num(expect_number());

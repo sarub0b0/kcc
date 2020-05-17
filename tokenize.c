@@ -105,17 +105,6 @@ void convert_ident_to_reserved(struct token *token) {
     }
 }
 
-void add_string(struct token *token) {
-    struct string *str = calloc(1, sizeof(struct string));
-
-    str->str  = token->str;
-    str->len  = token->len;
-    str->next = strings;
-    str->idx  = token->string_idx;
-
-    strings = str;
-}
-
 struct token *tokenize(char *p) {
     strings = NULL;
 
@@ -170,8 +159,6 @@ struct token *tokenize(char *p) {
             }
             cur = new_token(TK_STR, cur, q, p - q);
 
-            cur->string_idx = string_idx++;
-            add_string(cur);
             p++;
             continue;
         }

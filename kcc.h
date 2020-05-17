@@ -21,17 +21,6 @@ struct token {
     char *str;
     char *loc;
     int len;
-
-    char *string;
-    char *string_len;
-    int string_idx;
-};
-
-struct string {
-    struct string *next;
-    char *str;
-    int len;
-    int idx;
 };
 
 enum node_kind {
@@ -90,6 +79,8 @@ struct var {
     int offset;
 
     bool is_local;
+
+    char *data;
 };
 
 struct node {
@@ -171,7 +162,5 @@ extern int verbose;
 
 extern struct type *ty_int;
 extern struct type *ty_char;
-
-extern struct string *strings;
 
 #endif

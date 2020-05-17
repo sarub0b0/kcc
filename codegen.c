@@ -82,13 +82,11 @@ void gen_if(struct node *node) {
         printf("  je  .L.else.%03d\n", label_seq);
 
         gen_stmt(node->then);
-        // printf("  pop %s\n", reg[inc]);
 
         printf("  jmp  .L.end.%03d\n", label_seq);
         printf(".L.else.%03d:\n", label_seq);
 
         gen_stmt(node->els);
-        // printf("  pop %s\n", reg[inc]);
 
         printf(".L.end.%03d:\n", label_seq);
     } else {
@@ -96,7 +94,6 @@ void gen_if(struct node *node) {
         printf("  je  .L.end.%03d\n", label_seq);
 
         gen_stmt(node->then);
-        // printf("  pop %s\n", reg[inc]);
 
         printf(".L.end.%03d:\n", label_seq);
 
@@ -121,13 +118,11 @@ void gen_for(struct node *node) {
 
     if (node->init) {
         gen_stmt(node->init);
-        // printf("  pop rax\n");
     }
     printf(".L.begin.%03d:\n", label_seq);
 
     if (node->cond) {
         gen_expr(node->cond);
-        // printf("  pop rax\n");
         inc--;
         printf("  cmp %s, 0\n", reg[inc]);
         printf("  je  .L.end.%03d\n", label_seq);
@@ -135,12 +130,10 @@ void gen_for(struct node *node) {
 
     if (node->then) {
         gen_stmt(node->then);
-        // printf("  pop rax\n");
     }
 
     if (node->inc) {
         gen_stmt(node->inc);
-        // printf("  pop rax\n");
     }
     printf("  jmp .L.begin.%03d\n", label_seq);
     printf(".L.end.%03d:\n", label_seq);
@@ -345,19 +338,15 @@ int nargs(struct var *v) {
     return n;
 }
 
-void string_literal() {
-
-    for (struct string *s = strings; s; s = s->next) {
-        printf(".LC%d:\n", s->idx);
-        printf("  .string \"%s\"\n", s->str);
-    }
-}
-
 void global_data(struct program *prog) {
     for (struct var *v = prog->globals; v; v = v->next) {
-        printf(".global %s\n", v->name);
         printf("%s:\n", v->name);
-        printf("  .zero %lu\n", v->type->size);
+        if (!v->data) {
+            printf("  .zero %lu\n", v->type->size);
+            continue;
+        }
+
+        printf("  .string \"%s\"\n", v->data);
     }
 }
 
@@ -366,8 +355,6 @@ void gen_code(struct program *prog) {
     header();
 
     printf(".data\n");
-
-    string_literal();
 
     global_data(prog);
 
