@@ -69,6 +69,12 @@ int main() {
            "({ int a=3; a; })");
 
     assert(15, ({ add(5, 10); }), "({ add(5, 10); })");
+    assert(15,
+           ({
+               int a = add(5, 10);
+               a;
+           }),
+           "({ int a=add(5, 10); a; })");
     assert(3, ({ sub(5, 2); }), "({ sub(5, 2); })");
     assert(2, ({ sub(5, 3); }), "({ sub(5, 3); })");
     assert(1, ({ sub(5, 2) - sub(5, 3); }), "({ sub(5, 2)-sub(5, 3); })");
@@ -498,5 +504,19 @@ int main() {
            }),
            "({ char *a=\"abc\"; a[1]; })");
 
+    assert(3,
+           ({
+               int x, y;
+               x = 3;
+               x;
+           }),
+           "({ int x,y; x=3; x;})");
+
+    assert(3,
+           ({
+               int x = 1, y = 2;
+               x + y;
+           }),
+           "({ int x=1, y=2; x+y;})");
     return 0;
 }
