@@ -551,15 +551,27 @@ struct type *funcdef_args(struct token *tok, struct type *type) {
 
 struct node *declaration() {
 
+    struct node *node;
+    struct var *var;
+
     struct type *type = typespec(tk);
+
+    struct token *token = tk;
 
     type = declarator(type);
 
+    var  = new_lvar(type);
+    node = new_node_var(var, var->type);
+
+    if (consume("=")) {
+        struct node *lvar = node;
+        node              = new_node(ND_EXPR_STMT, tk);
+        node->lhs         = new_node_binary(ND_ASSIGN, lvar, assign());
+    }
+
     skip(tk, ";");
 
-    struct var *var = new_lvar(type);
-
-    return new_node_var(var, var->type);
+    return node;
 }
 
 struct node *assign() {
@@ -669,20 +681,6 @@ struct node *stmt() {
     }
 
     if (equal(tk, "{")) {
-        // tk     = tk->next;
-        // n      = new_node(ND_BLOCK, tk);
-        // n->str = "{}";
-
-        // struct node head = {};
-        // struct node *cur = &head;
-
-        // while (!equal(tk, "}")) {
-        //     cur = cur->next = stmt();
-        // }
-
-        // n->body = head.next;
-
-        // skip(tk, "}");
         return compound_stmt();
     }
 
@@ -870,7 +868,7 @@ struct node *funcall(struct token *token) {
 //
 // funcdef-args = param ( "," param )*
 // param = typespec declarator
-// declaration = typespec declarator ";"
+// declaration = typespec declarator ( "=" expr )? ";"
 // compound-stmt = "{" ( declaration | stmt )* "}"
 // stmt = expr ";"
 //      | compound-stmt
