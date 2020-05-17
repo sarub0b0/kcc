@@ -504,6 +504,12 @@ int main() {
            }),
            "({ char *a=\"abc\"; a[1]; })");
 
+    assert(101,
+           ({
+               char *a = "abc", *b = "def";
+               b[1];
+           }),
+           "({ char *a=\"abc\",*b=\"def\"; b[1]; })");
     assert(3,
            ({
                int x, y;
