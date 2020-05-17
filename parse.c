@@ -549,28 +549,38 @@ struct type *funcdef_args(struct token *tok, struct type *type) {
     return type;
 }
 
+// declaration = typespec
+//   ( declarator ( "=" expr )? ( "," declarator ( "=" expr)? )* )? ";"
 struct node *declaration() {
 
     struct node *node;
     struct var *var;
 
-    struct type *type = typespec(tk);
+    struct type *base = typespec(tk);
 
-    struct token *token = tk;
+    struct node head = {};
+    struct node *cur = &head;
+    int count        = 0;
+    while (!equal(tk, ";")) {
+        if (0 < count++) {
+            skip(tk, ",");
+        }
 
-    type = declarator(type);
+        struct type *type = declarator(base);
 
-    var  = new_lvar(type);
-    node = new_node_var(var, var->type);
+        var = new_lvar(type);
 
-    if (consume("=")) {
-        struct node *lvar = node;
-        node              = new_node(ND_EXPR_STMT, tk);
-        node->lhs         = new_node_binary(ND_ASSIGN, lvar, assign());
+        if (consume("=")) {
+            struct node *lvar = new_node_var(var, var->type);
+            node              = new_node(ND_EXPR_STMT, tk);
+            node->lhs         = new_node_binary(ND_ASSIGN, lvar, assign());
+            cur = cur->next = node;
+        }
     }
-
     skip(tk, ";");
 
+    node       = new_node(ND_BLOCK, tk);
+    node->body = head.next;
     return node;
 }
 
@@ -868,9 +878,8 @@ struct node *funcall(struct token *token) {
 //
 // funcdef-args = param ( "," param )*
 // param = typespec declarator
-// declaration = typespec declarator ( "=" expr )? ";"
-// compound-stmt = "{" ( declaration | stmt )* "}"
-// stmt = expr ";"
+// declaration = typespec declarator ( "=" expr )? ( "," declarator ( "=" expr
+// )? )* ";" compound-stmt = "{" ( declaration | stmt )* "}" stmt = expr ";"
 //      | compound-stmt
 //      | "if" "(" expr ")" stmt ( "else" stmt )?
 //      | "while" "(" expr ")" stmt
