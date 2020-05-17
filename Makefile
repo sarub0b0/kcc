@@ -1,5 +1,5 @@
 CC := clang
-CFLAGS := -g -O0 -static -Wno-switch
+CFLAGS := -g -O0 -static -Wno-switch -std=c11
 SRCS := $(filter-out tmp.c, $(wildcard *.c))
 OBJS := $(SRCS:.c=.o)
 
@@ -9,7 +9,9 @@ kcc: $(OBJS)
 $(OBJS): kcc.h
 
 test: kcc
-	./test.sh
+	./kcc tests/tests.c > tmp.s
+	cc -static -g -o tmp tmp.s
+	./tmp
 
 clean:
 	rm -f kcc *.o tmp*

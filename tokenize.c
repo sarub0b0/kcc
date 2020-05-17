@@ -1,3 +1,4 @@
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -155,6 +156,9 @@ struct token *tokenize(char *p) {
             p++;
             char *q = p;
             while (*p != '"') {
+                if (*p == '\\' && *(p + 1) == 0x22) {
+                    p++;
+                }
                 p++;
             }
             cur = new_token(TK_STR, cur, q, p - q);

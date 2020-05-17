@@ -1,3 +1,4 @@
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -26,7 +27,7 @@ struct node *primary();
 
 struct node *funcall(struct token *token);
 
-#define MAX_LEN 256
+#define MAX_LEN (int) (256)
 
 void print_param(struct var *params, bool is_next, struct function *fn) {
     for (struct var *v = params; v; v = v->next) {
@@ -414,7 +415,7 @@ struct node *new_sub(struct node *lhs, struct node *rhs) {
     }
 
     // ptr - ptr
-    if (lhs->type->ptr_to && rhs->type->kind == INT) {
+    if (lhs->type->ptr_to && rhs->type->ptr_to) {
         struct node *sub = new_node_binary(ND_SUB, lhs, rhs);
         return new_node_binary(
             ND_DIV, sub, new_node_num(lhs->type->ptr_to->size));
@@ -799,6 +800,17 @@ struct node *postfix() {
 
 struct node *primary() {
     struct node *n;
+
+    if (equal(tk, "(") && equal(tk->next, "{")) {
+        n       = new_node(ND_EXPR_STMT, tk);
+        tk      = tk->next;
+        n->body = compound_stmt();
+
+        skip(tk, ")");
+
+        return n;
+    }
+
     if (consume("(")) {
         n = expr();
         expect(")");
@@ -874,7 +886,11 @@ struct node *funcall(struct token *token) {
 // mul = unary ( "*" unary | "/" unary )*
 // unary = "sizeof" unary | ( "+" | "-" | "*" | "&" )? unary | primary
 // postfix = primary ( "[" expr "]" )*
-// primary = num | ident funcall-args?  | "(" expr ")" | string-literal
+// primary = "(" "{" compound-stmt "}" ")"
+//         | num
+//         | ident funcall-args?
+//         | "(" expr ")"
+//         | string-literal
 // funcall = ident "(" funcall-args ")"
 // funcall-args = assign ( "," assign )*
 

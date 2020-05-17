@@ -1,5 +1,5 @@
-#include <stdio.h>
 #include <assert.h>
+#include <stdio.h>
 
 #include "kcc.h"
 
@@ -96,9 +96,8 @@ void gen_if(struct node *node) {
         gen_stmt(node->then);
 
         printf(".L.end.%03d:\n", label_seq);
-
-        label_seq++;
     }
+    label_seq++;
 }
 
 void gen_for(struct node *node) {
@@ -156,7 +155,14 @@ void gen_func(struct node *node) {
         printf("  mov %s, %s\n", argreg64[i], reg[--inc]);
     }
 
+    printf("  push r10\n");
+    printf("  push r11\n");
+    printf("  mov rax, 0\n");
     printf("  call %s\n", node->str);
+
+    printf("  pop r11\n");
+    printf("  pop r10\n");
+
     printf("  mov %s, rax\n", reg[inc++]);
     return;
 }
@@ -166,7 +172,7 @@ void load(struct type *type) {
         return;
     }
     if (type->kind == CHAR) {
-        printf("  movzx %s, BYTE PTR [%s]\n", reg[inc - 1], reg[inc - 1]);
+        printf("  movsx %s, BYTE PTR [%s]\n", reg[inc - 1], reg[inc - 1]);
     } else {
         printf("  mov %s, [%s]\n", reg[inc - 1], reg[inc - 1]);
     }
@@ -212,6 +218,11 @@ int gen_expr(struct node *node) {
             return 0;
         case ND_STR:
             printf("  mov %s, offset .LC%d\n", reg[inc++], node->string_idx);
+        case ND_EXPR_STMT:
+            for (struct node *n = node->body; n; n = n->next) {
+                gen_stmt(n);
+                inc++;
+            }
             return 0;
     }
 
@@ -309,8 +320,7 @@ void prologue(int stack_size) {
     printf("  sub rsp, %d\n", stack_size);
 }
 
-void epilogue(char *func_name) {
-    printf(".L.return.%s:\n", func_name);
+void epilogue() {
     printf("  mov rsp, rbp\n");
     printf("  pop rbp\n");
     printf("  ret\n");
@@ -321,7 +331,7 @@ int stack_size(int offset) {
 }
 
 void set_offset_and_stack_size(struct function *fn) {
-    int offset = 0;
+    int offset = 32;
     for (struct var *v = fn->locals; v; v = v->next) {
         offset += v->type->size;
         v->offset = offset;
@@ -371,6 +381,11 @@ void gen_code(struct program *prog) {
 
         prologue(fn->stack_size);
 
+        printf("  mov [rbp-8], r12\n");
+        printf("  mov [rbp-16], r13\n");
+        printf("  mov [rbp-24], r14\n");
+        printf("  mov [rbp-32], r15\n");
+
         int params_num = nargs(fn->params);
 
         for (struct var *v = fn->params; v; v = v->next) {
@@ -381,6 +396,13 @@ void gen_code(struct program *prog) {
             assert(inc == 0);
         }
 
-        epilogue(fn->name);
+        printf(".L.return.%s:\n", fn->name);
+
+        printf("  mov r12, [rbp-8] \n");
+        printf("  mov r13, [rbp-16]\n");
+        printf("  mov r14, [rbp-24]\n");
+        printf("  mov r15, [rbp-32]\n");
+
+        epilogue();
     }
 }
