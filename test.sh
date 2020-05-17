@@ -168,7 +168,7 @@ assert 5 'int main(){int i; i=0; if(i==0) { i=5; return 5; }}'
 # assert 3 'int main(){ char a; a = 1; char b; b = 2; return a + b;}'
 # assert 3 'int main(){ char x[3]; x[0] = -1; x[1] = 2; int y; y = 4; return x[0] + y;}'
 
-assert 97 'int main(){char *a; a = "abc"; return a[0];}'
+assert 97 'int main(){{char *a; a = "abc"; return a[0];}}'
 assert 98 'char *a; int main(){a = "abc"; return a[1];}'
 assert 97 'int main(){return "abc"[0];}'
 assert 98 'int main(){return "abc"[1];}'

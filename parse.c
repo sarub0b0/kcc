@@ -668,21 +668,21 @@ struct node *stmt() {
     }
 
     if (equal(tk, "{")) {
-        tk     = tk->next;
-        n      = new_node(ND_BLOCK, tk);
-        n->str = "{}";
+        // tk     = tk->next;
+        // n      = new_node(ND_BLOCK, tk);
+        // n->str = "{}";
 
-        struct node head = {};
-        struct node *cur = &head;
+        // struct node head = {};
+        // struct node *cur = &head;
 
-        while (!equal(tk, "}")) {
-            cur = cur->next = stmt();
-        }
+        // while (!equal(tk, "}")) {
+        //     cur = cur->next = stmt();
+        // }
 
-        n->body = head.next;
+        // n->body = head.next;
 
-        skip(tk, "}");
-        return n;
+        // skip(tk, "}");
+        return compound_stmt();
     }
 
     n = new_node_expr(tk);
@@ -849,7 +849,7 @@ struct node *funcall(struct token *token) {
     return n;
 }
 
-// program = funcdef* | declaration*
+// program = ( funcdef | declaration )*
 // typespec = "int"
 // funcdef = typespec declarator compound-stmt
 // declarator = "*"* ident type-suffix
@@ -861,7 +861,7 @@ struct node *funcall(struct token *token) {
 // declaration = typespec declarator ";"
 // compound-stmt = "{" ( declaration | stmt )* "}"
 // stmt = expr ";"
-//      | "{" stmt* "}"
+//      | compound-stmt
 //      | "if" "(" expr ")" stmt ( "else" stmt )?
 //      | "while" "(" expr ")" stmt
 //      | "for" "(" expr? ";" expr? ";" expr? ")" stmt
@@ -877,16 +877,6 @@ struct node *funcall(struct token *token) {
 // primary = num | ident funcall-args?  | "(" expr ")" | string-literal
 // funcall = ident "(" funcall-args ")"
 // funcall-args = assign ( "," assign )*
-
-// void program() {
-//     struct function head = {};
-//     struct function *cur = &head;
-//     while (!at_eof()) {
-//         cur = cur->next = funcdef();
-//     }
-
-//     functions = head.next;
-// }
 
 struct program *parse() {
     globals = NULL;
