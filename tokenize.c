@@ -129,6 +129,18 @@ struct token *tokenize(char *p) {
             continue;
         }
 
+        if (starts_with(p, "//")) {
+            while (*p != '\n') p++;
+            continue;
+        }
+
+        if (starts_with(p, "/*")) {
+            char *q = strstr(p + 2, "*/");
+            if (!q) error_at(p, "コメントが閉じられていません");
+            p = q + 2;
+            continue;
+        }
+
         if (starts_with(p, "==") || starts_with(p, "!=") ||
             starts_with(p, ">=") || starts_with(p, "<=")) {
             cur = new_token(TK_RESERVED, cur, p, 2);
