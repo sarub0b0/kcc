@@ -1,6 +1,6 @@
 CC := clang
 CFLAGS := -g -O0 -static -Wno-switch
-SRCS := $(filter-out foo.c, $(wildcard *.c))
+SRCS := $(filter-out test.c, $(wildcard *.c))
 OBJS := $(SRCS:.c=.o)
 
 kcc: $(OBJS)

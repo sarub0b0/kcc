@@ -21,6 +21,17 @@ struct token {
     char *str;
     char *loc;
     int len;
+
+    char *string;
+    char *string_len;
+    int string_idx;
+};
+
+struct string {
+    struct string *next;
+    char *str;
+    int len;
+    int idx;
 };
 
 enum node_kind {
@@ -46,12 +57,14 @@ enum node_kind {
     ND_ADDR,
     ND_DEREF,
     ND_EXPR_STMT,
+    ND_STR,
 };
 
 enum type_kind {
     INT,
     PTR,
     ARRAY,
+    CHAR,
 };
 
 struct type {
@@ -75,6 +88,8 @@ struct var {
 
     // local
     int offset;
+
+    bool is_local;
 };
 
 struct node {
@@ -101,6 +116,10 @@ struct node {
     // var **args;
     int nargs;
 
+    // string literal
+    struct string *string;
+    int string_idx;
+
     // variable
     struct var *var;
 
@@ -119,20 +138,26 @@ struct function {
     int stack_size;
 };
 
-void error(const char *fmt, ...);
-void error_at(const char *, const char *, ...);
+struct program {
+    struct function *functions;
+    struct var *globals;
+};
+
+void error(char *fmt, ...);
+void error_at(char *, char *, ...);
 
 struct token *tokenize(char *);
-void gen_code(struct function *);
+void gen_code(struct program *);
 struct node *expr();
 bool consume(char *);
 struct token *consume_ident();
-void program();
+struct program *parse();
 
 bool equal(struct token *, char *);
 void print_tokens(struct token *);
-void print_ast(struct function *);
+void print_ast(struct program *);
 
+bool is_integer(struct type *);
 void add_type(struct node *);
 struct type *copy_type(struct type *);
 struct type *pointer_to(struct type *);
@@ -142,9 +167,11 @@ extern char *user_input;
 extern struct token *tk;
 
 extern struct var *locals;
-extern struct function *functions;
 extern int verbose;
 
 extern struct type *ty_int;
+extern struct type *ty_char;
+
+extern struct string *strings;
 
 #endif

@@ -3,7 +3,15 @@
 
 #include "kcc.h"
 
-struct type *ty_int = &(struct type){INT, 8, ""};
+struct type *ty_int  = &(struct type){INT, 8, ""};
+struct type *ty_char = &(struct type){CHAR, 1, ""};
+
+bool is_integer(struct type *type) {
+    if (type->kind == INT || type->kind == CHAR) {
+        return true;
+    }
+    return false;
+}
 
 struct type *copy_type(struct type *ty) {
     struct type *ret = calloc(1, sizeof(struct type));

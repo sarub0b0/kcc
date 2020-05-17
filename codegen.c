@@ -20,6 +20,14 @@ const char *reg[] = {
     "r14",
     "r15",
 };
+const char *reg8[] = {
+    "r10b",
+    "r11b",
+    "r12b",
+    "r13b",
+    "r14b",
+    "r15b",
+};
 
 int inc = 0;
 struct function *current_fn;
@@ -32,7 +40,11 @@ void gen_stmt(struct node *);
 void gen_addr(struct node *n) {
     switch (n->kind) {
         case ND_VAR:
-            printf("  lea %s, [rbp-%d]\n", reg[inc++], n->var->offset);
+            if (n->var->is_local) {
+                printf("  lea %s, [rbp-%d]\n", reg[inc++], n->var->offset);
+            } else {
+                printf("  mov %s, offset %s\n", reg[inc++], n->var->name);
+            }
             return;
         case ND_DEREF:
             gen_expr(n->lhs);
@@ -159,11 +171,19 @@ void load(struct type *type) {
     if (type->kind == ARRAY) {
         return;
     }
-    printf("  mov %s, [%s]\n", reg[inc - 1], reg[inc - 1]);
+    if (type->kind == CHAR) {
+        printf("  movzx %s, BYTE PTR [%s]\n", reg[inc - 1], reg[inc - 1]);
+    } else {
+        printf("  mov %s, [%s]\n", reg[inc - 1], reg[inc - 1]);
+    }
 }
 
-void store() {
-    printf("  mov [%s], %s\n", reg[inc - 1], reg[inc - 2]);
+void store(struct type *type) {
+    if (type->kind == CHAR) {
+        printf("  mov [%s], %s\n", reg[inc - 1], reg8[inc - 2]);
+    } else {
+        printf("  mov [%s], %s\n", reg[inc - 1], reg[inc - 2]);
+    }
     inc--;
 }
 
@@ -183,7 +203,7 @@ int gen_expr(struct node *node) {
         case ND_ASSIGN:
             gen_expr(node->rhs);
             gen_addr(node->lhs);
-            store();
+            store(node->type);
             return 0;
         case ND_FUNCALL:
             gen_expr(node->lhs);
@@ -195,6 +215,9 @@ int gen_expr(struct node *node) {
         case ND_DEREF:
             gen_expr(node->lhs);
             load(node->type);
+            return 0;
+        case ND_STR:
+            printf("  mov %s, offset .LC%d\n", reg[inc++], node->string_idx);
             return 0;
     }
 
@@ -321,11 +344,35 @@ int nargs(struct var *v) {
     return n;
 }
 
-void gen_code(struct function *func) {
+void string_literal() {
+
+    for (struct string *s = strings; s; s = s->next) {
+        printf(".LC%d:\n", s->idx);
+        printf("  .string \"%s\"\n", s->str);
+    }
+}
+
+void global_data(struct program *prog) {
+    for (struct var *v = prog->globals; v; v = v->next) {
+        printf(".global %s\n", v->name);
+        printf("%s:\n", v->name);
+        printf("  .zero %lu\n", v->type->size);
+    }
+}
+
+void gen_code(struct program *prog) {
 
     header();
 
-    for (struct function *fn = func; fn; fn = fn->next) {
+    printf(".data\n");
+
+    string_literal();
+
+    global_data(prog);
+
+    printf(".text\n");
+
+    for (struct function *fn = prog->functions; fn; fn = fn->next) {
         current_fn = fn;
 
         printf(".global %s\n", fn->name);

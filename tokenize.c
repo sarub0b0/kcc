@@ -6,6 +6,8 @@
 
 #include "kcc.h"
 
+struct string *strings;
+
 const char *token_kind_str[TK_KIND_NUM] = {
     "reserved",
     "identifier",
@@ -80,7 +82,7 @@ int is_alnum(char c) {
 
 bool is_keyword(struct token *tok) {
     char *keyword[] = {
-        "return", "if", "else", "for", "while", "int", "sizeof"};
+        "return", "if", "else", "for", "while", "int", "sizeof", "char"};
 
     for (int i = 0; i < sizeof(keyword) / sizeof(*keyword); i++) {
         if (equal(tok, keyword[i])) {
@@ -103,9 +105,23 @@ void convert_ident_to_reserved(struct token *token) {
     }
 }
 
+void add_string(struct token *token) {
+    struct string *str = calloc(1, sizeof(struct string));
+
+    str->str  = token->str;
+    str->len  = token->len;
+    str->next = strings;
+    str->idx  = token->string_idx;
+
+    strings = str;
+}
+
 struct token *tokenize(char *p) {
+    strings = NULL;
+
     struct token head = {};
     struct token *cur = &head;
+    int string_idx    = 0;
 
     while (*p) {
         if (isspace(*p)) {
@@ -131,6 +147,20 @@ struct token *tokenize(char *p) {
 
         if (*p == '+' || *p == '-' || *p == '*' || *p == '/') {
             cur = new_token(TK_RESERVED, cur, p++, 1);
+            continue;
+        }
+
+        if (*p == '"') {
+            p++;
+            char *q = p;
+            while (*p != '"') {
+                p++;
+            }
+            cur = new_token(TK_STR, cur, q, p - q);
+
+            cur->string_idx = string_idx++;
+            add_string(cur);
+            p++;
             continue;
         }
 

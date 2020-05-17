@@ -6,6 +6,7 @@
 
 struct function *functions;
 struct var *locals;
+struct var *globals;
 
 struct function *funcdef();
 struct type *declarator(struct type *);
@@ -38,6 +39,19 @@ void print_param(struct var *params, bool is_next, struct function *fn) {
             printf("|-Param %s\n", v->name);
         else {
             if (fn->stmt)
+                printf("|-Param %s\n", v->name);
+            else
+                printf("`-Param %s\n", v->name);
+        }
+    }
+}
+
+void print_globals(bool has_function) {
+    for (struct var *v = globals; v; v = v->next) {
+        if (v->next)
+            printf("|-Param %s\n", v->name);
+        else {
+            if (has_function)
                 printf("|-Param %s\n", v->name);
             else
                 printf("`-Param %s\n", v->name);
@@ -234,12 +248,15 @@ void print_compound_stmt(struct node *stmt, bool is_next) {
     }
 }
 
-void print_ast(struct function *functions) {
+void print_ast(struct program *pr) {
     struct function *last;
 
-    for (struct function *fn = functions; fn; fn = fn->next) last = fn;
+    bool has_function = pr->functions ? true : false;
+    print_globals(has_function);
 
-    for (struct function *fn = functions; fn; fn = fn->next) {
+    for (struct function *fn = pr->functions; fn; fn = fn->next) last = fn;
+
+    for (struct function *fn = pr->functions; fn; fn = fn->next) {
         if (fn == last) {
             printf("`-Function '%s'\n", fn->name);
             print_param(fn->params, false, fn);
@@ -292,8 +309,13 @@ char *get_ident(struct token *tok) {
     return strndup(tok->str, tok->len);
 }
 
-struct var *find_lvar(struct token *tok) {
+struct var *find_var(struct token *tok) {
     for (struct var *var = locals; var; var = var->next) {
+        if (strncmp(var->name, tok->str, tok->len) == 0) {
+            return var;
+        }
+    }
+    for (struct var *var = globals; var; var = var->next) {
         if (strncmp(var->name, tok->str, tok->len) == 0) {
             return var;
         }
@@ -357,7 +379,7 @@ struct node *new_add(struct node *lhs, struct node *rhs) {
     add_type(rhs);
 
     // num + num
-    if (lhs->type->kind == INT && rhs->type->kind == INT) {
+    if (is_integer(lhs->type) && is_integer(rhs->type)) {
         return new_node_binary(ND_ADD, lhs, rhs);
     }
 
@@ -380,7 +402,7 @@ struct node *new_sub(struct node *lhs, struct node *rhs) {
     add_type(rhs);
 
     // num - num
-    if (lhs->type->kind == INT && rhs->type->kind == INT) {
+    if (is_integer(lhs->type) && is_integer(rhs->type)) {
         return new_node_binary(ND_SUB, lhs, rhs);
     }
 
@@ -407,23 +429,36 @@ struct var *new_lvar(struct type *type) {
     v->name       = type->name;
     v->next       = locals;
     v->type       = type;
+    v->is_local   = true;
     locals        = v;
     return v;
 }
-
+struct var *new_gvar(struct type *type) {
+    struct var *v = calloc(1, sizeof(struct var));
+    v->name       = type->name;
+    v->next       = globals;
+    v->type       = type;
+    v->is_local   = false;
+    globals       = v;
+    return v;
+}
 struct type *typespec(struct token *tok) {
-    skip(tok, "int");
+    if (consume("int")) {
+        return copy_type(ty_int);
+    }
 
-    return copy_type(ty_int);
+    if (consume("char")) {
+        return copy_type(ty_char);
+    }
+
+    return NULL;
 }
 
-struct function *funcdef() {
+struct function *funcdef(struct type *type) {
     locals = NULL;
 
     struct function *fn = calloc(1, sizeof(struct function));
-    struct type *type   = typespec(tk);
 
-    type     = declarator(type);
     fn->name = type->name;
     fn->type = type->return_type;
 
@@ -534,7 +569,7 @@ struct node *compound_stmt() {
     struct node *cur = &head;
 
     while (!equal(tk, "}")) {
-        if (equal(tk, "int")) {
+        if (equal(tk, "int") || equal(tk, "char")) {
             cur = cur->next = declaration();
         } else {
             cur = cur->next = stmt();
@@ -737,9 +772,9 @@ struct node *postfix() {
     struct node *n = primary();
 
     if (n->kind != ND_NUM) {
-        struct token *start = tk->next;
         while (consume("[")) {
-            struct node *index = expr();
+            struct token *start = tk;
+            struct node *index  = expr();
             skip(tk, "]");
             n = new_node_unary(ND_DEREF, new_add(n, index), start);
         }
@@ -757,14 +792,27 @@ struct node *primary() {
 
     struct token *tok = consume_ident();
     if (tok) {
-        if (equal(tk, "(")) return funcall(tok);
+        if (equal(tk, "(")) {
+            return funcall(tok);
+        }
 
-        struct var *lvar = find_lvar(tok);
-        if (!lvar) {
+        struct var *var = find_var(tok);
+        if (!var) {
             error_at(tok->loc, "変数%sは定義されていません", tok->str);
         }
 
-        return new_node_lvar(lvar, lvar->type);
+        return new_node_lvar(var, var->type);
+    }
+
+    if (tk->kind == TK_STR) {
+        n               = new_node(ND_STR, tk);
+        n->type         = calloc(1, sizeof(struct type));
+        n->type->kind   = PTR;
+        n->type->ptr_to = ty_char;
+        n->string_idx   = tk->string_idx;
+        tk              = tk->next;
+
+        return n;
     }
 
     return new_node_num(expect_number());
@@ -791,13 +839,11 @@ struct node *funcall(struct token *token) {
     return n;
 }
 
-// program = funcdef*
+// program = funcdef* | declaration*
 // typespec = "int"
 // funcdef = typespec declarator compound-stmt
 // declarator = "*"* ident type-suffix
-//
-// あとで複数の[]に対応する
-// type-suffix = "[" num "]"
+// type-suffix = ( "[" num "]" )*
 //              | "(" funcdef-args? ")"
 //
 // funcdef-args = param ( "," param )*
@@ -818,15 +864,45 @@ struct node *funcall(struct token *token) {
 // mul = unary ( "*" unary | "/" unary )*
 // unary = "sizeof" unary | ( "+" | "-" | "*" | "&" )? unary | primary
 // postfix = primary ( "[" expr "]" )*
-// primary = num | ident funcall-args?  | "(" expr ")"
+// primary = num | ident funcall-args?  | "(" expr ")" | string-literal
 // funcall = ident "(" funcall-args ")"
 // funcall-args = assign ( "," assign )*
-void program() {
+
+// void program() {
+//     struct function head = {};
+//     struct function *cur = &head;
+//     while (!at_eof()) {
+//         cur = cur->next = funcdef();
+//     }
+
+//     functions = head.next;
+// }
+
+struct program *parse() {
+    globals = NULL;
+
     struct function head = {};
     struct function *cur = &head;
+    struct type *type;
     while (!at_eof()) {
-        cur = cur->next = funcdef();
+
+        type = typespec(tk);
+        type = declarator(type);
+
+        if (equal(tk, "{")) {
+            cur = cur->next = funcdef(type);
+            continue;
+        }
+
+        if (equal(tk, ";")) {
+            new_gvar(type);
+        }
+
+        skip(tk, ";");
     }
 
-    functions = head.next;
+    struct program *programs = calloc(1, sizeof(struct program));
+    programs->functions      = head.next;
+    programs->globals        = globals;
+    return programs;
 }
