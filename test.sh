@@ -6,7 +6,8 @@ assert() {
     expected="$1"
     input="$2"
 
-    ./kcc "$input" > tmp.s
+    echo $2 > tmp.c
+    ./kcc tmp.c > tmp.s
     cc -fno-common -static -o tmp tmp.s
     ./tmp
     actual="$?"
@@ -67,17 +68,16 @@ assert_link() {
 # assert 15 'int main(){int foo; foo=3;return foo+12;}'
 # assert 15 'int main() {return add(5, 10);} int add(int a,int b) {return a + b;}'
 
-# assert 15 'main(){int a=10; return (a+5);}'
-# assert 1 'main(){if (1==1) return 1;}'
-# assert 2 'main(){if (1!=1) return 1; else return 2;}'
-# assert 0 'main(){i=0;while(i<3) return 0; return 1;}'
-# assert 3 'main(){i=0;while(i<3) i=i+1; return i;}'
-# assert 0 'main(){i=0;while(i<3) return 0; return 1;}'
-# assert 3 'main(){for(i = 0; i<3; i=i+1) i = i; return i;}'
-# assert 0 'main(){for(;;) return 0;}'
-# assert 3 'main(){{i=1; i= i+1; i=i+1; return i;}}'
-# assert 6 'main(){for(i = 0; i<5; i=i+1){i = i +1; i= i+1;} return i;}'
-# assert 10 'main(){i=0; if(i==0) { i=5; return 10; }}'
+assert 1 'int main(){if (1==1) return 1;}'
+assert 2 'int main(){if (1!=1) return 1; else return 2;}'
+assert 0 'int main(){int i; i=0;while(i<3) return 0; return 1;}'
+assert 3 'int main(){int i; i=0;while(i<3) i=i+1; return i;}'
+assert 0 'int main(){int i; i=0;while(i<3) return 0; return 1;}'
+assert 3 'int main(){int i;for(i = 0; i<3; i=i+1) i = i; return i;}'
+assert 0 'int main(){for(;;) return 0;}'
+assert 3 'int main(){int i;i=1; i= i+1; i=i+1; return i;}'
+assert 6 'int main(){int i;for(i = 0; i<5; i=i+1){i = i +1; i= i+1;} return i;}'
+assert 5 'int main(){int i; i=0; if(i==0) { i=5; return 5; }}'
 
 # assert_link 5 'main(){a=0;a = foo(); return a;}' foo
 # assert_link 10 'main(){a=0;a =5 + foo(); return a;}' foo

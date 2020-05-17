@@ -75,20 +75,20 @@ void gen_if(struct node *node) {
     // .LendXXX
 
     gen_expr(node->cond);
-    printf("  pop rax\n");
-    printf("  cmp rax, 0\n");
+    printf("  cmp %s, 0\n", reg[inc - 1]);
+    inc--;
 
     if (node->els) {
         printf("  je  .L.else.%03d\n", label_seq);
 
         gen_stmt(node->then);
-        printf("  pop rax\n");
+        // printf("  pop %s\n", reg[inc]);
 
         printf("  jmp  .L.end.%03d\n", label_seq);
         printf(".L.else.%03d:\n", label_seq);
 
         gen_stmt(node->els);
-        printf("  pop rax\n");
+        // printf("  pop %s\n", reg[inc]);
 
         printf(".L.end.%03d:\n", label_seq);
     } else {
@@ -96,7 +96,7 @@ void gen_if(struct node *node) {
         printf("  je  .L.end.%03d\n", label_seq);
 
         gen_stmt(node->then);
-        printf("  pop rax\n");
+        // printf("  pop %s\n", reg[inc]);
 
         printf(".L.end.%03d:\n", label_seq);
 
@@ -121,25 +121,26 @@ void gen_for(struct node *node) {
 
     if (node->init) {
         gen_stmt(node->init);
-        printf("  pop rax\n");
+        // printf("  pop rax\n");
     }
     printf(".L.begin.%03d:\n", label_seq);
 
     if (node->cond) {
         gen_expr(node->cond);
-        printf("  pop rax\n");
+        // printf("  pop rax\n");
+        inc--;
+        printf("  cmp %s, 0\n", reg[inc]);
+        printf("  je  .L.end.%03d\n", label_seq);
     }
-    printf("  cmp rax, 0\n");
-    printf("  je  .L.end.%03d\n", label_seq);
 
     if (node->then) {
         gen_stmt(node->then);
-        printf("  pop rax\n");
+        // printf("  pop rax\n");
     }
 
     if (node->inc) {
         gen_stmt(node->inc);
-        printf("  pop rax\n");
+        // printf("  pop rax\n");
     }
     printf("  jmp .L.begin.%03d\n", label_seq);
     printf(".L.end.%03d:\n", label_seq);
