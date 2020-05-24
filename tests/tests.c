@@ -6,9 +6,15 @@
  *
  */
 
-int ga;
-int gb;
+int global = 0;
+int ga, gb;
+int aa = 0, ab = 0;
 int gc[5];
+
+char *str0  = "abc";
+char str1[] = "abc";
+
+int *pa = &ga;
 
 int assert(int expected, int actual, char *code) {
     if (expected == actual) {
@@ -574,6 +580,15 @@ int main() {
                a[1];
            }),
            "({ char a[4]=\"abc\"; a[1]; })");
+
+    assert(97, ({ str0[0]; }), "({ str0[0]; })");
+    assert(97, ({ str1[0]; }), "({ str1[0]; })");
+    assert(3,
+           ({
+               ga = 3;
+               *pa;
+           }),
+           "({ ga=3; *pa; })");
 
     return 0;
 }
