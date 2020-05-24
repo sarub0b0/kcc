@@ -216,8 +216,6 @@ int gen_expr(struct node *node) {
             gen_expr(node->lhs);
             load(node->type);
             return 0;
-        case ND_STR:
-            printf("  mov %s, offset .LC%d\n", reg[inc++], node->string_idx);
         case ND_EXPR_STMT:
             for (struct node *n = node->body; n; n = n->next) {
                 gen_stmt(n);
@@ -355,8 +353,13 @@ void global_data(struct program *prog) {
             printf("  .zero %lu\n", v->type->size);
             continue;
         }
-
-        printf("  .string \"%s\"\n", v->data);
+        if (v->type->kind == INT) {
+            printf("  .long %d\n", *(int *) v->data);
+        } else if (v->type->kind == PTR) {
+            printf("  .quad %s\n", v->data);
+        } else {
+            printf("  .string \"%s\"\n", v->data);
+        }
     }
 }
 

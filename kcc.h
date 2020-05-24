@@ -46,7 +46,6 @@ enum node_kind {
     ND_ADDR,
     ND_DEREF,
     ND_EXPR_STMT,
-    ND_STR,
 };
 
 enum type_kind {

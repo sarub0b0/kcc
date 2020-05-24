@@ -448,6 +448,7 @@ struct var *new_gvar(struct type *type) {
     v->type       = type;
     v->is_local   = false;
     globals       = v;
+    v->data       = NULL;
     return v;
 }
 
@@ -604,10 +605,6 @@ struct node *declaration() {
                     }
                 }
                 if (tk->kind == TK_STR) {
-                    //     // a[3] = "abc";
-                    //     // derefに変換
-                    //     // array_sizeと文字数チェック
-
                     struct token *start = tk;
 
                     for (int i = 0; i < tk->len; i++) {
@@ -979,8 +976,37 @@ struct program *parse() {
 
         if (equal(tk, ";")) {
             struct var *gvar = new_gvar(type);
-        }
+        } else {
+            struct var *gvar = new_gvar(type);
+            while (!equal(tk, ";")) {
+                if (consume("=")) {
+                    if (type->kind == ARRAY && type->ptr_to->kind == CHAR) {
+                        gvar->data = tk->str;
+                        tk         = tk->next;
+                        goto check_comma;
+                    }
 
+                    struct node *node = assign();
+
+                    if (node->kind == ND_NUM) {
+                        gvar->data          = calloc(1, type->size);
+                        *(int *) gvar->data = node->val;
+                    }
+                    if (node->kind == ND_VAR) {
+                        gvar->data = node->var->name;
+                    }
+                    if (node->kind == ND_ADDR) {
+                        gvar->data = node->lhs->var->name;
+                    }
+                    // tk = tk->next;
+                }
+            check_comma:
+                if (consume(",")) {
+                    type = declarator(type);
+                    gvar = new_gvar(type);
+                }
+            }
+        }
         skip(tk, ";");
     }
 
