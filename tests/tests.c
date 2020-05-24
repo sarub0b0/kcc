@@ -1,3 +1,11 @@
+/*
+ * Comment test
+ *
+ *
+ *
+ *
+ */
+
 int ga;
 int gb;
 int gc[5];
@@ -20,6 +28,9 @@ int sub(int x, int y) {
 int fib(int n) {
     if (n <= 1) return 1;
     return fib(n - 1) + fib(n - 2);
+}
+int foo() {
+    return 1;
 }
 int main() {
     assert(0, 0, "0");
@@ -524,5 +535,45 @@ int main() {
                x + y;
            }),
            "({ int x=1, y=2; x+y;})");
+
+    assert(1,
+           ({
+               int a[] = {1};
+               a[0];
+           }),
+           "({ int a[]={1}; a[0]; })");
+    assert(2,
+           ({
+               int a[] = {1, 2};
+               a[1];
+           }),
+           "({ int a[]={1,2}; a[1]; })");
+    assert(3,
+           ({
+               int a[3] = {1, 2, 3};
+               a[2];
+           }),
+           "({ int a[3]={1,2,3}; a[2]; })");
+    assert(1,
+           ({
+               int a[] = {1, 2, foo()};
+               a[2];
+           }),
+           "({ int a[]={1,2,foo()}; a[2]; })");
+
+    assert(98,
+           ({
+               char a[] = "abc";
+               a[1];
+           }),
+           "({ char a[]=\"abc\"; a[1]; })");
+
+    assert(98,
+           ({
+               char a[4] = "abc";
+               a[1];
+           }),
+           "({ char a[4]=\"abc\"; a[1]; })");
+
     return 0;
 }

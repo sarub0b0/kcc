@@ -518,8 +518,12 @@ struct type *type_suffix(struct token *tok, struct type *type) {
     }
 
     if (consume("[")) {
-        int size = get_number(tk);
-        skip(tk->next, "]");
+        int size = 0;
+        if (!equal(tk, "]")) {
+            size = get_number(tk);
+            tk   = tk->next;
+        }
+        skip(tk, "]");
         type = type_suffix(tk, type);
         type = array_to(type, size);
         return type;
@@ -572,9 +576,65 @@ struct node *declaration() {
 
         if (consume("=")) {
             struct node *lvar = new_node_var(var, var->type);
-            node              = new_node(ND_EXPR_STMT, tk);
-            node->lhs         = new_node_binary(ND_ASSIGN, lvar, assign());
-            cur = cur->next = node;
+            if (type->kind == ARRAY) {
+                if (equal(tk, "{")) {
+                    int cnt = 0;
+                    tk      = tk->next;
+                    struct token *start;
+                    while (!equal(tk, "}")) {
+                        if (cnt) skip(tk, ",");
+                        start = tk;
+                        struct node *deref =
+                            new_node_unary(ND_DEREF,
+                                           new_add(lvar, new_node_num(cnt)),
+                                           start);
+                        node = new_node(ND_EXPR_STMT, start);
+                        node->lhs =
+                            new_node_binary(ND_ASSIGN, deref, unary());
+                        cur = cur->next = node;
+                        cnt++;
+                    }
+                    if (type->array_size == 0) {
+                        type->array_size = cnt;
+                    }
+                    skip(tk, "}");
+                    if (type->array_size && type->array_size < cnt) {
+                        error_at(start->loc,
+                                 "Excess elements in array initializer\n");
+                    }
+                }
+                if (tk->kind == TK_STR) {
+                    //     // a[3] = "abc";
+                    //     // derefに変換
+                    //     // array_sizeと文字数チェック
+
+                    struct token *start = tk;
+
+                    for (int i = 0; i < tk->len; i++) {
+                        struct node *deref = new_node_unary(
+                            ND_DEREF, new_add(lvar, new_node_num(i)), start);
+                        node      = new_node(ND_EXPR_STMT, start);
+                        node->lhs = new_node_binary(
+                            ND_ASSIGN, deref, new_node_num(tk->str[i]));
+                        cur = cur->next = node;
+                    }
+
+                    if (type->array_size == 0) {
+                        type->array_size = start->len;
+                    }
+
+                    if (type->array_size < start->len) {
+                        error_at(
+                            start->loc,
+                            "Initializer-string for char array is too long\n");
+                    }
+                    tk = tk->next;
+                }
+            } else {
+                node      = new_node(ND_EXPR_STMT, tk);
+                node->lhs = new_node_binary(ND_ASSIGN, lvar, assign());
+                cur = cur->next = node;
+            }
         }
     }
     skip(tk, ";");
@@ -875,11 +935,11 @@ struct node *funcall(struct token *token) {
 // declarator = "*"* ident type-suffix
 // type-suffix = ( "[" num "]" )*
 //              | "(" funcdef-args? ")"
-//
 // funcdef-args = param ( "," param )*
 // param = typespec declarator
-// declaration = typespec declarator ( "=" expr )? ( "," declarator ( "=" expr
-// )? )* ";" compound-stmt = "{" ( declaration | stmt )* "}" stmt = expr ";"
+// declaration = typespec declarator ( "=" initializer )? ( "," declarator (
+// "=" initializer )? )* ";" initialize = expr | "{" unary ( "," unary )* "}"
+// compound-stmt = "{" ( declaration | stmt )* "}" stmt = expr ";"
 //      | compound-stmt
 //      | "if" "(" expr ")" stmt ( "else" stmt )?
 //      | "while" "(" expr ")" stmt
@@ -891,7 +951,7 @@ struct node *funcall(struct token *token) {
 // relational = add ( "<" add | "<=" add | ">" add | ">=" add )*
 // add = mul ( "+" mul | "-" mul )*
 // mul = unary ( "*" unary | "/" unary )*
-// unary = "sizeof" unary | ( "+" | "-" | "*" | "&" )? unary | primary
+// unary = "sizeof" unary | ( "+" | "-" | "*" | "&" )? unary | postfix
 // postfix = primary ( "[" expr "]" )*
 // primary = "(" "{" compound-stmt "}" ")"
 //         | num
@@ -918,7 +978,7 @@ struct program *parse() {
         }
 
         if (equal(tk, ";")) {
-            new_gvar(type);
+            struct var *gvar = new_gvar(type);
         }
 
         skip(tk, ";");
