@@ -313,12 +313,14 @@ char *get_ident(struct token *tok) {
 
 struct var *find_var(struct token *tok) {
   for (struct var *var = locals; var; var = var->next) {
-    if (strncmp(var->name, tok->str, tok->len) == 0) {
+    if (strlen(var->name) == tok->len &&
+        strncmp(var->name, tok->str, tok->len) == 0) {
       return var;
     }
   }
   for (struct var *var = globals; var; var = var->next) {
-    if (strncmp(var->name, tok->str, tok->len) == 0) {
+    if (strlen(var->name) == tok->len &&
+        strncmp(var->name, tok->str, tok->len) == 0) {
       return var;
     }
   }
@@ -954,11 +956,16 @@ void initilizer(struct var *var, struct type *type) {
         struct node *n = assign();
 
         cur = cur->next = calloc(1, sizeof(struct value));
-        cur->val = n->val;
+        if (type->ptr_to->kind == INT)
+          cur->val = n->val;
+        if (type->ptr_to->kind == PTR)
+          cur->label = n->str;
         //
         ;
       }
       var->val = head.next;
+      if (var->type->array_size == 0)
+        var->type->array_size = cnt;
     }
     tk = tk->next;
     return;
