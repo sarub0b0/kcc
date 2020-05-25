@@ -6,17 +6,20 @@
  *
  */
 
-int global = 0;
-int ga, gb;
-int aa = 0, ab = 0;
-int gc[5];
+int number = 0;
+int g0     = 1;
+int g1, g2;
+int g3 = 0, g4 = 0;
+int g5[5];
 
-char *str0  = "abc";
-char str1[] = "abc";
+char *g6  = "abc";
+char g7[] = "abc";
 
-int *pa = &ga;
+int *g8 = &g1;
 
 int assert(int expected, int actual, char *code) {
+    number = number + 1;
+    printf("% 3d: ", number);
     if (expected == actual) {
         printf("%s => %d\n", code, actual);
     } else {
@@ -419,13 +422,13 @@ int main() {
                x[1][2];
            }),
            "({ int x[2][3]; int *y=x; y[5]=5; x[1][2]; })");
-    assert(0, ({ ga; }), "({ ga; })");
+    assert(1, ({ g0; }), "({ g0; })");
     assert(3,
            ({
-               gb = 3;
-               gb;
+               g1 = 3;
+               g1;
            }),
-           "({ gb=3; gb; })");
+           "({ g1=3; g1; })");
     assert(0,
            ({
                int x[4];
@@ -581,12 +584,12 @@ int main() {
            }),
            "({ char a[4]=\"abc\"; a[1]; })");
 
-    assert(97, ({ str0[0]; }), "({ str0[0]; })");
-    assert(97, ({ str1[0]; }), "({ str1[0]; })");
+    assert(97, ({ g6[0]; }), "({ g6[0]; })");
+    assert(97, ({ g7[0]; }), "({ g7[0]; })");
     assert(3,
            ({
-               ga = 3;
-               *pa;
+               g1 = 3;
+               *g8;
            }),
            "({ ga=3; *pa; })");
 
