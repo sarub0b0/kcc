@@ -11,8 +11,6 @@
 // char j[] = "foobar";
 // char *k  = j + 3;
 int l[2] = {1, 2};
-int *m   = l + 1;
+int *m = l + 0;
 
-int main() {
-    return *m;
-}
+int main() { return *m; }
