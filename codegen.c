@@ -354,9 +354,14 @@ void global_data(struct program *prog) {
             continue;
         }
         if (v->type->kind == INT) {
-            printf("  .long %d\n", *(int *) v->data);
+            printf("  .quad %d\n", *(int *) v->data);
+            // printf("  .long 0\n");
         } else if (v->type->kind == PTR) {
-            printf("  .quad %s\n", v->data);
+            printf("  .quad %s", v->data);
+            if (v->addend) {
+                printf(" + %d", v->addend);
+            }
+            printf("\n");
         } else {
             printf("  .string \"%s\"\n", v->data);
         }

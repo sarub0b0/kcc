@@ -375,6 +375,22 @@ struct node *new_node_expr(struct token *tk) {
     return n;
 }
 
+int eval(struct node *node, struct var **var) {
+    switch (node->kind) {
+        case ND_ADD:
+            return eval(node->lhs, var) + eval(node->rhs, NULL);
+        case ND_MUL:
+            return eval(node->lhs, NULL) * eval(node->rhs, NULL);
+        case ND_NUM:
+            return node->val;
+        case ND_VAR:
+            *var = node->var;
+            return 0;
+    }
+
+    return 0;
+}
+
 struct node *new_add(struct node *lhs, struct node *rhs) {
     add_type(lhs);
     add_type(rhs);
@@ -448,7 +464,6 @@ struct var *new_gvar(struct type *type) {
     v->type       = type;
     v->is_local   = false;
     globals       = v;
-    v->data       = NULL;
     return v;
 }
 
@@ -926,6 +941,41 @@ struct node *funcall(struct token *token) {
     return n;
 }
 
+void initilizer(struct var *var, struct type *type) {
+
+    if (type->kind == ARRAY && type->ptr_to->kind == CHAR) {
+        var->data = tk->str;
+        tk        = tk->next;
+        return;
+    }
+    if (type->kind == ARRAY) {
+        if (consume("{")) {
+            while (!equal(tk, "}")) {
+            }
+        }
+    }
+
+    struct node *node = assign();
+
+    if (node->kind == ND_NUM) {
+        var->data          = calloc(1, type->size);
+        *(int *) var->data = node->val;
+    }
+    if (node->kind == ND_VAR) {
+        var->data = node->var->name;
+    }
+    if (node->kind == ND_ADDR) {
+        var->data = node->lhs->var->name;
+    }
+
+    if (node->kind == ND_ADD) {
+        struct var *v = NULL;
+        int addend    = eval(node, &v);
+        var->data     = v->name;
+        var->addend   = addend;
+    }
+}
+
 // program = ( funcdef | declaration )*
 // typespec = "int"
 // funcdef = typespec declarator compound-stmt
@@ -980,27 +1030,8 @@ struct program *parse() {
             struct var *gvar = new_gvar(type);
             while (!equal(tk, ";")) {
                 if (consume("=")) {
-                    if (type->kind == ARRAY && type->ptr_to->kind == CHAR) {
-                        gvar->data = tk->str;
-                        tk         = tk->next;
-                        goto check_comma;
-                    }
-
-                    struct node *node = assign();
-
-                    if (node->kind == ND_NUM) {
-                        gvar->data          = calloc(1, type->size);
-                        *(int *) gvar->data = node->val;
-                    }
-                    if (node->kind == ND_VAR) {
-                        gvar->data = node->var->name;
-                    }
-                    if (node->kind == ND_ADDR) {
-                        gvar->data = node->lhs->var->name;
-                    }
-                    // tk = tk->next;
+                    initilizer(gvar, type);
                 }
-            check_comma:
                 if (consume(",")) {
                     type = declarator(type);
                     gvar = new_gvar(type);

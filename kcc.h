@@ -80,6 +80,7 @@ struct var {
     bool is_local;
 
     char *data;
+    int addend;
 };
 
 struct node {
