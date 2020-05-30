@@ -120,6 +120,16 @@ int main() {
          }),
          "({ int a; for(int i=0; i<=3; i=i+1){ a=i; } a; })");
   assert(3, ({
+           int a;
+           int i = 0;
+           while (i < 3) {
+             i = i + 1;
+             a = i;
+           }
+           a;
+         }),
+         "({ int a; int i=0; while(i<=3){ i=i+1; a=i; } a; })");
+  assert(3, ({
            int x;
            int *y = &x;
            *y = 3;
