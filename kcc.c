@@ -95,7 +95,7 @@ int main(int argc, char *argv[]) {
 
   // print_tokens(tk);
 
-  struct program *pr = parse();
+  struct program *pr = parse(tk);
 
   // print_ast(pr);
 

@@ -148,9 +148,9 @@ void error_at(char *, char *, ...);
 struct token *tokenize(char *);
 void gen_code(struct program *);
 struct node *expr();
-bool consume(char *);
-struct token *consume_ident();
-struct program *parse();
+bool consume(struct token **, struct token *, char *);
+struct token *consume_ident(struct token **, struct token *);
+struct program *parse(struct token *);
 
 bool equal(struct token *, char *);
 void print_tokens(struct token *);
@@ -162,13 +162,8 @@ struct type *copy_type(struct type *);
 struct type *pointer_to(struct type *);
 struct type *array_to(struct type *, size_t len);
 
-extern char *user_input;
-extern struct token *tk;
-
-extern struct var *locals;
-extern int verbose;
-
 extern struct type *ty_int;
 extern struct type *ty_char;
 
+extern int verbose;
 #endif
