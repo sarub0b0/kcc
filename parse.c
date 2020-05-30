@@ -27,6 +27,9 @@ struct node *primary();
 
 struct node *funcall(struct token *token);
 
+struct node *lvar_initializer(struct var *, struct type *);
+void gvar_initializer(struct var *, struct type *);
+
 #define MAX_LEN (int)(256)
 
 void print_param(struct var *params, bool is_next, struct function *fn) {
@@ -566,8 +569,6 @@ struct type *funcdef_args(struct token *tok, struct type *type) {
   return type;
 }
 
-// declaration = typespec
-//   ( declarator ( "=" expr )? ( "," declarator ( "=" expr)? )* )? ";"
 struct node *declaration() {
 
   struct node *node;
@@ -588,58 +589,7 @@ struct node *declaration() {
     var = new_lvar(type);
 
     if (consume("=")) {
-      struct node *lvar = new_node_var(var, var->type);
-      if (type->kind == ARRAY) {
-        if (equal(tk, "{")) {
-          int cnt = 0;
-          tk = tk->next;
-          struct token *start;
-          while (!equal(tk, "}")) {
-            if (cnt)
-              skip(tk, ",");
-            start = tk;
-            struct node *deref = new_node_unary(
-                ND_DEREF, new_add(lvar, new_node_num(cnt)), start);
-            node = new_node(ND_EXPR_STMT, start);
-            node->lhs = new_node_binary(ND_ASSIGN, deref, unary());
-            cur = cur->next = node;
-            cnt++;
-          }
-          if (type->array_size == 0) {
-            type->array_size = cnt;
-          }
-          skip(tk, "}");
-          if (type->array_size && type->array_size < cnt) {
-            error_at(start->loc, "Excess elements in array initializer\n");
-          }
-        }
-        if (tk->kind == TK_STR) {
-          struct token *start = tk;
-
-          for (int i = 0; i < tk->len; i++) {
-            struct node *deref =
-                new_node_unary(ND_DEREF, new_add(lvar, new_node_num(i)), start);
-            node = new_node(ND_EXPR_STMT, start);
-            node->lhs =
-                new_node_binary(ND_ASSIGN, deref, new_node_num(tk->str[i]));
-            cur = cur->next = node;
-          }
-
-          if (type->array_size == 0) {
-            type->array_size = start->len;
-          }
-
-          if (type->array_size < start->len) {
-            error_at(start->loc,
-                     "Initializer-string for char array is too long\n");
-          }
-          tk = tk->next;
-        }
-      } else {
-        node = new_node(ND_EXPR_STMT, tk);
-        node->lhs = new_node_binary(ND_ASSIGN, lvar, assign());
-        cur = cur->next = node;
-      }
+      cur = cur->next = lvar_initializer(var, type);
     }
   }
   skip(tk, ";");
@@ -936,7 +886,89 @@ struct node *funcall(struct token *token) {
   return n;
 }
 
-void initilizer(struct var *var, struct type *type) {
+struct node *string_initializer(struct var *var, struct type *type) {
+
+  struct node head = {};
+  struct node *cur = &head;
+
+  struct node *lvar = new_node_var(var, var->type);
+  int array_size = 0;
+  struct token *start = tk;
+
+  for (int i = 0; i < tk->len; i++) {
+    struct node *deref =
+        new_node_unary(ND_DEREF, new_add(lvar, new_node_num(i)), start);
+    struct node *node = new_node(ND_EXPR_STMT, start);
+    node->lhs = new_node_binary(ND_ASSIGN, deref, new_node_num(tk->str[i]));
+    cur = cur->next = node;
+  }
+  array_size = start->len;
+
+  //
+  if (type->array_size == 0) {
+    type->array_size = array_size;
+  }
+
+  if (type->array_size < array_size) {
+    error_at(start->loc, "Initializer-string for char array is too long\n");
+  }
+
+  tk = tk->next;
+  return head.next;
+}
+
+struct node *array_initializer(struct var *var, struct type *type) {
+  struct node *node;
+  struct token *start;
+
+  struct node head = {};
+  struct node *cur = &head;
+
+  struct node *lvar = new_node_var(var, var->type);
+  int array_size = 0;
+
+  if (equal(tk, "{")) {
+    tk = tk->next;
+
+    int cnt = 0;
+    while (!equal(tk, "}")) {
+      if (cnt)
+        skip(tk, ",");
+      start = tk;
+      struct node *deref =
+          new_node_unary(ND_DEREF, new_add(lvar, new_node_num(cnt)), start);
+      node = new_node(ND_EXPR_STMT, start);
+      node->lhs = new_node_binary(ND_ASSIGN, deref, unary());
+      cur = cur->next = node;
+      cnt++;
+    }
+  }
+  if (type->array_size == 0) {
+    type->array_size = array_size;
+  }
+
+  if (type->array_size < array_size) {
+    error_at(start->loc, "Initializer-string for char array is too long\n");
+  }
+
+  tk = tk->next;
+  return head.next;
+}
+
+struct node *lvar_initializer(struct var *var, struct type *type) {
+  if (type->kind == ARRAY && type->ptr_to->kind == CHAR) {
+    return string_initializer(var, type);
+  }
+  if (type->kind == ARRAY) {
+    return array_initializer(var, type);
+  }
+
+  struct node *lvar = new_node_var(var, type);
+  struct node *node = new_node(ND_EXPR_STMT, tk);
+  node->lhs = new_node_binary(ND_ASSIGN, lvar, assign());
+  return node;
+}
+void gvar_initilizer(struct var *var, struct type *type) {
 
   if (type->kind == ARRAY && type->ptr_to->kind == CHAR) {
     var->data = tk->str;
@@ -948,11 +980,11 @@ void initilizer(struct var *var, struct type *type) {
       struct value head = {};
       struct value *cur = &head;
       int cnt = 0;
+
       while (!equal(tk, "}")) {
         if (0 < cnt++)
           skip(tk, ",");
 
-        // int でテスト
         struct node *n = assign();
 
         cur = cur->next = calloc(1, sizeof(struct value));
@@ -967,6 +999,7 @@ void initilizer(struct var *var, struct type *type) {
       if (var->type->array_size == 0)
         var->type->array_size = cnt;
     }
+
     tk = tk->next;
     return;
   }
@@ -990,6 +1023,7 @@ void initilizer(struct var *var, struct type *type) {
     var->data = v->name;
     var->addend = addend;
   }
+  return;
 }
 
 // program = ( funcdef | declaration )*
@@ -1000,9 +1034,14 @@ void initilizer(struct var *var, struct type *type) {
 //              | "(" funcdef-args? ")"
 // funcdef-args = param ( "," param )*
 // param = typespec declarator
-// declaration = typespec declarator ( "=" initializer )? ( "," declarator (
-// "=" initializer )? )* ";" initialize = expr | "{" unary ( "," unary )* "}"
-// compound-stmt = "{" ( declaration | stmt )* "}" stmt = expr ";"
+// declaration = typespec declarator
+//               ( "=" initializer )?
+//               ( "," declarator ( "=" initializer )? )* ";"
+//
+// initialize = expr | "{" unary ( "," unary )* "}"
+// compound-stmt = "{" ( declaration | stmt )* "}"
+//
+// stmt = expr ";"
 //      | compound-stmt
 //      | "if" "(" expr ")" stmt ( "else" stmt )?
 //      | "while" "(" expr ")" stmt
@@ -1046,7 +1085,7 @@ struct program *parse() {
       struct var *gvar = new_gvar(type);
       while (!equal(tk, ";")) {
         if (consume("=")) {
-          initilizer(gvar, type);
+          gvar_initilizer(gvar, type);
         }
         if (consume(",")) {
           type = declarator(type);
