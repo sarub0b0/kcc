@@ -41,6 +41,15 @@ int fib(int n) {
   return fib(n - 1) + fib(n - 2);
 }
 int foo() { return 1; }
+
+int for3() {
+  int a;
+  for (int i = 0; i < 3; ++i) {
+    a = i;
+  }
+  return a;
+}
+
 int main() {
   assert(0, 0, "0");
   assert(42, 42, "42");
@@ -94,6 +103,22 @@ int main() {
   assert(2, ({ sub(5, 3); }), "({ sub(5, 3); })");
   assert(1, ({ sub(5, 2) - sub(5, 3); }), "({ sub(5, 2)-sub(5, 3); })");
   assert(55, ({ fib(9); }), "({ fib(9); })");
+  assert(3, ({
+           int i;
+           for (i = 0; i < 3; i = i + 1) {
+             i = i;
+           }
+           i;
+         }),
+         "({ int i; for(i=0; i<=3; i=i+1){ i=i; } i; })");
+  assert(3, ({
+           int a;
+           for (int i = 0; i <= 3; i = i + 1) {
+             a = i;
+           }
+           a;
+         }),
+         "({ int a; for(int i=0; i<=3; i=i+1){ a=i; } a; })");
   assert(3, ({
            int x;
            int *y = &x;

@@ -146,18 +146,19 @@ void error(char *fmt, ...);
 void error_at(char *, char *, ...);
 
 struct token *tokenize(char *);
+struct program *parse(struct token *);
 void gen_code(struct program *);
-struct node *expr();
+
 bool consume(struct token **, struct token *, char *);
 struct token *consume_ident(struct token **, struct token *);
-struct program *parse(struct token *);
-
 bool equal(struct token *, char *);
+
 void print_tokens(struct token *);
 void print_ast(struct program *);
 
 bool is_integer(struct type *);
 void add_type(struct node *);
+
 struct type *copy_type(struct type *);
 struct type *pointer_to(struct type *);
 struct type *array_to(struct type *, size_t len);

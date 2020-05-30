@@ -603,7 +603,6 @@ struct node *declaration(struct token **ret, struct token *tk) {
       cur = cur->next = lvar_initializer(&tk, tk, var, type);
     }
   }
-  skip(&tk, tk, ";");
 
   node = new_node(ND_BLOCK, tk);
   node->body = head.next;
@@ -639,6 +638,7 @@ struct node *compound_stmt(struct token **ret, struct token *tk) {
   while (!equal(tk, "}")) {
     if (equal(tk, "int") || equal(tk, "char")) {
       cur = cur->next = declaration(&tk, tk);
+      skip(&tk, tk, ";");
     } else {
       cur = cur->next = stmt(&tk, tk);
     }
@@ -700,12 +700,15 @@ struct node *stmt(struct token **ret, struct token *tk) {
     goto out;
   }
 
-  // "for" "(" expr? ";" expr? ";" expr? ")" stmt
+  // "for" "(" ( declaration | expr )? ";" expr? ";" expr? ")" stmt
   if (equal(tk, "for")) {
     n = new_node(ND_FOR, tk);
     skip(&tk, tk->next, "(");
     if (!equal(tk, ";")) {
-      n->init = new_node_expr(&tk, tk);
+      if (tk->kind == TK_RESERVED)
+        n->init = declaration(&tk, tk);
+      else
+        n->init = new_node_expr(&tk, tk);
     }
     skip(&tk, tk, ";");
 
@@ -1067,7 +1070,7 @@ void gvar_initilizer(struct token **ret, struct token *tk, struct var *var,
   return;
 }
 
-// program = ( funcdef | declaration )*
+// program = ( funcdef | declaration ";" )*
 // typespec = "int"
 // funcdef = typespec declarator compound-stmt
 // declarator = "*"* ident type-suffix
@@ -1077,16 +1080,16 @@ void gvar_initilizer(struct token **ret, struct token *tk, struct var *var,
 // param = typespec declarator
 // declaration = typespec declarator
 //               ( "=" initializer )?
-//               ( "," declarator ( "=" initializer )? )* ";"
+//               ( "," declarator ( "=" initializer )? )*
 //
 // initialize = expr | "{" unary ( "," unary )* "}"
-// compound-stmt = "{" ( declaration | stmt )* "}"
+// compound-stmt = "{" ( declaration ";" | stmt )* "}"
 //
 // stmt = expr ";"
 //      | compound-stmt
 //      | "if" "(" expr ")" stmt ( "else" stmt )?
 //      | "while" "(" expr ")" stmt
-//      | "for" "(" expr? ";" expr? ";" expr? ")" stmt
+//      | "for" "(" ( declaration | expr )? ";" expr? ";" expr? ")" stmt
 //      | "return" expr ";"
 // expr = assign
 // assign = equality ( "=" assign )?
