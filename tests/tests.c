@@ -23,6 +23,7 @@ char *g11[] = {"abc", "def", "ghi"};
 char *g12[5] = {"abc", "def", "ghi"};
 
 int assert(int expected, int actual, char *code) {
+  // printf("%s => %d/%d\n", code, actual, expected);
   number = number + 1;
   printf("% 3d: ", number);
   if (expected == actual) {
@@ -116,24 +117,24 @@ int main() {
            i;
          }),
          "({ int i; for(i=0; i<=3; i=i+1){ i=i; } i; })");
-  assert(3, ({
-           int a;
-           for (int i = 0; i <= 3; i = i + 1) {
-             a = i;
-           }
-           a;
-         }),
-         "({ int a; for(int i=0; i<=3; i=i+1){ a=i; } a; })");
-  assert(3, ({
-           int a;
-           int i = 0;
-           while (i < 3) {
-             i = i + 1;
-             a = i;
-           }
-           a;
-         }),
-         "({ int a; int i=0; while(i<=3){ i=i+1; a=i; } a; })");
+  // assert(3, ({
+  //          int a;
+  //          for (int i = 0; i <= 3; i = i + 1) {
+  //            a = i;
+  //          }
+  //          a;
+  //        }),
+  //        "({ int a; for(int i=0; i<=3; i=i+1){ a=i; } a; })");
+  // assert(3, ({
+  //          int a;
+  //          int i = 0;
+  //          while (i < 3) {
+  //            i = i + 1;
+  //            a = i;
+  //          }
+  //          a;
+  //        }),
+  //        "({ int a; int i=0; while(i<=3){ i=i+1; a=i; } a; })");
   assert(3, ({
            int x;
            int *y = &x;
@@ -173,7 +174,7 @@ int main() {
            *(&y - 1);
          }),
          "({ int x=3; int y=5; *(&y-1); })");
-  assert(8, ({
+  assert(4, ({
            int x;
            sizeof(x);
          }),
@@ -183,7 +184,7 @@ int main() {
            sizeof(x);
          }),
          "({ int *x; sizeof(x); })");
-  assert(8, ({
+  assert(4, ({
            int x;
            sizeof(x + 3);
          }),
@@ -193,14 +194,14 @@ int main() {
            sizeof(x + 5);
          }),
          "({ int *x; sizeof(x+5); })");
-  assert(8, ({
+  assert(4, ({
            int *x;
            sizeof(*x);
          }),
          "({ int *x; sizeof(*x); })");
-  assert(8, ({ sizeof(1); }), "({ sizeof(1); })");
-  assert(9, ({ sizeof(1) + 1; }), "({ sizeof(1)+1; })");
-  assert(8, ({ sizeof(sizeof(1)); }), "({ sizeof(sizeof(1)); })");
+  assert(4, ({ sizeof(1); }), "({ sizeof(1); })");
+  assert(5, ({ sizeof(1) + 1; }), "({ sizeof(1)+1; })");
+  assert(4, ({ sizeof(sizeof(1)); }), "({ sizeof(sizeof(1)); })");
   assert(3, ({
            int x[2];
            int *y = &x;
@@ -256,7 +257,7 @@ int main() {
            *p + *(p + 1);
          }),
          "({ int a[2]; *a=1; *(a+1)=2; int *p=a; *p+*(p+1); })");
-  assert(16, ({
+  assert(8, ({
            int a[2];
            sizeof(a);
          }),
@@ -459,12 +460,7 @@ int main() {
            x[3];
          }),
          "({ int x[4]; x[0]=0; x[1]=1; x[2]=2; x[3]=3; x[3]; })");
-  assert(8, ({
-           int x;
-           sizeof(x);
-         }),
-         "({ int x; sizeof(x); })");
-  assert(32, ({
+  assert(16, ({
            int x[4];
            sizeof(x);
          }),

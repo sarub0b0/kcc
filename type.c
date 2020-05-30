@@ -3,7 +3,7 @@
 
 #include "kcc.h"
 
-struct type *ty_int = &(struct type){INT, 8, ""};
+struct type *ty_int = &(struct type){INT, 4, ""};
 struct type *ty_char = &(struct type){CHAR, 1, ""};
 struct type *ty_void = &(struct type){VOID, 0, ""};
 
@@ -54,10 +54,6 @@ void add_type(struct node *n) {
     add_type(nn);
   }
 
-  for (struct node *nn = n->args; nn; nn = nn->next) {
-    add_type(nn);
-  }
-
   switch (n->kind) {
   case ND_ADD:
   case ND_SUB:
@@ -88,11 +84,15 @@ void add_type(struct node *n) {
     }
     n->type = n->lhs->type->ptr_to;
     return;
-  case ND_FUNCALL:
-    n->type = ty_int;
-    return;
   case ND_VAR:
     n->type = n->var->type;
     return;
+  case ND_STMT_EXPR: {
+    struct node *stmt = n->body;
+    while (stmt->next)
+      stmt = stmt->next;
+    n->type = stmt->lhs->type;
+    return;
+  }
   }
 }

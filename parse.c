@@ -135,6 +135,22 @@ void print_stmt(struct node *n, bool is_next_stmt, bool is_next_node,
     scope_prefix = strndup(buf, MAX_LEN);
     print_stmt(n->lhs, is_next_stmt, false, scope_prefix);
     break;
+  case ND_STMT_EXPR:
+    printf("%s-StmtExpr\n", local_prefix);
+    if (is_next_node) {
+      snprintf(buf, MAX_LEN, "%s |", scope_prefix);
+    } else {
+      snprintf(buf, MAX_LEN, "%s  ", scope_prefix);
+    }
+    scope_prefix = strndup(buf, MAX_LEN);
+    for (struct node *stmt = n->body; stmt; stmt = stmt->next) {
+      if (stmt->next == NULL) {
+        print_stmt(stmt, is_next_stmt, false, scope_prefix);
+      } else {
+        print_stmt(stmt, is_next_stmt, true, scope_prefix);
+      }
+    }
+    break;
   case ND_ASSIGN:
     printf("%s-Assign '%s'\n", local_prefix, n->str);
     if (is_next_node) {
@@ -157,6 +173,7 @@ void print_stmt(struct node *n, bool is_next_stmt, bool is_next_node,
     print_stmt(n->cond, is_next_stmt, true, scope_prefix);
     print_stmt(n->then, is_next_stmt, true, scope_prefix);
     print_stmt(n->els, is_next_stmt, false, scope_prefix);
+    break;
   case ND_FOR:
     printf("%s-Loop '%s'\n", local_prefix, n->str);
     if (is_next_node) {
@@ -212,7 +229,7 @@ void print_stmt(struct node *n, bool is_next_stmt, bool is_next_node,
       snprintf(buf, MAX_LEN, "%s  ", scope_prefix);
     }
     scope_prefix = strndup(buf, MAX_LEN);
-    for (struct node *arg = n->args; arg; arg = arg->next) {
+    for (struct node *arg = n->body; arg; arg = arg->next) {
       if (arg->next == NULL) {
         print_stmt(arg, is_next_stmt, false, scope_prefix);
       } else {
@@ -245,7 +262,7 @@ void print_compound_stmt(struct node *stmt, bool is_next) {
 
     prefix = buf;
 
-    for (struct node *n = stmt->body; n; n = n->next) {
+    for (struct node *n = stmt; n; n = n->next) {
       if (n->next == NULL) {
         print_stmt(n, true, false, prefix);
       } else {
@@ -317,11 +334,18 @@ char *get_ident(struct token *tok) {
 }
 
 struct function *find_func(char *name) {
-  for (struct function *fn = functions->next; fn; fn = fn->next)
+  for (struct function *fn = functions->next; fn; fn = fn->next) {
     if (strlen(fn->name) == strlen(name) &&
-        strncmp(fn->name, name, strlen(name)) == 0)
+        strncmp(fn->name, name, strlen(name)) == 0) {
       return fn;
+    }
+  }
 
+  struct function *fn = current_fn;
+  if (strlen(fn->name) == strlen(name) &&
+      strncmp(fn->name, name, strlen(name)) == 0) {
+    return fn;
+  }
   return NULL;
 }
 
@@ -379,6 +403,7 @@ struct node *new_node_num(int val) {
   struct node *n = calloc(1, sizeof(struct node));
   n->kind = ND_NUM;
   n->val = val;
+  n->type = copy_type(ty_int);
   return n;
 }
 
@@ -400,8 +425,7 @@ struct node *new_node_unary(enum node_kind kind, struct node *expr,
 
 struct node *new_node_expr(struct token **ret, struct token *tk) {
   struct node *n = new_node(ND_EXPR_STMT, tk);
-  n->lhs = expr(&tk, tk);
-  *ret = tk;
+  n->lhs = expr(ret, tk);
   return n;
 }
 
@@ -539,10 +563,9 @@ struct function *funcdef(struct token **ret, struct token *tk,
 
   fn->params = locals;
 
-  fn->stmt = compound_stmt(&tk, tk);
+  fn->stmt = compound_stmt(ret, tk)->body;
   fn->locals = locals;
 
-  *ret = tk;
   return fn;
 }
 
@@ -698,20 +721,23 @@ struct node *expr(struct token **ret, struct token *tk) {
 }
 
 struct node *stmt(struct token **ret, struct token *tk) {
-  struct node *n;
+  struct node *n = NULL;
 
   if (equal(tk, "return")) {
-    tk = tk->next;
+    n = new_node(ND_RETURN, tk);
 
     if (current_fn->type->kind != VOID) {
-      n = new_node_binary(ND_RETURN, expr(&tk, tk), NULL);
+      n->lhs = expr(&tk, tk->next);
     } else {
-      if (!equal(tk, ";"))
+      if (!equal(tk->next, ";"))
         error_at(tk->loc, "Void function '%s' should not return a value",
                  current_fn->name);
+      tk = tk->next;
     }
     skip(&tk, tk, ";");
-    goto out;
+
+    *ret = tk;
+    return n;
   }
 
   // "if" "(" expr ")" stmt ("else" stmt)?
@@ -729,7 +755,8 @@ struct node *stmt(struct token **ret, struct token *tk) {
       n->els = stmt(&tk, tk);
     }
 
-    goto out;
+    *ret = tk;
+    return n;
   }
 
   // "while" "(" expr ")" stmt
@@ -740,7 +767,8 @@ struct node *stmt(struct token **ret, struct token *tk) {
     skip(&tk, tk, ")");
     n->then = stmt(&tk, tk);
 
-    goto out;
+    *ret = tk;
+    return n;
   }
 
   // "for" "(" ( declaration | expr )? ";" expr? ";" expr? ")" stmt
@@ -767,18 +795,16 @@ struct node *stmt(struct token **ret, struct token *tk) {
 
     n->then = stmt(&tk, tk);
 
-    goto out;
+    *ret = tk;
+    return n;
   }
 
   if (equal(tk, "{")) {
-    n = compound_stmt(&tk, tk);
-    goto out;
+    return compound_stmt(ret, tk);
   }
 
   n = new_node_expr(&tk, tk);
   skip(&tk, tk, ";");
-
-out:
   *ret = tk;
   return n;
 }
@@ -900,9 +926,8 @@ struct node *primary(struct token **ret, struct token *tk) {
   struct node *n;
 
   if (equal(tk, "(") && equal(tk->next, "{")) {
-    n = new_node(ND_EXPR_STMT, tk);
-    tk = tk->next;
-    n->body = compound_stmt(&tk, tk);
+    n = new_node(ND_STMT_EXPR, tk);
+    n->body = compound_stmt(&tk, tk->next)->body;
 
     skip(&tk, tk, ")");
 
@@ -948,22 +973,46 @@ struct node *funcall(struct token **ret, struct token *tk,
   struct node head = {};
   struct node *cur = &head;
 
+  struct var vhead = {};
+  struct var *vcur = &vhead;
+
   skip(&tk, tk, "(");
 
+  struct node *funcall = new_node(ND_FUNCALL, ident);
+
+  struct function *fn = find_func(ident->str);
+
+  struct node *n;
   while (!equal(tk, ")")) {
     if (cur != &head)
       skip(&tk, tk, ",");
 
-    cur = cur->next = assign(&tk, tk);
+    n = assign(&tk, tk);
+    add_type(n);
+
+    n->type->name = strndup("", 256);
+    vcur = vcur->next = calloc(1, sizeof(struct var));
+    vcur->type = n->type;
+    vcur->name = n->type->name;
+
+    cur = cur->next = n;
   }
   skip(&tk, tk, ")");
 
-  struct node *n = new_node(ND_FUNCALL, ident);
-  n->str = ident->str;
-  n->args = head.next;
+  if (fn) {
+    funcall->func_ty = fn->type;
+    funcall->args = vhead.next;
+    funcall->params = fn->params;
+  } else {
+    funcall->func_ty = ty_void;
+    funcall->args = vhead.next;
+  }
+  funcall->str = ident->str;
+  funcall->body = head.next;
+  funcall->type = funcall->func_ty->return_type;
 
   *ret = tk;
-  return n;
+  return funcall;
 }
 
 struct node *string_initializer(struct token **ret, struct token *tk,
@@ -981,6 +1030,7 @@ struct node *string_initializer(struct token **ret, struct token *tk,
         new_node_unary(ND_DEREF, new_add(lvar, new_node_num(i)), start);
     struct node *node = new_node(ND_EXPR_STMT, start);
     node->lhs = new_node_binary(ND_ASSIGN, deref, new_node_num(tk->str[i]));
+    node->lhs->str = "=";
     cur = cur->next = node;
   }
   array_size = start->len;
@@ -1021,6 +1071,8 @@ struct node *array_initializer(struct token **ret, struct token *tk,
           new_node_unary(ND_DEREF, new_add(lvar, new_node_num(cnt)), start);
       node = new_node(ND_EXPR_STMT, start);
       node->lhs = new_node_binary(ND_ASSIGN, deref, unary(&tk, tk));
+      node->lhs->str = "=";
+
       cur = cur->next = node;
       cnt++;
     }
@@ -1049,6 +1101,7 @@ struct node *lvar_initializer(struct token **ret, struct token *tk,
   struct node *lvar = new_node_var(var, type);
   struct node *node = new_node(ND_EXPR_STMT, tk);
   node->lhs = new_node_binary(ND_ASSIGN, lvar, assign(&tk, tk));
+  node->lhs->str = "=";
   *ret = tk;
   return node;
 }
@@ -1073,6 +1126,7 @@ void gvar_initilizer(struct token **ret, struct token *tk, struct var *var,
         struct node *n = assign(&tk, tk);
 
         cur = cur->next = calloc(1, sizeof(struct value));
+
         if (type->ptr_to->kind == INT)
           cur->val = n->val;
         if (type->ptr_to->kind == PTR)

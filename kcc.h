@@ -46,6 +46,8 @@ enum node_kind {
   ND_ADDR,
   ND_DEREF,
   ND_EXPR_STMT,
+  ND_STMT_EXPR,
+  ND_NULL_STMT,
 };
 
 enum type_kind {
@@ -112,7 +114,9 @@ struct node {
   struct node *next;
 
   // function call
-  struct node *args;
+  struct type *func_ty;
+  struct var *args;
+  struct var *params;
   // var **args;
   int nargs;
 
