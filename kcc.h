@@ -53,6 +53,7 @@ enum type_kind {
   PTR,
   ARRAY,
   CHAR,
+  VOID,
 };
 
 struct type {
@@ -163,6 +164,7 @@ struct type *copy_type(struct type *);
 struct type *pointer_to(struct type *);
 struct type *array_to(struct type *, size_t len);
 
+extern struct type *ty_void;
 extern struct type *ty_int;
 extern struct type *ty_char;
 

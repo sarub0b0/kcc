@@ -6,6 +6,7 @@
 #include "kcc.h"
 
 struct function *functions;
+struct function *current_fn;
 struct var *locals;
 struct var *globals;
 
@@ -315,6 +316,15 @@ char *get_ident(struct token *tok) {
   return strndup(tok->str, tok->len);
 }
 
+struct function *find_func(char *name) {
+  for (struct function *fn = functions->next; fn; fn = fn->next)
+    if (strlen(fn->name) == strlen(name) &&
+        strncmp(fn->name, name, strlen(name)) == 0)
+      return fn;
+
+  return NULL;
+}
+
 struct var *find_var(struct token *tok) {
   for (struct var *var = locals; var; var = var->next) {
     if (strlen(var->name) == tok->len &&
@@ -329,6 +339,22 @@ struct var *find_var(struct token *tok) {
     }
   }
   return NULL;
+}
+
+bool is_void_assign_element(struct node *node) {
+  if (!node) {
+    return false;
+  }
+  if (node->kind == ND_FUNCALL) {
+    struct function *f = find_func(node->str);
+    if (f->type->kind == VOID)
+      return true;
+    else
+      return false;
+  }
+
+  return is_void_assign_element(node->lhs);
+  return is_void_assign_element(node->rhs);
 }
 
 bool at_eof(struct token *tk) { return tk->kind == TK_EOF; }
@@ -488,6 +514,11 @@ struct type *typespec(struct token **ret, struct token *tk) {
     return copy_type(ty_char);
   }
 
+  if (consume(&tk, tk, "void")) {
+    *ret = tk;
+    return copy_type(ty_void);
+  }
+
   *ret = tk;
   return NULL;
 }
@@ -498,6 +529,7 @@ struct function *funcdef(struct token **ret, struct token *tk,
 
   struct function *fn = calloc(1, sizeof(struct function));
 
+  current_fn = fn;
   fn->name = type->name;
   fn->type = type->return_type;
 
@@ -612,9 +644,14 @@ struct node *declaration(struct token **ret, struct token *tk) {
 
 struct node *assign(struct token **ret, struct token *tk) {
   struct node *n = equality(&tk, tk);
+  struct token *start = tk;
   if (consume(&tk, tk, "=")) {
     n = new_node_binary(ND_ASSIGN, n, assign(&tk, tk));
     n->str = "=";
+    if (is_void_assign_element(n->rhs))
+      // error_at(start->loc, "Assigning to type from incompatible type
+      // 'void'");
+      error_at(start->loc, "Can't Assign to void function");
   }
 
   *ret = tk;
@@ -665,8 +702,14 @@ struct node *stmt(struct token **ret, struct token *tk) {
 
   if (equal(tk, "return")) {
     tk = tk->next;
-    n = new_node_binary(ND_RETURN, expr(&tk, tk), NULL);
 
+    if (current_fn->type->kind != VOID) {
+      n = new_node_binary(ND_RETURN, expr(&tk, tk), NULL);
+    } else {
+      if (!equal(tk, ";"))
+        error_at(tk->loc, "Void function '%s' should not return a value",
+                 current_fn->name);
+    }
     skip(&tk, tk, ";");
     goto out;
   }
@@ -1071,7 +1114,7 @@ void gvar_initilizer(struct token **ret, struct token *tk, struct var *var,
 }
 
 // program = ( funcdef | declaration ";" )*
-// typespec = "int"
+// typespec = "int" | "char"
 // funcdef = typespec declarator compound-stmt
 // declarator = "*"* ident type-suffix
 // type-suffix = ( "[" num "]" )*
@@ -1108,11 +1151,14 @@ void gvar_initilizer(struct token **ret, struct token *tk, struct var *var,
 // funcall-args = assign ( "," assign )*
 
 struct program *parse(struct token *tk) {
+  functions = NULL;
   globals = NULL;
 
   struct function head = {};
   struct function *cur = &head;
   struct type *type;
+
+  functions = cur;
   while (!at_eof(tk)) {
 
     type = typespec(&tk, tk);

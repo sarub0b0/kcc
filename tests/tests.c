@@ -50,6 +50,11 @@ int for3() {
   return a;
 }
 
+void void0() {
+  int a, b, c;
+  return;
+}
+
 int main() {
   assert(0, 0, "0");
   assert(42, 42, "42");
@@ -562,6 +567,13 @@ int main() {
 
   assert(3, ({ g10[3]; }), "({ g10[3]; })");
   assert(97, ({ g11[0][0]; }), "({ g11[0][0]; })");
+
+  assert(1, ({
+           int a = 1;
+           void0();
+           a;
+         }),
+         "({ int a=1; void0(); a;})");
 
   return 0;
 }
