@@ -33,6 +33,8 @@ struct node *lvar_initializer(struct token **, struct token *, struct var *,
 void gvar_initializer(struct token **, struct token *, struct var *,
                       struct type *);
 
+struct function *find_func(char *);
+
 #define MAX_LEN (int)(256)
 
 void print_param(struct var *params, bool is_next, struct function *fn) {
@@ -272,8 +274,17 @@ void print_compound_stmt(struct node *stmt, bool is_next) {
   }
 }
 
-void print_ast(struct program *pr) {
+void print_ast(struct program *pr, char *funcname) {
   struct function *last;
+
+  if (funcname) {
+    struct function *f = find_func(funcname);
+    printf("`-Function '%s'\n", f->name);
+    print_param(f->params, false, f);
+    print_compound_stmt(f->stmt, false);
+    printf("\n");
+    return;
+  }
 
   bool has_function = pr->functions ? true : false;
   print_globals(has_function);
@@ -293,6 +304,36 @@ void print_ast(struct program *pr) {
     }
   }
   printf("\n");
+}
+void print_tok(struct token *tk, char *funcname) {
+
+  char *loc = tk->loc;
+  char *line = tk->loc;
+  char *input = tk->input;
+  char *file = tk->file;
+  while (input < line && line[-1] != '\n')
+    line--;
+
+  char *end = line;
+  while (*end != ')')
+    end++;
+
+  end++;
+
+  int line_num = 1;
+  for (char *p = input; p < line; p++)
+    if (*p == '\n')
+      line_num++;
+
+  fprintf(stderr, "  %s:%d: ", file, line_num);
+  fprintf(stderr, "%.*s\n", (int)(end - line), line);
+}
+
+void print_function(struct program *p) {
+  printf("Function list:\n");
+  for (struct function *fn = p->functions; fn; fn = fn->next) {
+    print_tok(fn->token, fn->name);
+  }
 }
 
 void skip(struct token **ret, struct token *tk, char *op) {
@@ -577,6 +618,7 @@ struct function *funcdef(struct token **ret, struct token *tk,
   current_fn = fn;
   fn->name = type->name;
   fn->type = type->return_type;
+  fn->token = tk;
 
   for (struct type *ty = type->params; ty; ty = ty->next) {
     new_lvar(ty);

@@ -8,6 +8,8 @@
 #include "kcc.h"
 
 struct string *strings;
+char *current_user_input;
+char *current_filename;
 
 const char *token_kind_str[TK_KIND_NUM] = {
     "reserved", "identifier", "string", "number", "eof", "sizeof",
@@ -64,6 +66,8 @@ struct token *new_token(enum token_kind kind, struct token *cur, char *loc,
   t->len = len;
   t->str = strndup(loc, len);
   t->loc = loc;
+  t->input = current_user_input;
+  t->file = current_filename;
   cur->next = t;
   return t;
 }
@@ -99,8 +103,10 @@ void convert_ident_to_reserved(struct token *token) {
   }
 }
 
-struct token *tokenize(char *p) {
+struct token *tokenize(char *filename, char *p) {
   strings = NULL;
+  current_filename = filename;
+  current_user_input = p;
 
   struct token head = {};
   struct token *cur = &head;

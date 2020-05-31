@@ -21,6 +21,8 @@ struct token {
   char *str;
   char *loc;
   int len;
+  char *file;
+  char *input;
 };
 
 enum node_kind {
@@ -134,6 +136,7 @@ struct node {
 
 struct function {
   char *name;
+  struct token *token;
   struct function *next;
   struct type *type;
   struct var *params;
@@ -152,7 +155,7 @@ struct program {
 void error(char *fmt, ...);
 void error_at(char *, char *, ...);
 
-struct token *tokenize(char *);
+struct token *tokenize(char *, char *);
 struct program *parse(struct token *);
 void gen_code(struct program *);
 
@@ -161,7 +164,8 @@ struct token *consume_ident(struct token **, struct token *);
 bool equal(struct token *, char *);
 
 void print_tokens(struct token *);
-void print_ast(struct program *);
+void print_ast(struct program *, char *);
+void print_function(struct program *);
 
 bool is_integer(struct type *);
 void add_type(struct node *);
