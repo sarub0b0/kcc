@@ -80,7 +80,7 @@ int is_alnum(char c) { return is_alpha(c) || ('0' <= c && c <= '9'); }
 
 bool is_keyword(struct token *tok) {
   char *keyword[] = {"return", "if",   "else", "for",   "while", "sizeof",
-                     "int",    "void", "char", "short", "long"};
+                     "int",    "void", "char", "short", "long",  "typedef"};
 
   for (int i = 0; i < sizeof(keyword) / sizeof(*keyword); i++) {
     if (equal(tok, keyword[i])) {
@@ -133,7 +133,11 @@ struct token *tokenize(char *filename, char *p) {
     }
 
     if (starts_with(p, "==") || starts_with(p, "!=") || starts_with(p, ">=") ||
-        starts_with(p, "<=")) {
+        starts_with(p, "<=") || starts_with(p, "++") || starts_with(p, "--") ||
+        starts_with(p, "+=") || starts_with(p, "-=") || starts_with(p, "*=") ||
+        starts_with(p, "/=")
+
+    ) {
       cur = new_token(TK_RESERVED, cur, p, 2);
       p += 2;
       continue;

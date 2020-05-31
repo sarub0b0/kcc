@@ -604,6 +604,7 @@ struct var *new_string_literal(char *data, int len) {
 }
 
 struct type *typespec(struct token **ret, struct token *tk) {
+
   if (consume(&tk, tk, "short")) {
     *ret = tk;
     return copy_type(ty_short);
@@ -762,6 +763,40 @@ struct node *assign(struct token **ret, struct token *tk) {
       // error_at(start->loc, "Assigning to type from incompatible type
       // 'void'");
       error_at(start->loc, "Can't Assign to void function");
+  }
+
+  if (consume(&tk, tk, "+=")) {
+    *ret = tk->next;
+    return new_node_binary(ND_ASSIGN, n,
+                           new_add(n, new_node_num(get_number(tk))));
+  }
+
+  if (consume(&tk, tk, "-=")) {
+    *ret = tk->next;
+    return new_node_binary(ND_ASSIGN, n,
+                           new_sub(tk, n, new_node_num(get_number(tk))));
+  }
+
+  if (consume(&tk, tk, "*=")) {
+    *ret = tk->next;
+    return new_node_binary(
+        ND_ASSIGN, n, new_node_binary(ND_MUL, n, new_node_num(get_number(tk))));
+  }
+
+  if (consume(&tk, tk, "/=")) {
+    *ret = tk->next;
+    return new_node_binary(
+        ND_ASSIGN, n, new_node_binary(ND_DIV, n, new_node_num(get_number(tk))));
+  }
+
+  if (consume(&tk, tk, "++")) {
+    *ret = tk;
+    return new_node_binary(ND_ASSIGN, n, new_add(n, new_node_num(1)));
+  }
+
+  if (consume(&tk, tk, "--")) {
+    *ret = tk;
+    return new_node_binary(ND_ASSIGN, n, new_sub(tk, n, new_node_num(1)));
   }
 
   *ret = tk;
@@ -990,6 +1025,17 @@ struct node *unary(struct token **ret, struct token *tk) {
   }
   if (consume(&tk, tk, "&")) {
     return new_node_unary(ND_ADDR, unary(ret, tk), tk);
+  }
+  // ++a
+  // assign a = a + 1
+  if (consume(&tk, tk, "++")) {
+    struct node *a = unary(ret, tk);
+    return new_node_binary(ND_ASSIGN, a, new_add(a, new_node_num(1)));
+  }
+  // --a
+  if (consume(&tk, tk, "--")) {
+    struct node *a = unary(ret, tk);
+    return new_node_binary(ND_ASSIGN, a, new_sub(tk, a, new_node_num(1)));
   }
   return postfix(ret, tk);
 }
@@ -1254,7 +1300,7 @@ void gvar_initilizer(struct token **ret, struct token *tk, struct var *var,
   return;
 }
 
-// program = ( funcdef | declaration ";" )*
+// program = ( funcdef | declaration ";" | typedef ";" )*
 // typespec = "int" | "char"
 // funcdef = typespec declarator compound-stmt
 // declarator = "*"* ident type-suffix
@@ -1276,12 +1322,15 @@ void gvar_initilizer(struct token **ret, struct token *tk, struct var *var,
 //      | "for" "(" ( declaration | expr )? ";" expr? ";" expr? ")" stmt
 //      | "return" expr ";"
 // expr = assign
-// assign = equality ( "=" assign )?
+// assign = equality ( ( "=" | "+=" | "-=" | "++" | "--" ) assign )?
 // equality = relational ( "==" relational | "!=" relational )*
 // relational = add ( "<" add | "<=" add | ">" add | ">=" add )*
 // add = mul ( "+" mul | "-" mul )*
 // mul = unary ( "*" unary | "/" unary )*
-// unary = "sizeof" unary | ( "+" | "-" | "*" | "&" )? unary | postfix
+// unary = "sizeof" unary
+//       | ( "+" | "-" | "*" | "&" )? unary
+//       | ( "++" | "--" ) unary
+//       | postfix
 // postfix = primary ( "[" expr "]" )*
 // primary = "(" "{" compound-stmt "}" ")"
 //         | num

@@ -87,6 +87,7 @@ struct var {
   struct var *next;
   char *name;
   struct type *type;
+  // struct type *type_def;
 
   // local
   int offset;

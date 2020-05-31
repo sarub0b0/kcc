@@ -22,6 +22,8 @@ int g10[10] = {0, 1, 2, 3, 4, 5};
 char *g11[] = {"abc", "def", "ghi"};
 char *g12[5] = {"abc", "def", "ghi"};
 
+// typedef int Int;
+
 int assert(int expected, int actual, char *code) {
   // printf("%s => %d/%d\n", code, actual, expected);
   number = number + 1;
@@ -578,6 +580,70 @@ int main() {
            c;
          }),
          "({ int a=1; short b=2; long c=2; c;})");
+
+  assert(2, ({
+           int a = 0;
+           ++a;
+           ++a;
+         }),
+         "({ int a=0; ++a; ++a;})");
+
+  assert(1, ({
+           int a = 3;
+           --a;
+           --a;
+         }),
+         "({ int a=3; --a; --a;})");
+
+  assert(2, ({
+           int a = 0;
+           a++;
+           a++;
+         }),
+         "({ int a=0; a++; a++;})");
+
+  assert(1, ({
+           int a = 3;
+           a--;
+           a--;
+         }),
+         "({ int a=3; a--; a--;})");
+
+  assert(4, ({
+           int a = 0;
+           a += 2;
+           a += 2;
+         }),
+         "({ int a=0; a+=2; a+=2;})");
+
+  assert(1, ({
+           int a = 5;
+           a -= 2;
+           a -= 2;
+         }),
+         "({ int a=5; a-=2; a-=2;})");
+  assert(98, ({
+           char *a = "abc";
+           *a++;
+         }),
+         "({ char *a=\"abc\"; *a++; })");
+  assert(99, ({
+           char *a = "abc";
+           *a += 2;
+         }),
+         "({ char *a=\"abc\"; *a+=2; })");
+
+  assert(6, ({
+           int a = 2;
+           a *= 3;
+         }),
+         "{ int a=2; a*=3; }");
+
+  assert(2, ({
+           int a = 6;
+           a /= 3;
+         }),
+         "{ int a=6; a/=3; }");
 
   return 0;
 }
