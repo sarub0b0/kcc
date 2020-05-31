@@ -37,6 +37,60 @@ struct function *find_func(char *);
 
 #define MAX_LEN (int)(256)
 
+void print_tok(struct token *tk, char end_str) {
+
+  char *loc = tk->loc;
+  char *line = tk->loc;
+  char *input = tk->input;
+  char *file = tk->file;
+  while (input < line && line[-1] != '\n')
+    line--;
+
+  char *end = line;
+  while (*end != end_str)
+    end++;
+
+  end++;
+
+  int line_num = 1;
+  for (char *p = input; p < line; p++)
+    if (*p == '\n')
+      line_num++;
+
+  fprintf(stdout, " %s:%d: ", file, line_num);
+  fprintf(stdout, "%.*s\n", (int)(end - line), line);
+}
+
+void print_tok_pos(struct token *tk) {
+
+  char *loc = tk->loc;
+  char *line = tk->loc;
+  char *input = tk->input;
+  char *file = tk->file;
+  while (input < line && line[-1] != '\n')
+    line--;
+
+  char *end = line;
+  while (*end != '\n')
+    end++;
+
+  end++;
+
+  int line_num = 1;
+  for (char *p = input; p < line; p++)
+    if (*p == '\n')
+      line_num++;
+
+  fprintf(stdout, "%s:%d\n", file, line_num);
+}
+
+void print_function(struct program *p) {
+  printf("Function list:\n");
+  for (struct function *fn = p->functions; fn; fn = fn->next) {
+    print_tok(fn->token, ')');
+  }
+}
+
 void print_param(struct var *params, bool is_next, struct function *fn) {
   for (struct var *v = params; v; v = v->next) {
     if (is_next)
@@ -304,36 +358,6 @@ void print_ast(struct program *pr, char *funcname) {
     }
   }
   printf("\n");
-}
-void print_tok(struct token *tk, char *funcname) {
-
-  char *loc = tk->loc;
-  char *line = tk->loc;
-  char *input = tk->input;
-  char *file = tk->file;
-  while (input < line && line[-1] != '\n')
-    line--;
-
-  char *end = line;
-  while (*end != ')')
-    end++;
-
-  end++;
-
-  int line_num = 1;
-  for (char *p = input; p < line; p++)
-    if (*p == '\n')
-      line_num++;
-
-  fprintf(stderr, "  %s:%d: ", file, line_num);
-  fprintf(stderr, "%.*s\n", (int)(end - line), line);
-}
-
-void print_function(struct program *p) {
-  printf("Function list:\n");
-  for (struct function *fn = p->functions; fn; fn = fn->next) {
-    print_tok(fn->token, fn->name);
-  }
 }
 
 void skip(struct token **ret, struct token *tk, char *op) {
