@@ -41,7 +41,7 @@ struct type *array_to(struct type *base, size_t len) {
   return type;
 }
 
-bool is_scalar(struct type *ty) { return is_scalar(ty) || ty->ptr_to; }
+bool is_scalar(struct type *ty) { return is_integer(ty) || ty->ptr_to; }
 
 void add_type(struct node *n) {
   if (!n || n->type)
@@ -65,6 +65,26 @@ void add_type(struct node *n) {
   case ND_SUB:
   case ND_DIV:
   case ND_MUL:
+  case ND_BITOR:
+  case ND_BITXOR:
+  case ND_BITAND: {
+
+    struct type *ty1 = n->lhs->type;
+    struct type *ty2 = n->rhs->type;
+    struct type *ty = NULL;
+    if (ty1->ptr_to)
+      ty = pointer_to(ty1->ptr_to);
+    else
+      ty = ty1->size > ty2->size ? ty1 : ty2;
+
+    n->rhs = new_cast(n->rhs, ty);
+    n->lhs = new_cast(n->lhs, ty);
+    n->type = ty;
+    return;
+  }
+  case ND_COND:
+    n->type = n->then->type;
+    return;
   case ND_ASSIGN:
     if (is_scalar(n->rhs->type))
       n->rhs = new_cast(n->rhs, n->lhs->type);
@@ -77,6 +97,8 @@ void add_type(struct node *n) {
   case ND_GT:
   case ND_GE:
   case ND_NUM:
+  case ND_LOGOR:
+  case ND_LOGAND:
     n->type = ty_int;
     return;
   case ND_ADDR:

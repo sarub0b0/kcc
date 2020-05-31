@@ -25,9 +25,8 @@ char *g12[5] = {"abc", "def", "ghi"};
 // typedef int Int;
 
 int assert(int expected, int actual, char *code) {
+  printf("% 3d: ", number++);
   // printf("%s => %d/%d\n", code, actual, expected);
-  number = number + 1;
-  printf("% 3d: ", number);
   if (expected == actual) {
     printf("%s => %d\n", code, actual);
   } else {
@@ -55,6 +54,12 @@ int for3() {
 
 void void0() {
   int a, b, c;
+  return;
+}
+
+void void1() {
+  int a = 0, b = 1, c;
+  c = (a < b) ? 1 : 2;
   return;
 }
 
@@ -514,13 +519,13 @@ int main() {
            x = 3;
            x;
          }),
-         "({ int x,y; x=3; x;})");
+         "({ int x,y; x=3; x; })");
 
   assert(3, ({
            int x = 1, y = 2;
            x + y;
          }),
-         "({ int x=1, y=2; x+y;})");
+         "({ int x=1, y=2; x+y; })");
 
   assert(1, ({
            int a[] = {1};
@@ -571,7 +576,7 @@ int main() {
            void0();
            a;
          }),
-         "({ int a=1; void0(); a;})");
+         "({ int a=1; void0(); a; })");
 
   assert(2, ({
            int a = 1;
@@ -579,49 +584,49 @@ int main() {
            long c = 2;
            c;
          }),
-         "({ int a=1; short b=2; long c=2; c;})");
+         "({ int a=1; short b=2; long c=2; c; })");
 
   assert(2, ({
            int a = 0;
            ++a;
            ++a;
          }),
-         "({ int a=0; ++a; ++a;})");
+         "({ int a=0; ++a; ++a; })");
 
   assert(1, ({
            int a = 3;
            --a;
            --a;
          }),
-         "({ int a=3; --a; --a;})");
+         "({ int a=3; --a; --a; })");
 
   assert(2, ({
            int a = 0;
            a++;
            a++;
          }),
-         "({ int a=0; a++; a++;})");
+         "({ int a=0; a++; a++; })");
 
   assert(1, ({
            int a = 3;
            a--;
            a--;
          }),
-         "({ int a=3; a--; a--;})");
+         "({ int a=3; a--; a--; })");
 
   assert(4, ({
            int a = 0;
            a += 2;
            a += 2;
          }),
-         "({ int a=0; a+=2; a+=2;})");
+         "({ int a=0; a+=2; a+=2; })");
 
   assert(1, ({
            int a = 5;
            a -= 2;
            a -= 2;
          }),
-         "({ int a=5; a-=2; a-=2;})");
+         "({ int a=5; a-=2; a-=2; })");
   assert(98, ({
            char *a = "abc";
            *a++;
@@ -637,13 +642,70 @@ int main() {
            int a = 2;
            a *= 3;
          }),
-         "{ int a=2; a*=3; }");
+         "({ int a=2; a*=3; })");
 
   assert(2, ({
            int a = 6;
            a /= 3;
          }),
-         "{ int a=6; a/=3; }");
+         "({ int a=6; a/=3; })");
+
+  assert(1, ({
+           int a = 1;
+           a = a == 1 ? a : 2;
+           a;
+         }),
+         "({ int a=1; a = a==1 ? a:2; })");
+
+  assert(2, ({
+           int a = 2;
+           a = a == 1 ? a : 2;
+           a;
+         }),
+         "({ int a=2; a = a==1 ? a:2; })");
+
+  assert(1, ({
+           int a = 0;
+           int b = 1;
+           a | b;
+         }),
+         "({ int a=0; int b=1; a|b; })");
+  assert(0, ({
+           int a = 0;
+           int b = 0;
+           a | b | b;
+         }),
+         "({ int a=0; int b=0; a|b|b; })");
+  assert(0, ({
+           int a = 0;
+           int b = 1;
+           int c = a & b;
+           c;
+         }),
+         "({ int a=0; int b=1; int c=a&b; c; })");
+  assert(1, ({
+           int a = 1;
+           int b = 1;
+           int c = a & b;
+           c;
+         }),
+         "({ int a=1; int b=1; int c=a&b; c; })");
+
+  assert(0, ({
+           int a = 1;
+           int b = 1;
+           int c = a ^ b;
+           c;
+         }),
+         "({ int a=1; int b=1; int c=a^b; c; })");
+
+  assert(1, ({
+           int a = 0;
+           int b = 1;
+           int c = a ^ b;
+           c;
+         }),
+         "({ int a=0; int b=1; int c=a^b; c; })");
 
   return 0;
 }

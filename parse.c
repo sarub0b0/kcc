@@ -16,6 +16,12 @@ struct type *funcdef_args(struct token **, struct token *, struct type *);
 struct type *type_suffix(struct token **, struct token *, struct type *);
 struct node *compound_stmt(struct token **, struct token *);
 struct node *assign(struct token **, struct token *);
+struct node *conditional(struct token **, struct token *);
+struct node *logor(struct token **, struct token *);
+struct node *logand(struct token **, struct token *);
+struct node * bitor (struct token **, struct token *);
+struct node *bitxor(struct token **, struct token *);
+struct node *bitand(struct token **, struct token *);
 struct node *stmt(struct token **, struct token *);
 struct node *expr(struct token **, struct token *);
 struct node *equality(struct token **, struct token *);
@@ -159,6 +165,9 @@ void print_stmt(struct node *n, bool is_next_stmt, bool is_next_node,
   case ND_SUB:
   case ND_MUL:
   case ND_DIV:
+  case ND_BITOR:
+  case ND_BITXOR:
+  case ND_BITAND:
     printf("%s-Calc '%s'\n", local_prefix, n->str);
     if (is_next_node) {
       snprintf(buf, MAX_LEN, "%s |", scope_prefix);
@@ -249,6 +258,8 @@ void print_stmt(struct node *n, bool is_next_stmt, bool is_next_node,
   case ND_LT:
   case ND_GE:
   case ND_GT:
+  case ND_LOGOR:
+  case ND_LOGAND:
     printf("%s-Cond '%s'\n", local_prefix, n->str);
     if (is_next_node) {
       snprintf(buf, MAX_LEN, "%s |", scope_prefix);
@@ -292,6 +303,18 @@ void print_stmt(struct node *n, bool is_next_stmt, bool is_next_node,
         print_stmt(arg, is_next_stmt, true, scope_prefix);
       }
     }
+    break;
+  case ND_COND:
+    printf("%s-Cond '%s'\n", local_prefix, n->str);
+    if (is_next_node) {
+      snprintf(buf, MAX_LEN, "%s |", scope_prefix);
+    } else {
+      snprintf(buf, MAX_LEN, "%s  ", scope_prefix);
+    }
+    scope_prefix = strndup(buf, MAX_LEN);
+    print_stmt(n->cond, is_next_stmt, true, scope_prefix);
+    print_stmt(n->then, is_next_stmt, true, scope_prefix);
+    print_stmt(n->els, is_next_stmt, false, scope_prefix);
     break;
   default:
     printf("%s-none\n", local_prefix);
@@ -507,7 +530,8 @@ struct node *new_node_expr(struct token **ret, struct token *tk) {
 
 struct node *new_cast(struct node *expr, struct type *ty) {
   add_type(expr);
-  struct node *n = new_node(ND_CAST, NULL);
+  struct node *n = calloc(1, sizeof(struct node));
+  n->kind = ND_CAST;
   n->lhs = expr;
   n->type = copy_type(ty);
   return n;
@@ -762,7 +786,7 @@ struct node *declaration(struct token **ret, struct token *tk) {
 }
 
 struct node *assign(struct token **ret, struct token *tk) {
-  struct node *n = equality(&tk, tk);
+  struct node *n = conditional(&tk, tk);
   struct token *start = tk;
   if (consume(&tk, tk, "=")) {
     n = new_node_binary(ND_ASSIGN, n, assign(&tk, tk));
@@ -811,6 +835,85 @@ struct node *assign(struct token **ret, struct token *tk) {
   return n;
 }
 
+struct node *conditional(struct token **ret, struct token *tk) {
+  struct node *node = logor(&tk, tk);
+
+  if (consume(&tk, tk, "?")) {
+    struct node *cond = new_node(ND_COND, tk);
+
+    cond->str = "?:";
+    cond->cond = node;
+    cond->then = expr(&tk, tk);
+    skip(&tk, tk, ":");
+    cond->els = conditional(&tk, tk);
+
+    *ret = tk;
+    return cond;
+  }
+
+  *ret = tk;
+  return node;
+}
+
+struct node *logor(struct token **ret, struct token *tk) {
+  struct node *node = logand(&tk, tk);
+
+  while (equal(tk, "||")) {
+    node = new_node_binary(ND_LOGOR, node, logand(&tk, tk->next));
+    node->str = "||";
+  }
+
+  *ret = tk;
+  return node;
+}
+
+struct node *logand(struct token **ret, struct token *tk) {
+  struct node *node = bitor (&tk, tk);
+
+  while (equal(tk, "&&")) {
+    node = new_node_binary(ND_LOGAND, node, bitor (&tk, tk->next));
+    node->str = "&&";
+  }
+
+  *ret = tk;
+  return node;
+}
+
+struct node * bitor (struct token * *ret, struct token *tk) {
+  struct node *node = bitxor(&tk, tk);
+
+  while (equal(tk, "|")) {
+    node = new_node_binary(ND_BITOR, node, bitxor(&tk, tk->next));
+    node->str = "|";
+  }
+
+  *ret = tk;
+  return node;
+}
+
+struct node *bitxor(struct token **ret, struct token *tk) {
+  struct node *node = bitand(&tk, tk);
+
+  while (equal(tk, "^")) {
+    node = new_node_binary(ND_BITXOR, node, bitand(&tk, tk->next));
+    node->str = "^";
+  }
+
+  *ret = tk;
+  return node;
+}
+
+struct node *bitand(struct token **ret, struct token *tk) {
+  struct node *node = equality(&tk, tk);
+
+  while (equal(tk, "&")) {
+    node = new_node_binary(ND_BITAND, node, equality(&tk, tk->next));
+    node->str = "&";
+  }
+
+  *ret = tk;
+  return node;
+}
 struct node *compound_stmt(struct token **ret, struct token *tk) {
   struct node *n = NULL;
 
@@ -1122,19 +1225,46 @@ struct node *funcall(struct token **ret, struct token *tk,
   struct node *funcall = new_node(ND_FUNCALL, ident);
 
   struct function *fn = find_func(ident->str);
-
+  struct var *param = NULL;
   struct node *n;
+
+  if (fn) {
+    param = NULL;
+
+    for (struct var *v = fn->params; v; v = v->next) {
+      struct var *v0 = calloc(1, sizeof(struct var));
+      v0->type = v->type;
+      v0->name = v->name;
+      v0->next = param;
+      param = v0;
+    }
+  }
+
+  struct var *vlocal = NULL;
+
   while (!equal(tk, ")")) {
+
     if (cur != &head)
       skip(&tk, tk, ",");
 
     n = assign(&tk, tk);
     add_type(n);
 
-    n->type->name = strndup("", 256);
-    vcur = vcur->next = calloc(1, sizeof(struct var));
-    vcur->type = n->type;
-    vcur->name = n->type->name;
+    if (param) {
+      n = new_cast(n, param->type);
+      n->type->name = strdup(param->name);
+      param = param->next;
+    } else {
+      n->type->name = strdup("");
+    }
+
+    struct var *v = calloc(1, sizeof(struct var));
+
+    v->type = n->type->ptr_to ? pointer_to(n->type->ptr_to) : n->type;
+    v->name = n->type->name;
+
+    v->next = vlocal;
+    vlocal = v;
 
     cur = cur->next = n;
   }
@@ -1142,12 +1272,10 @@ struct node *funcall(struct token **ret, struct token *tk,
 
   if (fn) {
     funcall->func_ty = fn->type;
-    funcall->args = vhead.next;
-    funcall->params = fn->params;
   } else {
     funcall->func_ty = ty_void;
-    funcall->args = vhead.next;
   }
+  funcall->args = vlocal;
   funcall->str = ident->str;
   funcall->body = head.next;
   funcall->type = funcall->func_ty->return_type;
@@ -1329,10 +1457,28 @@ void gvar_initilizer(struct token **ret, struct token *tk, struct var *var,
 //      | "while" "(" expr ")" stmt
 //      | "for" "(" ( declaration | expr )? ";" expr? ";" expr? ")" stmt
 //      | "return" expr ";"
+//
 // expr = assign
-// assign = equality ( ( "=" | "+=" | "-=" | "++" | "--" ) assign )?
+//
+//
+//
+// assign = conditional (
+//          ( "=" | "+=" | "-=" | "*=" | "/=" ) assign
+//          | ( "++" | "--" )
+//        )?
+//
+// conditional = logor ( "?" expr ":" conditional )?
+//
+// logor = logand ( "||"  logand )*
+// logand = bitor ( "&&"  bitor )*
+// bitor = bitxor ( "|" bitxor )*
+// bitxor = bitand ( "^" bitand *)
+// bitand = equality ( "&" equality )*
+//
 // equality = relational ( "==" relational | "!=" relational )*
+//
 // relational = add ( "<" add | "<=" add | ">" add | ">=" add )*
+//
 // add = mul ( "+" mul | "-" mul )*
 // mul = unary ( "*" unary | "/" unary )*
 // unary = "sizeof" unary

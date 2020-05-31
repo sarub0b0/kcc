@@ -51,6 +51,12 @@ enum node_kind {
   ND_STMT_EXPR,
   ND_NULL_STMT,
   ND_CAST,
+  ND_COND,
+  ND_LOGOR,
+  ND_LOGAND,
+  ND_BITOR,
+  ND_BITXOR,
+  ND_BITAND,
 };
 
 enum type_kind {
@@ -122,7 +128,6 @@ struct node {
   // function call
   struct type *func_ty;
   struct var *args;
-  struct var *params;
   // var **args;
   int nargs;
 
