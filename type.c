@@ -41,6 +41,8 @@ struct type *array_to(struct type *base, size_t len) {
   return type;
 }
 
+bool is_scalar(struct type *ty) { return is_scalar(ty) || ty->ptr_to; }
+
 void add_type(struct node *n) {
   if (!n || n->type)
     return;
@@ -64,6 +66,8 @@ void add_type(struct node *n) {
   case ND_DIV:
   case ND_MUL:
   case ND_ASSIGN:
+    if (is_scalar(n->rhs->type))
+      n->rhs = new_cast(n->rhs, n->lhs->type);
     n->type = n->lhs->type;
     return;
   case ND_EQ:

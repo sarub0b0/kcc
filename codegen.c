@@ -298,6 +298,24 @@ int gen_expr(struct node *node) {
     }
     inc++;
     return 0;
+  case ND_CAST: {
+    gen_expr(node->lhs);
+
+    struct type *from = node->rhs->type;
+    struct type *to = node->lhs->type;
+
+    if (is_integer(from) && from->size < 8) {
+      printf("  movsx %s, %s\n", reg64[inc - 1], reg(from->size, inc - 1));
+    }
+
+    // if (to->size == 1) {
+    // } else if (to->size == 2) {
+    // } else if (to->size == 4) {
+    // } else {
+    // }
+
+    return 0;
+  }
   }
 
   gen_expr(node->lhs);

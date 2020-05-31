@@ -505,6 +505,14 @@ struct node *new_node_expr(struct token **ret, struct token *tk) {
   return n;
 }
 
+struct node *new_cast(struct node *expr, struct type *ty) {
+  add_type(expr);
+  struct node *n = new_node(ND_CAST, NULL);
+  n->lhs = expr;
+  n->type = copy_type(ty);
+  return n;
+}
+
 int eval(struct node *node, struct var **var) {
   switch (node->kind) {
   case ND_ADD:

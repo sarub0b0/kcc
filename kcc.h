@@ -50,6 +50,7 @@ enum node_kind {
   ND_EXPR_STMT,
   ND_STMT_EXPR,
   ND_NULL_STMT,
+  ND_CAST,
 };
 
 enum type_kind {
@@ -171,6 +172,7 @@ void print_function(struct program *);
 bool is_integer(struct type *);
 void add_type(struct node *);
 
+struct node *new_cast(struct node *, struct type *);
 struct type *copy_type(struct type *);
 struct type *pointer_to(struct type *);
 struct type *array_to(struct type *, size_t len);
