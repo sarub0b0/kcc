@@ -571,5 +571,13 @@ int main() {
          }),
          "({ int a=1; void0(); a;})");
 
+  assert(2, ({
+           int a = 1;
+           short b = 2;
+           long c = 2;
+           c;
+         }),
+         "({ int a=1; short b=2; long c=2; c;})");
+
   return 0;
 }

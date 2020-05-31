@@ -56,6 +56,8 @@ enum type_kind {
   ARRAY,
   CHAR,
   VOID,
+  SHORT,
+  LONG,
 };
 
 struct type {
@@ -169,7 +171,9 @@ struct type *pointer_to(struct type *);
 struct type *array_to(struct type *, size_t len);
 
 extern struct type *ty_void;
+extern struct type *ty_short;
 extern struct type *ty_int;
+extern struct type *ty_long;
 extern struct type *ty_char;
 
 extern int verbose;

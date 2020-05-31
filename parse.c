@@ -333,6 +333,17 @@ char *get_ident(struct token *tok) {
   return strndup(tok->str, tok->len);
 }
 
+bool is_typename(struct token *tok) {
+  char *keyword[] = {"int", "void", "char", "short", "long"};
+  for (int i = 0; i < sizeof(keyword) / sizeof(*keyword); i++) {
+    if (equal(tok, keyword[i])) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 struct function *find_func(char *name) {
   for (struct function *fn = functions->next; fn; fn = fn->next) {
     if (strlen(fn->name) == strlen(name) &&
@@ -528,6 +539,16 @@ struct var *new_string_literal(char *data, int len) {
 }
 
 struct type *typespec(struct token **ret, struct token *tk) {
+  if (consume(&tk, tk, "short")) {
+    *ret = tk;
+    return copy_type(ty_short);
+  }
+
+  if (consume(&tk, tk, "long")) {
+    *ret = tk;
+    return copy_type(ty_long);
+  }
+
   if (consume(&tk, tk, "int")) {
     *ret = tk;
     return copy_type(ty_int);
@@ -696,7 +717,7 @@ struct node *compound_stmt(struct token **ret, struct token *tk) {
   struct node *cur = &head;
 
   while (!equal(tk, "}")) {
-    if (equal(tk, "int") || equal(tk, "char")) {
+    if (is_typename(tk)) {
       cur = cur->next = declaration(&tk, tk);
       skip(&tk, tk, ";");
     } else {
