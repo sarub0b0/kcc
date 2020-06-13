@@ -57,6 +57,7 @@ enum node_kind {
   ND_BITOR,
   ND_BITXOR,
   ND_BITAND,
+  ND_BITNOT,
 };
 
 enum type_kind {

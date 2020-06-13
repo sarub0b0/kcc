@@ -7,6 +7,8 @@
  */
 
 int number = 0;
+// long success = 0;
+// long failed = 0;
 int g0 = 1;
 int g1, g2;
 int g3 = 0, g4 = 0;
@@ -26,12 +28,13 @@ char *g12[5] = {"abc", "def", "ghi"};
 
 int assert(int expected, int actual, char *code) {
   printf("% 3d: ", number++);
-  // printf("%s => %d/%d\n", code, actual, expected);
   if (expected == actual) {
     printf("%s => %d\n", code, actual);
+    // success++;
   } else {
     printf("%s => %d expected, but got %d\n", code, expected, actual);
     exit(1);
+    // failed++;
   }
   return 0;
 }
@@ -61,6 +64,22 @@ void void1() {
   int a = 0, b = 1, c;
   c = (a < b) ? 1 : 2;
   return;
+}
+
+int logand() {
+  if (1 && 0)
+    return 0;
+
+  if (1 && 1)
+    return 5;
+}
+
+int logor() {
+  if (0 || 0)
+    return 0;
+
+  if (0 || 1)
+    return 5;
 }
 
 int main() {
@@ -721,5 +740,11 @@ int main() {
          }),
          "({ char a=3; int *b=(int *)&a; *b;})");
 
+  assert(-1, ({ ~0; }), "~0;");
+
+  assert(5, ({ logor(); }), "({ logor(); })");
+  assert(5, ({ logand(); }), "({ logand(); })");
+
+  // printf("success: %ld, failed: %ld\n", success, failed);
   return 0;
 }

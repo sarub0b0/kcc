@@ -316,6 +316,46 @@ int gen_expr(struct node *node) {
     gen_expr(node->lhs);
     load(node->type);
     return 0;
+  case ND_BITNOT:
+    gen_expr(node->lhs);
+    printf("  not %s\n", reg(node->lhs->type, inc - 1));
+    return 0;
+  case ND_LOGOR:
+    // lhs || rhs
+    // lhs == 0 ?
+    gen_expr(node->lhs);
+    printf("  cmp %s, 0\n", reg(node->lhs->type, --inc));
+    printf("  jne .L.true.%03d\n", label_seq);
+
+    // rhs == 0 ?
+    gen_expr(node->rhs);
+    printf("  cmp %s, 0\n", reg(node->rhs->type, --inc));
+    printf("  jne .L.true.%03d\n", label_seq);
+    printf("  mov %s, 0\n", reg64[inc - 1]);
+    printf("  jmp .L.end.%03d\n", label_seq);
+    printf(".L.true.%03d:\n", label_seq);
+    printf("  mov %s, 1\n", reg64[inc++]);
+    printf(".L.end.%03d:\n", label_seq);
+    label_seq++;
+    return 0;
+  case ND_LOGAND:
+    // lhs && rhs
+    // lhs == 0 ?
+    gen_expr(node->lhs);
+    printf("  cmp %s, 0\n", reg(node->lhs->type, --inc));
+    printf("  je .L.false.%03d\n", label_seq);
+
+    // rhs == 0 ?
+    gen_expr(node->rhs);
+    printf("  cmp %s, 0\n", reg(node->rhs->type, --inc));
+    printf("  je .L.false.%03d\n", label_seq);
+    printf("  mov %s, 1\n", reg64[inc - 1]);
+    printf("  jmp .L.end.%03d\n", label_seq);
+    printf(".L.false.%03d:\n", label_seq);
+    printf("  mov %s, 0\n", reg64[inc++]);
+    printf(".L.end.%03d:\n", label_seq);
+    label_seq++;
+    return 0;
   case ND_STMT_EXPR:
     for (struct node *n = node->body; n; n = n->next) {
       gen_stmt(n);
@@ -603,6 +643,7 @@ void gen_code(struct program *prog) {
     }
     for (struct node *n = fn->stmt; n; n = n->next) {
       gen_stmt(n);
+      // fprintf(stderr, "%d\n", inc);
       assert(inc == 0);
     }
 

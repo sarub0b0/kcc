@@ -1154,6 +1154,9 @@ struct node *unary(struct token **ret, struct token *tk) {
   if (consume(&tk, tk, "&")) {
     return new_node_unary(ND_ADDR, cast(ret, tk), tk);
   }
+  if (consume(&tk, tk, "~")) {
+    return new_node_unary(ND_BITNOT, cast(ret, tk), tk);
+  }
   // ++a
   // assign a = a + 1
   if (consume(&tk, tk, "++")) {
@@ -1509,7 +1512,7 @@ void gvar_initilizer(struct token **ret, struct token *tk, struct var *var,
 // add = mul ( "+" mul | "-" mul )*
 // mul = cast ( "*" cast | "/" cast )*
 // cast = ( "(" typename ")" )? unary
-// unary = ( "+" | "-" | "*" | "&" )? cast
+// unary = ( "+" | "-" | "*" | "&" | "~" )? cast
 //       | ( "++" | "--" ) unary
 //       | postfix
 //
