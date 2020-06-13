@@ -28,6 +28,7 @@ struct node *equality(struct token **, struct token *);
 struct node *relational(struct token **, struct token *);
 struct node *add(struct token **, struct token *);
 struct node *mul(struct token **, struct token *);
+struct node *cast(struct token **, struct token *);
 struct node *unary(struct token **, struct token *);
 struct node *postfix(struct token **, struct token *);
 struct node *primary(struct token **, struct token *);
@@ -635,35 +636,47 @@ struct var *new_string_literal(char *data, int len) {
   return v;
 }
 
+struct type *pointers(struct token **ret, struct token *tk, struct type *ty) {
+
+  while (consume(&tk, tk, "*")) {
+    ty = pointer_to(ty);
+  }
+  *ret = tk;
+  return ty;
+}
+
 struct type *typespec(struct token **ret, struct token *tk) {
 
+  struct type *ty = ty_int;
   if (consume(&tk, tk, "short")) {
-    *ret = tk;
-    return copy_type(ty_short);
+    ty = copy_type(ty_short);
   }
 
   if (consume(&tk, tk, "long")) {
-    *ret = tk;
-    return copy_type(ty_long);
+    ty = copy_type(ty_long);
   }
 
   if (consume(&tk, tk, "int")) {
-    *ret = tk;
-    return copy_type(ty_int);
+    ty = copy_type(ty_int);
   }
 
   if (consume(&tk, tk, "char")) {
-    *ret = tk;
-    return copy_type(ty_char);
+    ty = copy_type(ty_char);
   }
 
   if (consume(&tk, tk, "void")) {
-    *ret = tk;
-    return copy_type(ty_void);
+    ty = copy_type(ty_void);
   }
 
   *ret = tk;
-  return NULL;
+  return ty;
+}
+
+struct type *typename(struct token **ret, struct token *tk) {
+
+  struct type *ty = typespec(&tk, tk);
+  *ret = tk;
+  return pointers(ret, tk, ty);
 }
 
 struct function *funcdef(struct token **ret, struct token *tk,
@@ -1099,13 +1112,13 @@ struct node *add(struct token **ret, struct token *tk) {
 }
 
 struct node *mul(struct token **ret, struct token *tk) {
-  struct node *n = unary(&tk, tk);
+  struct node *n = cast(&tk, tk);
   while (true) {
     if (consume(&tk, tk, "*")) {
-      n = new_node_binary(ND_MUL, n, unary(&tk, tk));
+      n = new_node_binary(ND_MUL, n, cast(&tk, tk));
       n->str = "*";
     } else if (consume(&tk, tk, "/")) {
-      n = new_node_binary(ND_DIV, n, unary(&tk, tk));
+      n = new_node_binary(ND_DIV, n, cast(&tk, tk));
       n->str = "/";
     } else {
       *ret = tk;
@@ -1114,28 +1127,32 @@ struct node *mul(struct token **ret, struct token *tk) {
   }
 }
 
+struct node *cast(struct token **ret, struct token *tk) {
+
+  if (equal(tk, "(") && is_typename(tk->next)) {
+    struct type *cast_type = typename(&tk, tk->next);
+    skip(&tk, tk, ")");
+    *ret = tk;
+    return new_cast(unary(ret, tk), cast_type);
+  }
+
+  return unary(ret, tk);
+}
+
 struct node *unary(struct token **ret, struct token *tk) {
 
-  if (tk->kind == TK_SIZEOF) {
-    skip(&tk, tk, "sizeof");
-    struct node *node = unary(&tk, tk);
-    add_type(node);
-    *ret = tk;
-    return new_node_num(node->type->size);
-  }
-
   if (consume(&tk, tk, "+")) {
-    return unary(ret, tk);
+    return cast(ret, tk);
   }
   if (consume(&tk, tk, "-")) {
-    return new_node_binary(ND_SUB, new_node_num(0), unary(ret, tk));
+    return new_node_binary(ND_SUB, new_node_num(0), cast(ret, tk));
   }
 
   if (consume(&tk, tk, "*")) {
-    return new_node_unary(ND_DEREF, unary(ret, tk), tk);
+    return new_node_unary(ND_DEREF, cast(ret, tk), tk);
   }
   if (consume(&tk, tk, "&")) {
-    return new_node_unary(ND_ADDR, unary(ret, tk), tk);
+    return new_node_unary(ND_ADDR, cast(ret, tk), tk);
   }
   // ++a
   // assign a = a + 1
@@ -1199,6 +1216,14 @@ struct node *primary(struct token **ret, struct token *tk) {
 
     *ret = tk;
     return new_node_var(var, var->type);
+  }
+
+  if (tk->kind == TK_SIZEOF) {
+    skip(&tk, tk, "sizeof");
+    struct node *node = unary(&tk, tk);
+    add_type(node);
+    *ret = tk;
+    return new_node_num(node->type->size);
   }
 
   if (tk->kind == TK_STR) {
@@ -1438,8 +1463,12 @@ void gvar_initilizer(struct token **ret, struct token *tk, struct var *var,
 
 // program = ( funcdef | declaration ";" | typedef ";" )*
 // typespec = "int" | "char"
+// typename = typespec pointers
+// pointers = ( "*" )*
 // funcdef = typespec declarator compound-stmt
+//
 // declarator = "*"* ident type-suffix
+//
 // type-suffix = ( "[" num "]" )*
 //              | "(" funcdef-args? ")"
 // funcdef-args = param ( "," param )*
@@ -1448,7 +1477,7 @@ void gvar_initilizer(struct token **ret, struct token *tk, struct var *var,
 //               ( "=" initializer )?
 //               ( "," declarator ( "=" initializer )? )*
 //
-// initialize = expr | "{" unary ( "," unary )* "}"
+// initializer = assign | "{" unary ( "," unary )* "}"
 // compound-stmt = "{" ( declaration ";" | stmt )* "}"
 //
 // stmt = expr ";"
@@ -1459,8 +1488,6 @@ void gvar_initilizer(struct token **ret, struct token *tk, struct var *var,
 //      | "return" expr ";"
 //
 // expr = assign
-//
-//
 //
 // assign = conditional (
 //          ( "=" | "+=" | "-=" | "*=" | "/=" ) assign
@@ -1480,16 +1507,18 @@ void gvar_initilizer(struct token **ret, struct token *tk, struct var *var,
 // relational = add ( "<" add | "<=" add | ">" add | ">=" add )*
 //
 // add = mul ( "+" mul | "-" mul )*
-// mul = unary ( "*" unary | "/" unary )*
-// unary = "sizeof" unary
-//       | ( "+" | "-" | "*" | "&" )? unary
+// mul = cast ( "*" cast | "/" cast )*
+// cast = ( "(" typename ")" )? unary
+// unary = ( "+" | "-" | "*" | "&" )? cast
 //       | ( "++" | "--" ) unary
 //       | postfix
+//
 // postfix = primary ( "[" expr "]" )*
 // primary = "(" "{" compound-stmt "}" ")"
 //         | num
 //         | ident funcall-args?
 //         | "(" expr ")"
+//         | sizeof unary
 //         | string-literal
 // funcall = ident "(" funcall-args ")"
 // funcall-args = assign ( "," assign )*

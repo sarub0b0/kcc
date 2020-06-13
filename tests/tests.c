@@ -707,5 +707,19 @@ int main() {
          }),
          "({ int a=0; int b=1; int c=a^b; c; })");
 
+  assert(1, ({
+           char a = 1;
+           int b = (int)a;
+           b;
+         }),
+         "({ char a=1; int b=(int)a; b;})");
+
+  assert(3, ({
+           int a = 3;
+           int *b = (int *)&a;
+           *b;
+         }),
+         "({ char a=3; int *b=(int *)&a; *b;})");
+
   return 0;
 }
