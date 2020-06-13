@@ -265,7 +265,6 @@ void gen_func(struct node *node) {
 }
 
 void load(struct type *type) {
-  printf("//load\n");
   if (type->kind == ARRAY) {
     return;
   }
@@ -282,7 +281,7 @@ void load(struct type *type) {
 }
 
 void store(struct type *type) {
-  printf("  mov [%s], %s\n", reg64[inc - 1], reg64[inc - 2]);
+  printf("  mov [%s], %s\n", reg64[inc - 1], reg(type, inc - 2));
   inc--;
 }
 
@@ -560,9 +559,9 @@ void global_data(struct program *prog) {
       printf(" -> %s", type_kind_name(v->type->ptr_to->kind));
     printf("\n");
 
-    if (v->type->kind == INT) {
+    if (is_integer(v->type)) {
       if (v->data)
-        printf("  %s %d\n", data_symbol(ty_int->size), *(int *)v->data);
+        printf("  %s %d\n", data_symbol(v->type->size), *(int *)v->data);
       else
         printf("  .quad 0\n");
       continue;
@@ -588,8 +587,9 @@ void global_data(struct program *prog) {
         struct value *value = v->val;
         for (int i = 0; i < v->type->array_size; i++) {
           if (value) {
-            if (v->type->ptr_to->kind == INT)
-              printf("  %s %d\n", data_symbol(ty_int->size), value->val);
+            if (is_integer(v->type->ptr_to))
+              printf("  %s %d\n", data_symbol(v->type->ptr_to->size),
+                     value->val);
 
             if (v->type->ptr_to->kind == PTR) {
               if (v->type->ptr_to->ptr_to->kind == CHAR) {

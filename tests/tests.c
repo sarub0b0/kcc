@@ -7,8 +7,8 @@
  */
 
 int number = 0;
-// long success = 0;
-// long failed = 0;
+int success = 0;
+int failed = 0;
 int g0 = 1;
 int g1, g2;
 int g3 = 0, g4 = 0;
@@ -29,12 +29,13 @@ char *g12[5] = {"abc", "def", "ghi"};
 int assert(int expected, int actual, char *code) {
   printf("% 3d: ", number++);
   if (expected == actual) {
-    printf("%s => %d\n", code, actual);
-    // success++;
+    printf("%s => %d ... \x1b[32mOK\x1b[0m\n", code, actual);
+    success++;
   } else {
-    printf("%s => %d expected, but got %d\n", code, expected, actual);
-    exit(1);
-    // failed++;
+    printf("%s => %d expected, but got %d ... \x1b[31mFAILED\x1b[0m\n", code,
+           expected, actual);
+
+    failed++;
   }
   return 0;
 }
@@ -745,6 +746,11 @@ int main() {
   assert(5, ({ logor(); }), "({ logor(); })");
   assert(5, ({ logand(); }), "({ logand(); })");
 
-  // printf("success: %ld, failed: %ld\n", success, failed);
+  if (success == number)
+    printf("result: \x1b[32mOK\x1b[0m, ");
+  else
+    printf("result: \x1b[31mFAILED\x1b[0m, ");
+
+  printf("%d success; %d failed; %d tests;\n", success, failed, number);
   return 0;
 }

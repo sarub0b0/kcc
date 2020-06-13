@@ -68,7 +68,6 @@ void add_type(struct node *n) {
   case ND_BITOR:
   case ND_BITXOR:
   case ND_BITAND: {
-
     struct type *ty1 = n->lhs->type;
     struct type *ty2 = n->rhs->type;
     struct type *ty = NULL;
