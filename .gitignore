@@ -6,3 +6,5 @@ a.out
 .lldb
 core
 .lesshst
+.zcompdump
+.zshrc
