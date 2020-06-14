@@ -4,6 +4,12 @@
 #include <stdbool.h>
 #include <stddef.h>
 
+#define debug(fmt...)                                                          \
+  do {                                                                         \
+    fprintf(stderr, fmt);                                                      \
+    fprintf(stderr, "\n");                                                     \
+  } while (0)
+
 enum token_kind {
   TK_RESERVED,
   TK_IDENT,
@@ -58,6 +64,7 @@ enum node_kind {
   ND_BITXOR,
   ND_BITAND,
   ND_BITNOT,
+  ND_MEMBER,
 };
 
 enum type_kind {
@@ -69,11 +76,14 @@ enum type_kind {
   SHORT,
   LONG,
   BOOL,
+  STRUCT,
+  TY_KIND_NUM,
 };
 
 struct type {
   enum type_kind kind;
   size_t size;
+  size_t align;
   char *name;
   struct type *ptr_to;
   size_t array_size;
@@ -83,6 +93,9 @@ struct type {
   // function
   struct type *return_type;
   struct type *params;
+
+  // struct member
+  struct member *members;
 };
 
 struct value {
@@ -106,6 +119,14 @@ struct var {
   char *data;
   int addend;
   struct value *val;
+};
+
+struct member {
+  struct member *next;
+  struct type *type;
+  int align;
+  int offset;
+  char *name;
 };
 
 struct node {
@@ -132,6 +153,9 @@ struct node {
   struct var *args;
   // var **args;
   int nargs;
+
+  // struct member
+  struct member *member;
 
   // string literal
   struct string *string;
@@ -183,6 +207,8 @@ struct node *new_cast(struct node *, struct type *);
 struct type *copy_type(struct type *);
 struct type *pointer_to(struct type *);
 struct type *array_to(struct type *, size_t len);
+
+char *type_to_name(enum type_kind kind);
 
 extern struct type *ty_void;
 extern struct type *ty_short;

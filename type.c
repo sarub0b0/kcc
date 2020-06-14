@@ -3,14 +3,33 @@
 
 #include "kcc.h"
 
-struct type *ty_short = &(struct type){SHORT, 2, ""};
-struct type *ty_int = &(struct type){INT, 4, ""};
-struct type *ty_long = &(struct type){LONG, 8, ""};
-struct type *ty_bool = &(struct type){BOOL, 1, ""};
+struct type *ty_short = &(struct type){SHORT, 2, 2, ""};
+struct type *ty_int = &(struct type){INT, 4, 4, ""};
+struct type *ty_long = &(struct type){LONG, 8, 8, ""};
+struct type *ty_bool = &(struct type){BOOL, 1, 1, ""};
 
-struct type *ty_char = &(struct type){CHAR, 1, ""};
-struct type *ty_void = &(struct type){VOID, 0, ""};
+struct type *ty_char = &(struct type){CHAR, 1, 1, ""};
+struct type *ty_void = &(struct type){VOID, 1, 1, ""};
 
+char *type_to_name(enum type_kind kind) {
+  switch (kind) {
+  case INT:
+    return "int";
+  case CHAR:
+    return "char";
+  case PTR:
+    return "ptr";
+  case ARRAY:
+    return "array";
+  case VOID:
+    return "void";
+  case SHORT:
+    return "short";
+  case LONG:
+    return "long";
+  }
+  return "None";
+}
 bool is_integer(struct type *type) {
   if (type->kind == INT || type->kind == CHAR || type->kind == SHORT ||
       type->kind == LONG || type->kind == BOOL) {
@@ -39,6 +58,7 @@ struct type *array_to(struct type *base, size_t len) {
   type->size = len * base->size;
   type->array_size = len;
   type->ptr_to = base;
+  type->align = base->align;
   return type;
 }
 
@@ -86,7 +106,8 @@ void add_type(struct node *n) {
     n->type = n->then->type;
     return;
   case ND_ASSIGN:
-    if (is_scalar(n->rhs->type))
+
+    if (is_scalar(n->rhs->type) && n->lhs->type->kind != n->rhs->type->kind)
       n->rhs = new_cast(n->rhs, n->lhs->type);
     n->type = n->lhs->type;
     return;
@@ -116,6 +137,9 @@ void add_type(struct node *n) {
     return;
   case ND_VAR:
     n->type = n->var->type;
+    return;
+  case ND_MEMBER:
+    n->type = n->member->type;
     return;
   case ND_STMT_EXPR: {
     struct node *stmt = n->body;

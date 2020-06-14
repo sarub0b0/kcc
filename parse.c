@@ -5,13 +5,22 @@
 
 #include "kcc.h"
 
+struct tag {
+  struct tag *next;
+  struct type *type;
+  int depth;
+  char *name;
+};
+
 struct function *functions;
 struct function *current_fn;
 struct var *locals;
 struct var *globals;
+struct tag *tags;
 
 struct function *funcdef(struct token **, struct token *, struct type *);
 struct type *declarator(struct token **, struct token *, struct type *);
+struct type *struct_declarator(struct token **, struct token *);
 struct type *funcdef_args(struct token **, struct token *, struct type *);
 struct type *type_suffix(struct token **, struct token *, struct type *);
 struct node *compound_stmt(struct token **, struct token *);
@@ -118,13 +127,48 @@ void print_param(struct var *params, bool is_next, struct function *fn) {
 
 void print_globals(bool has_function) {
   for (struct var *v = globals; v; v = v->next) {
-    if (v->next)
-      printf("|-Param %s\n", v->name);
-    else {
-      if (has_function)
-        printf("|-Param %s\n", v->name);
+    char *prefix = "|-";
+    char *type = "Param";
+
+    if (!has_function)
+      prefix = "`-";
+
+    printf("%s%s ", prefix, type);
+    printf("%s %s", type_to_name(v->type->kind), v->name);
+    if (v->data)
+      printf(": %d\n", *(int *)v->data);
+    else
+      printf("\n");
+  }
+}
+
+void print_struct(bool has_function) {
+
+  struct tag *last = NULL;
+  for (struct tag *tag = tags; tag; tag = tag->next)
+    last = tag;
+
+  for (struct tag *t = tags; t; t = t->next) {
+    char *first_prefix = "| ";
+    if (last == t && !has_function) {
+      printf("`-Struct %s\n", t->name);
+      first_prefix = "  ";
+    } else {
+      printf("|-Struct %s\n", t->name);
+    }
+    for (struct member *m = t->type->members; m; m = m->next) {
+      char *second_prefix = "|-";
+      if (t->next || has_function)
+        first_prefix = "| ";
       else
-        printf("`-Param %s\n", v->name);
+        first_prefix = "  ";
+
+      if (m->next)
+        second_prefix = "|-";
+      else
+        second_prefix = "`-";
+      printf("%s%sMember %s %s\n", first_prefix, second_prefix,
+             type_to_name(m->type->kind), m->name);
     }
   }
 }
@@ -317,8 +361,21 @@ void print_stmt(struct node *n, bool is_next_stmt, bool is_next_node,
     print_stmt(n->then, is_next_stmt, true, scope_prefix);
     print_stmt(n->els, is_next_stmt, false, scope_prefix);
     break;
+  case ND_MEMBER:
+    printf("%s-Var.Member '%s.%s'\n", local_prefix, n->lhs->str, n->str);
+    break;
+  case ND_CAST:
+    printf("%s-Cast %s\n", local_prefix, type_to_name(n->type->kind));
+    if (is_next_node) {
+      snprintf(buf, MAX_LEN, "%s |", scope_prefix);
+    } else {
+      snprintf(buf, MAX_LEN, "%s  ", scope_prefix);
+    }
+    scope_prefix = strndup(buf, MAX_LEN);
+    print_stmt(n->lhs, is_next_stmt, false, scope_prefix);
+    break;
   default:
-    printf("%s-none\n", local_prefix);
+    printf("%s-none(%d)\n", local_prefix, n->kind);
     break;
   }
 }
@@ -365,7 +422,10 @@ void print_ast(struct program *pr, char *funcname) {
   }
 
   bool has_function = pr->functions ? true : false;
-  print_globals(has_function);
+  bool has_struct = tags ? true : false;
+  print_globals(has_function || has_struct);
+
+  print_struct(has_function);
 
   for (struct function *fn = pr->functions; fn; fn = fn->next)
     last = fn;
@@ -422,8 +482,22 @@ char *get_ident(struct token *tok) {
   return strndup(tok->str, tok->len);
 }
 
+struct member *get_member(struct type *ty, struct token *tk) {
+  // debug("token(%s)", tk->str);
+  // debug("struct(%s)", ty->name);
+  for (struct member *m = ty->members; m; m = m->next) {
+    // debug("  member(%s)", m->name);
+  }
+  for (struct member *m = ty->members; m; m = m->next) {
+    if (strlen(m->name) == tk->len && strncmp(m->name, tk->str, tk->len) == 0)
+      return m;
+  }
+
+  return NULL;
+}
+
 bool is_typename(struct token *tok) {
-  char *keyword[] = {"int", "void", "char", "short", "long", "bool"};
+  char *keyword[] = {"int", "void", "char", "short", "long", "bool", "struct"};
   for (int i = 0; i < sizeof(keyword) / sizeof(*keyword); i++) {
     if (equal(tok, keyword[i])) {
       return true;
@@ -451,10 +525,16 @@ struct function *find_func(char *name) {
 
 struct var *find_var(struct token *tok) {
   for (struct var *var = locals; var; var = var->next) {
+    // debug("lvar(%s)", var->name);
+  }
+  for (struct var *var = locals; var; var = var->next) {
     if (strlen(var->name) == tok->len &&
         strncmp(var->name, tok->str, tok->len) == 0) {
       return var;
     }
+  }
+  for (struct var *var = globals; var; var = var->next) {
+    // debug("gvar(%s)", var->name);
   }
   for (struct var *var = globals; var; var = var->next) {
     if (strlen(var->name) == tok->len &&
@@ -462,6 +542,21 @@ struct var *find_var(struct token *tok) {
       return var;
     }
   }
+  return NULL;
+}
+
+struct tag *find_tag(struct token *tk) {
+  // debug("find_tag: token(%s)", tk->str);
+
+  for (struct tag *t = tags; t; t = t->next) {
+    // debug("tags(%s)", t->name);
+  }
+
+  for (struct tag *t = tags; t; t = t->next) {
+    if (strlen(t->name) == tk->len && strncmp(t->name, tk->str, tk->len) == 0)
+      return t;
+  }
+
   return NULL;
 }
 
@@ -477,7 +572,7 @@ bool is_void_assign_element(struct node *node) {
       return false;
   }
 
-  return is_void_assign_element(node->lhs);
+  // return is_void_assign_element(node->lhs);
   return is_void_assign_element(node->rhs);
 }
 
@@ -602,6 +697,15 @@ struct node *new_sub(struct token *tk, struct node *lhs, struct node *rhs) {
   return NULL;
 }
 
+struct tag *new_tag(struct type *type) {
+  struct tag *tag = calloc(1, sizeof(struct tag));
+  tag->name = type->name;
+  tag->next = tags;
+  tag->type = type;
+  tags = tag;
+  return tag;
+}
+
 struct var *new_lvar(struct type *type) {
   struct var *v = calloc(1, sizeof(struct var));
   v->name = type->name;
@@ -671,6 +775,82 @@ struct type *typespec(struct token **ret, struct token *tk) {
     ty = copy_type(ty_bool);
   }
 
+  if (consume(&tk, tk, "struct")) {
+    ty = struct_declarator(&tk, tk);
+  }
+
+  *ret = tk;
+  return ty;
+}
+
+struct member *struct_members(struct token **ret, struct token *tk) {
+
+  struct member head = {};
+  struct member *cur = &head;
+
+  // まずは①
+  // ① struct-member = typespec declarator ";"
+  // struct-member = (typespec declarator ( "," declarator )* ";" )*
+  skip(&tk, tk, "{");
+  while (!equal(tk, "}")) {
+    struct member *m = calloc(1, sizeof(struct member));
+
+    struct type *base_type = typespec(&tk, tk);
+    m->type = declarator(&tk, tk, base_type);
+    m->name = m->type->name;
+    m->align = m->type->align;
+
+    cur = cur->next = m;
+
+    skip(&tk, tk, ";");
+  }
+
+  *ret = tk->next;
+  return head.next;
+}
+
+struct type *struct_declarator(struct token **ret, struct token *tk) {
+
+  struct token *tag = NULL;
+  if (tk->kind == TK_IDENT) {
+    tag = tk;
+    tk = tk->next;
+  }
+
+  if (tag && !equal(tk, "{")) {
+
+    *ret = tk;
+    struct tag *t = find_tag(tag);
+    if (t) {
+      return t->type;
+    }
+
+    struct type *ty = calloc(1, sizeof(struct type));
+    ty->kind = STRUCT;
+
+    return ty;
+  }
+
+  struct type *ty = calloc(1, sizeof(struct type));
+
+  ty->kind = STRUCT;
+  ty->members = struct_members(&tk, tk);
+  // if (tag) {
+  ty->name = tag->str;
+  // }
+
+  new_tag(ty);
+  //
+  int offset = 0;
+  for (struct member *m = ty->members; m; m = m->next) {
+    m->offset = offset;
+    offset += m->type->size;
+    // debug("type(%s)", type_to_name(m->type->kind));
+    // debug("%s align:%d offset:%d", m->name, m->align, m->offset);
+    ty->size += m->type->size;
+  }
+  // debug("%s size:%ld", ty->name, ty->size);
+
   *ret = tk;
   return ty;
 }
@@ -709,9 +889,7 @@ struct type *declarator(struct token **ret, struct token *tk,
                         struct type *base) {
   struct type *type = base;
 
-  while (consume(&tk, tk, "*")) {
-    type = pointer_to(type);
-  }
+  type = pointers(&tk, tk, type);
   // ident
   if (tk->kind != TK_IDENT) {
     error_at(tk->loc, "expected a variable name");
@@ -792,7 +970,8 @@ struct node *declaration(struct token **ret, struct token *tk) {
 
     if (consume(&tk, tk, "=")) {
       cur = cur->next = lvar_initializer(&tk, tk, var, type);
-    }
+    } else
+      cur = cur->next = new_node_var(var, type);
   }
 
   node = new_node(ND_BLOCK, tk);
@@ -1175,18 +1354,36 @@ struct node *unary(struct token **ret, struct token *tk) {
 }
 
 struct node *postfix(struct token **ret, struct token *tk) {
+
+  struct token *start = tk;
+
   struct node *n = primary(&tk, tk);
 
-  if (n->kind != ND_NUM) {
-    while (consume(&tk, tk, "[")) {
-      struct token *start = tk;
+  while (true) {
+    if (consume(&tk, tk, "[")) {
+      // while (consume(&tk, tk, "[")) {
+      // struct token *start = tk;
       struct node *index = expr(&tk, tk);
       skip(&tk, tk, "]");
       n = new_node_unary(ND_DEREF, new_add(n, index), start);
+      // }
+      // tk = tk;
+      continue;
     }
+
+    if (consume(&tk, tk, ".")) {
+      add_type(n);
+      struct member *m = get_member(n->type, tk);
+      n = new_node_unary(ND_MEMBER, n, tk);
+      // n->member = get_member(n->lhs->type, tk);
+      n->member = m;
+      tk = tk->next;
+      continue;
+    }
+
+    *ret = tk;
+    return n;
   }
-  *ret = tk;
-  return n;
 }
 
 struct node *primary(struct token **ret, struct token *tk) {
@@ -1389,6 +1586,11 @@ struct node *array_initializer(struct token **ret, struct token *tk,
   return head.next;
 }
 
+struct node *struct_initializer(struct token **ret, struct token *tk,
+                                struct var *var, struct type *type) {
+  return NULL;
+}
+
 struct node *lvar_initializer(struct token **ret, struct token *tk,
                               struct var *var, struct type *type) {
   if (type->kind == ARRAY && type->ptr_to->kind == CHAR) {
@@ -1396,6 +1598,10 @@ struct node *lvar_initializer(struct token **ret, struct token *tk,
   }
   if (type->kind == ARRAY) {
     return array_initializer(ret, tk, var, type);
+  }
+
+  if (type->kind == STRUCT) {
+    return struct_initializer(ret, tk, var, type);
   }
 
   struct node *lvar = new_node_var(var, type);
@@ -1467,13 +1673,15 @@ void gvar_initilizer(struct token **ret, struct token *tk, struct var *var,
   return;
 }
 
-// program = ( funcdef | declaration ";" | typedef ";" )*
-// typespec = "int" | "char"
+// program = ( funcdef | declaration ";" )*
+// typespec = "int" | "char" | struct-declarator
 // typename = typespec pointers
 // pointers = ( "*" )*
 // funcdef = typespec declarator compound-stmt
 //
-// declarator = "*"* ident type-suffix
+// declarator = pointers ident type-suffix
+// struct-declarator = "struct" ident "{" sturct-member "}" ";"
+// struct-member = (typespec declarator ( "," declarator )* ";" )*
 //
 // type-suffix = ( "[" num "]" )*
 //              | "(" funcdef-args? ")"
@@ -1519,7 +1727,10 @@ void gvar_initilizer(struct token **ret, struct token *tk, struct var *var,
 //       | ( "++" | "--" ) unary
 //       | postfix
 //
-// postfix = primary ( "[" expr "]" )*
+// postfix = primary
+//         | ( "[" expr "]" )*
+//         | "." ident
+//         | "->" ident
 // primary = "(" "{" compound-stmt "}" ")"
 //         | num
 //         | ident funcall-args?
@@ -1532,6 +1743,7 @@ void gvar_initilizer(struct token **ret, struct token *tk, struct var *var,
 struct program *parse(struct token *tk) {
   functions = NULL;
   globals = NULL;
+  tags = NULL;
 
   struct function head = {};
   struct function *cur = &head;
@@ -1541,6 +1753,9 @@ struct program *parse(struct token *tk) {
   while (!at_eof(tk)) {
 
     type = typespec(&tk, tk);
+    if (consume(&tk, tk, ";"))
+      continue;
+
     type = declarator(&tk, tk, type);
 
     if (equal(tk, "{")) {
