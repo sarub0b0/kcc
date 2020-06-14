@@ -49,6 +49,7 @@ struct type *pointer_to(struct type *base) {
   ty->ptr_to = base;
   ty->kind = PTR;
   ty->size = 8;
+  ty->align = 8;
   return ty;
 }
 

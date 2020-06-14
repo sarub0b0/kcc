@@ -91,7 +91,11 @@ int logor() {
   if (0 || 1)
     return 5;
 }
+int mixed(int a, short b, long c, char d) {
+  int x = a + b + c + d;
 
+  return x;
+}
 int main() {
   assert(0, 0, "0");
   assert(42, 42, "42");
@@ -786,6 +790,8 @@ int main() {
            a.e[0] + a.e[1];
          }),
          "({ struct struct_a a; a.e[0]=1; a.e[1]=2; a.e[0]+a.e[1]; })");
+
+  assert(10, ({ mixed(1, 2, 3, 4); }), "({ mixed(1,2,3,4); })");
 
   if (success == number)
     printf("result: \x1b[32mOK\x1b[0m, ");

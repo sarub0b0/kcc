@@ -840,16 +840,36 @@ struct type *struct_declarator(struct token **ret, struct token *tk) {
   // }
 
   new_tag(ty);
+
+  // align and offset calculation
+  // アライメント
+  // 各メンバーのアドレスは型のアライメントの倍数になる
+  // アドレスがアライメントの倍数にならない場合パディングを行う（offsetを調整）
   //
+  int max_align = 0;
   int offset = 0;
   for (struct member *m = ty->members; m; m = m->next) {
-    m->offset = offset;
+    if (offset % m->align == 0) { // メンバーのアドレスがアライメント倍数
+      m->offset = offset;
+    } else {
+      m->offset = offset + (m->align - (offset % m->align));
+      offset = m->offset;
+    }
     offset += m->type->size;
-    // debug("type(%s)", type_to_name(m->type->kind));
-    // debug("%s align:%d offset:%d", m->name, m->align, m->offset);
-    ty->size += m->type->size;
+
+    if (ty->align < m->align)
+      ty->align = m->align;
+
+    ty->size = offset + m->type->size;
+    debug("type(%s)", type_to_name(m->type->kind));
+    debug("%s align:%d offset:%d", m->name, m->align, m->offset);
   }
-  // debug("%s size:%ld", ty->name, ty->size);
+
+  if (ty->size % ty->align != 0) {
+    ty->size = offset + (ty->align - (offset % ty->align));
+  }
+
+  debug("%s size:%ld", ty->name, ty->size);
 
   *ret = tk;
   return ty;
@@ -1444,9 +1464,6 @@ struct node *funcall(struct token **ret, struct token *tk,
 
   struct node head = {};
   struct node *cur = &head;
-
-  struct var vhead = {};
-  struct var *vcur = &vhead;
 
   skip(&tk, tk, "(");
 
