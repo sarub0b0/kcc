@@ -27,7 +27,7 @@ char *g12[5] = {"abc", "def", "ghi"};
 // typedef int Int;
 
 int assert(int expected, int actual, char *code) {
-  printf("% 3d: ", number++);
+  printf("% 4d: ", number++);
   if (expected == actual) {
     printf("%s => %d ... \x1b[32mOK\x1b[0m\n", code, actual);
     success++;
@@ -741,10 +741,17 @@ int main() {
          }),
          "({ char a=3; int *b=(int *)&a; *b;})");
 
-  assert(-1, ({ ~0; }), "~0;");
+  assert(-1, ({ ~0; }), "({ ~0; })");
 
   assert(5, ({ logor(); }), "({ logor(); })");
   assert(5, ({ logand(); }), "({ logand(); })");
+
+  assert(1, ({
+           bool a = 0;
+           a = 1;
+           a;
+         }),
+         "({ bool a=0; a=1; a; })");
 
   if (success == number)
     printf("result: \x1b[32mOK\x1b[0m, ");

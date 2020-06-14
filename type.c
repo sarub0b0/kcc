@@ -6,13 +6,14 @@
 struct type *ty_short = &(struct type){SHORT, 2, ""};
 struct type *ty_int = &(struct type){INT, 4, ""};
 struct type *ty_long = &(struct type){LONG, 8, ""};
+struct type *ty_bool = &(struct type){BOOL, 1, ""};
 
 struct type *ty_char = &(struct type){CHAR, 1, ""};
 struct type *ty_void = &(struct type){VOID, 0, ""};
 
 bool is_integer(struct type *type) {
   if (type->kind == INT || type->kind == CHAR || type->kind == SHORT ||
-      type->kind == LONG) {
+      type->kind == LONG || type->kind == BOOL) {
     return true;
   }
   return false;

@@ -68,6 +68,7 @@ enum type_kind {
   VOID,
   SHORT,
   LONG,
+  BOOL,
 };
 
 struct type {
@@ -188,6 +189,7 @@ extern struct type *ty_short;
 extern struct type *ty_int;
 extern struct type *ty_long;
 extern struct type *ty_char;
+extern struct type *ty_bool;
 
 extern int verbose;
 #endif

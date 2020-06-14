@@ -423,7 +423,7 @@ char *get_ident(struct token *tok) {
 }
 
 bool is_typename(struct token *tok) {
-  char *keyword[] = {"int", "void", "char", "short", "long"};
+  char *keyword[] = {"int", "void", "char", "short", "long", "bool"};
   for (int i = 0; i < sizeof(keyword) / sizeof(*keyword); i++) {
     if (equal(tok, keyword[i])) {
       return true;
@@ -666,6 +666,9 @@ struct type *typespec(struct token **ret, struct token *tk) {
 
   if (consume(&tk, tk, "void")) {
     ty = copy_type(ty_void);
+  }
+  if (consume(&tk, tk, "bool")) {
+    ty = copy_type(ty_bool);
   }
 
   *ret = tk;
