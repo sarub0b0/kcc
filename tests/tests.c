@@ -24,6 +24,15 @@ int g10[10] = {0, 1, 2, 3, 4, 5};
 char *g11[] = {"abc", "def", "ghi"};
 char *g12[5] = {"abc", "def", "ghi"};
 
+struct struct_a {
+  short a;
+  int b;
+  long c;
+  char d;
+  int e[3];
+  int *f;
+};
+
 // typedef int Int;
 
 int assert(int expected, int actual, char *code) {
@@ -82,7 +91,11 @@ int logor() {
   if (0 || 1)
     return 5;
 }
+int mixed(int a, short b, long c, char d) {
+  int x = a + b + c + d;
 
+  return x;
+}
 int main() {
   assert(0, 0, "0");
   assert(42, 42, "42");
@@ -144,24 +157,24 @@ int main() {
            i;
          }),
          "({ int i; for(i=0; i<=3; i=i+1){ i=i; } i; })");
-  // assert(3, ({
-  //          int a;
-  //          for (int i = 0; i <= 3; i = i + 1) {
-  //            a = i;
-  //          }
-  //          a;
-  //        }),
-  //        "({ int a; for(int i=0; i<=3; i=i+1){ a=i; } a; })");
-  // assert(3, ({
-  //          int a;
-  //          int i = 0;
-  //          while (i < 3) {
-  //            i = i + 1;
-  //            a = i;
-  //          }
-  //          a;
-  //        }),
-  //        "({ int a; int i=0; while(i<=3){ i=i+1; a=i; } a; })");
+  assert(3, ({
+           int a;
+           for (int i = 0; i <= 3; i = i + 1) {
+             a = i;
+           }
+           a;
+         }),
+         "({ int a; for(int i=0; i<=3; i=i+1){ a=i; } a; })");
+  assert(3, ({
+           int a;
+           int i = 0;
+           while (i < 3) {
+             i = i + 1;
+             a = i;
+           }
+           a;
+         }),
+         "({ int a; int i=0; while(i<=3){ i=i+1; a=i; } a; })");
   assert(3, ({
            int x;
            int *y = &x;
@@ -752,6 +765,33 @@ int main() {
            a;
          }),
          "({ bool a=0; a=1; a; })");
+
+  assert(3, ({
+           struct struct_a a;
+           struct struct_a b;
+           a.a = 3;
+           a.b = 2;
+           a.a;
+         }),
+         "({ struct struct_a a; a.a=3; a.b=2; a.a; })");
+
+  assert(5, ({
+           struct struct_a a;
+           a.a = 3;
+           a.b = 2;
+           a.b + a.a;
+         }),
+         "({ struct struct_a a; a.a=3; a.b=2; a.b; })");
+
+  assert(3, ({
+           struct struct_a a;
+           a.e[0] = 1;
+           a.e[1] = 2;
+           a.e[0] + a.e[1];
+         }),
+         "({ struct struct_a a; a.e[0]=1; a.e[1]=2; a.e[0]+a.e[1]; })");
+
+  assert(10, ({ mixed(1, 2, 3, 4); }), "({ mixed(1,2,3,4); })");
 
   if (success == number)
     printf("result: \x1b[32mOK\x1b[0m, ");

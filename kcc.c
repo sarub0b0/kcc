@@ -160,6 +160,8 @@ int main(int argc, char *argv[]) {
 
   configure(argc, argv, &cfg);
 
+  filename = cfg.filename;
+
   user_input = readfile(cfg.filename);
   tk = tokenize(cfg.filename, user_input);
 

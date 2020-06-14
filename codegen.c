@@ -28,22 +28,6 @@ size_t type_size(struct type *ty) {
   return ty->size;
 }
 
-char *type_kind_name(enum type_kind kind) {
-  switch (kind) {
-  case INT:
-    return "INT";
-  case CHAR:
-    return "CHAR";
-  case PTR:
-    return "PTR";
-  case ARRAY:
-    return "ARRAY";
-  case VOID:
-    return "VOID";
-  }
-  return "";
-}
-
 const char *areg(struct type *ty) {
   const char *r[] = {"al", "ax", "eax", "rax"};
 
@@ -118,6 +102,10 @@ void gen_addr(struct node *n) {
     return;
   case ND_DEREF:
     gen_expr(n->lhs);
+    return;
+  case ND_MEMBER:
+    printf("  lea %s, [rbp-%d]\n", reg64[inc++],
+           n->lhs->var->offset - n->member->offset);
     return;
   }
 }
@@ -223,8 +211,13 @@ void gen_func(struct node *node) {
     nargs++;
   }
 
+  if (6 < nargs) {
+    error("Too many funcall argumentes");
+  }
+
   int i = nargs - 1;
   for (struct var *arg = node->args; arg; arg = arg->next) {
+
     int size = type_size(arg->type);
     struct type *arg_ty = arg->type;
 
@@ -233,10 +226,10 @@ void gen_func(struct node *node) {
 
     switch (size) {
     case 1:
-      printf("  mov %s, %s\n", argreg8[i], reg8[--inc]);
+      printf("  movsx %s, %s\n", argreg32[i], reg8[--inc]);
       break;
     case 2:
-      printf("  mov %s, %s\n", argreg16[i], reg16[--inc]);
+      printf("  movsx %s, %s\n", argreg32[i], reg16[--inc]);
       break;
     case 4:
       printf("  mov %s, %s\n", argreg32[i], reg32[--inc]);
@@ -250,7 +243,7 @@ void gen_func(struct node *node) {
 
   printf("  push r10\n");
   printf("  push r11\n");
-  printf("  mov %s, 0\n", areg(fn_ty));
+  printf("  mov rax, 0\n");
   printf("  call %s\n", node->str);
 
   printf("  pop r11\n");
@@ -275,7 +268,7 @@ void load(struct type *type) {
   switch (type->size) {
   case 1:
   case 2:
-    printf("  movsx %s, %s\n", reg64[inc - 1], r);
+    printf("  movsx %s, %s\n", reg32[inc - 1], r);
     break;
   }
 }
@@ -298,6 +291,13 @@ int gen_expr(struct node *node) {
   case ND_VAR:
     gen_addr(node);
     load(node->type);
+    return 0;
+  case ND_MEMBER:
+    gen_addr(node);
+    load(node->type);
+    // debug("member: (%s)%s.%s offset:%d align:%d",
+    //       type_to_name(node->type->kind), node->lhs->str, node->str,
+    //       node->member->offset, node->member->align);
     return 0;
   case ND_ASSIGN:
     gen_expr(node->rhs);
@@ -368,11 +368,11 @@ int gen_expr(struct node *node) {
     struct type *to = node->type;
 
     if (to->size == 1) {
-      printf("  movsx %s, %s\n", reg64[inc - 1], reg(from, inc - 1));
+      printf("  movsx %s, %s\n", reg32[inc - 1], reg8[inc - 1]);
     } else if (to->size == 2) {
-      printf("  movsx %s, %s\n", reg64[inc - 1], reg(from, inc - 1));
+      printf("  movsx %s, %s\n", reg32[inc - 1], reg16[inc - 1]);
     } else if (to->size == 4) {
-      // printf("  mov %s, %s\n", reg32[inc - 1], reg32[inc - 1]);
+      printf("  mov %s, %s\n", reg32[inc - 1], reg32[inc - 1]);
     } else if (is_integer(from) && from->size < 8) {
       printf("  movsx %s, %s\n", reg64[inc - 1], reg(from, inc - 1));
     }
@@ -554,9 +554,9 @@ size_t align(struct type *ty) {
 void global_data(struct program *prog) {
   for (struct var *v = prog->globals; v; v = v->next) {
     printf(".align %lu\n", align(v->type));
-    printf("%s: // %s", v->name, type_kind_name(v->type->kind));
+    printf("%s: // %s", v->name, type_to_name(v->type->kind));
     if (v->type->ptr_to)
-      printf(" -> %s", type_kind_name(v->type->ptr_to->kind));
+      printf(" -> %s", type_to_name(v->type->ptr_to->kind));
     printf("\n");
 
     if (is_integer(v->type)) {
