@@ -1547,6 +1547,17 @@ struct node *primary(struct token **ret, struct token *tk) {
   if (tk->kind == TK_STR) {
     struct var *v = new_string_literal(tk->str, tk->len);
     tk = tk->next;
+    while (tk->kind == TK_STR) {
+      struct type *ty = v->type;
+      int old_size = ty->size;
+      ty->size += tk->len;
+      ty->array_size += tk->len;
+      char *data = malloc(ty->size * sizeof(char));
+      strcpy(data, v->data);
+      strcpy(&data[old_size], tk->str);
+      v->data = data;
+      tk = tk->next;
+    }
     *ret = tk;
     return new_node_var(v, v->type);
   }
@@ -1850,7 +1861,7 @@ void gvar_initilizer(struct token **ret, struct token *tk, struct var *var,
 //         | ident funcall-args?
 //         | "(" expr ")"
 //         | sizeof unary
-//         | string-literal
+//         | string-literal*
 // funcall = ident "(" funcall-args ")"
 // funcall-args = assign ( "," assign )*
 
