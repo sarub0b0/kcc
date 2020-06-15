@@ -791,6 +791,32 @@ int main() {
          }),
          "({ struct struct_a a; a.e[0]=1; a.e[1]=2; a.e[0]+a.e[1]; })");
 
+  assert(10, ({
+           struct struct_a a;
+           struct struct_a *p = &a;
+           p->a = 10;
+           p->a;
+         }),
+         "({ struct struct_a a; struct struct_a *p=&a; p->a=10; p->a; })");
+
+  assert(10, ({
+           struct struct_a a;
+           struct struct_a *p = &a;
+           p->b = 10;
+           p->b;
+         }),
+         "({ struct struct_a a; struct struct_a *p=&a; p->b=10; p->b; })");
+
+  assert(
+      3, ({
+        struct struct_a a, *p;
+        p = &a;
+        p->e[0] = 1;
+        p->e[1] = 2;
+        p->e[0] + p->e[1];
+      }),
+      "({ struct struct_a a,*p; p=&a; p->e[0]=1; p->e[1]=2; p->e[0]+p->e[1]; })");
+
   assert(10, ({ mixed(1, 2, 3, 4); }), "({ mixed(1,2,3,4); })");
 
   if (success == number)

@@ -150,7 +150,7 @@ struct node {
 
   // function call
   struct type *func_ty;
-  struct var *args;
+  struct var *args[10];
   // var **args;
   int nargs;
 

@@ -483,11 +483,6 @@ char *get_ident(struct token *tok) {
 }
 
 struct member *get_member(struct type *ty, struct token *tk) {
-  // debug("token(%s)", tk->str);
-  // debug("struct(%s)", ty->name);
-  for (struct member *m = ty->members; m; m = m->next) {
-    // debug("  member(%s)", m->name);
-  }
   for (struct member *m = ty->members; m; m = m->next) {
     if (strlen(m->name) == tk->len && strncmp(m->name, tk->str, tk->len) == 0)
       return m;
@@ -524,17 +519,14 @@ struct function *find_func(char *name) {
 }
 
 struct var *find_var(struct token *tok) {
-  for (struct var *var = locals; var; var = var->next) {
-    // debug("lvar(%s)", var->name);
-  }
+  // for (struct var *var = locals; var; var = var->next) {
+  //   debug("locals: %s", var->name);
+  // }
   for (struct var *var = locals; var; var = var->next) {
     if (strlen(var->name) == tok->len &&
         strncmp(var->name, tok->str, tok->len) == 0) {
       return var;
     }
-  }
-  for (struct var *var = globals; var; var = var->next) {
-    // debug("gvar(%s)", var->name);
   }
   for (struct var *var = globals; var; var = var->next) {
     if (strlen(var->name) == tok->len &&
@@ -546,12 +538,6 @@ struct var *find_var(struct token *tok) {
 }
 
 struct tag *find_tag(struct token *tk) {
-  // debug("find_tag: token(%s)", tk->str);
-
-  for (struct tag *t = tags; t; t = t->next) {
-    // debug("tags(%s)", t->name);
-  }
-
   for (struct tag *t = tags; t; t = t->next) {
     if (strlen(t->name) == tk->len && strncmp(t->name, tk->str, tk->len) == 0)
       return t;
@@ -706,9 +692,9 @@ struct tag *new_tag(struct type *type) {
   return tag;
 }
 
-struct var *new_lvar(struct type *type) {
+struct var *new_lvar(char *name, struct type *type) {
   struct var *v = calloc(1, sizeof(struct var));
-  v->name = type->name;
+  v->name = name;
   v->next = locals;
   v->type = type;
   v->is_local = true;
@@ -861,15 +847,11 @@ struct type *struct_declarator(struct token **ret, struct token *tk) {
       ty->align = m->align;
 
     ty->size = offset + m->type->size;
-    debug("type(%s)", type_to_name(m->type->kind));
-    debug("%s align:%d offset:%d", m->name, m->align, m->offset);
   }
 
   if (ty->size % ty->align != 0) {
     ty->size = offset + (ty->align - (offset % ty->align));
   }
-
-  debug("%s size:%ld", ty->name, ty->size);
 
   *ret = tk;
   return ty;
@@ -894,7 +876,7 @@ struct function *funcdef(struct token **ret, struct token *tk,
   fn->token = tk;
 
   for (struct type *ty = type->params; ty; ty = ty->next) {
-    new_lvar(ty);
+    new_lvar(ty->name, ty);
   }
 
   fn->params = locals;
@@ -986,7 +968,7 @@ struct node *declaration(struct token **ret, struct token *tk) {
 
     struct type *type = declarator(&tk, tk, base);
 
-    var = new_lvar(type);
+    var = new_lvar(type->name, type);
 
     if (consume(&tk, tk, "=")) {
       cur = cur->next = lvar_initializer(&tk, tk, var, type);
@@ -1393,10 +1375,17 @@ struct node *postfix(struct token **ret, struct token *tk) {
 
     if (consume(&tk, tk, ".")) {
       add_type(n);
-      struct member *m = get_member(n->type, tk);
       n = new_node_unary(ND_MEMBER, n, tk);
-      // n->member = get_member(n->lhs->type, tk);
-      n->member = m;
+      n->member = get_member(n->lhs->type, tk);
+      tk = tk->next;
+      continue;
+    }
+
+    if (consume(&tk, tk, "->")) {
+      n = new_node_unary(ND_DEREF, n, tk);
+      add_type(n);
+      n = new_node_unary(ND_MEMBER, n, tk);
+      n->member = get_member(n->lhs->type, tk);
       tk = tk->next;
       continue;
     }
@@ -1475,6 +1464,7 @@ struct node *funcall(struct token **ret, struct token *tk,
 
   if (fn) {
     param = NULL;
+    funcall->func_ty = fn->type;
 
     for (struct var *v = fn->params; v; v = v->next) {
       struct var *v0 = calloc(1, sizeof(struct var));
@@ -1483,9 +1473,11 @@ struct node *funcall(struct token **ret, struct token *tk,
       v0->next = param;
       param = v0;
     }
+  } else {
+    funcall->func_ty = ty_void;
   }
 
-  struct var *vlocal = NULL;
+  int nargs = 0;
 
   while (!equal(tk, ")")) {
 
@@ -1497,30 +1489,23 @@ struct node *funcall(struct token **ret, struct token *tk,
 
     if (param) {
       n = new_cast(n, param->type);
-      n->type->name = strdup(param->name);
       param = param->next;
-    } else {
-      n->type->name = strdup("");
     }
 
-    struct var *v = calloc(1, sizeof(struct var));
+    struct var *v = n->type->ptr_to ? new_lvar("", pointer_to(n->type->ptr_to))
+                                    : new_lvar("", n->type);
 
-    v->type = n->type->ptr_to ? pointer_to(n->type->ptr_to) : n->type;
-    v->name = n->type->name;
-
-    v->next = vlocal;
-    vlocal = v;
+    if (param) {
+      v->name = param->name;
+      v->type->name = param->name;
+    }
 
     cur = cur->next = n;
+    funcall->args[nargs++] = v;
   }
   skip(&tk, tk, ")");
 
-  if (fn) {
-    funcall->func_ty = fn->type;
-  } else {
-    funcall->func_ty = ty_void;
-  }
-  funcall->args = vlocal;
+  funcall->nargs = nargs;
   funcall->str = ident->str;
   funcall->body = head.next;
   funcall->type = funcall->func_ty->return_type;
