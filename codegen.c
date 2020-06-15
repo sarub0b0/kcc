@@ -204,19 +204,18 @@ void gen_block(struct node *node) {
 }
 
 void gen_func(struct node *node) {
-  int nargs = 0;
   struct type *fn_ty = node->func_ty;
   for (struct node *n = node->body; n; n = n->next) {
     gen_expr(n);
-    nargs++;
   }
 
-  if (6 < nargs) {
+  if (6 < node->nargs) {
     error("Too many funcall argumentes");
   }
 
-  int i = nargs - 1;
-  for (struct var *arg = node->args; arg; arg = arg->next) {
+  for (int i = node->nargs - 1; 0 <= i; i--) {
+    struct var *arg = node->args[i];
+    // debug("offset: %d", arg->offset);
 
     int size = type_size(arg->type);
     struct type *arg_ty = arg->type;
@@ -227,18 +226,21 @@ void gen_func(struct node *node) {
     switch (size) {
     case 1:
       printf("  movsx %s, %s\n", argreg32[i], reg8[--inc]);
+      // printf("  movsx %s, BYTE PTR [rbp-%d]\n", argreg32[i], arg->offset);
       break;
     case 2:
+      // printf("  movsx %s, WORD PTR [rbp-%d]\n", argreg32[i], arg->offset);
       printf("  movsx %s, %s\n", argreg32[i], reg16[--inc]);
       break;
     case 4:
       printf("  mov %s, %s\n", argreg32[i], reg32[--inc]);
+      // printf("  mov %s, DWORD PTR [rbp-%d]\n", argreg32[i], arg->offset);
       break;
     case 8:
       printf("  mov %s, %s\n", argreg64[i], reg64[--inc]);
+      // printf("  mov %s, [rbp-%d]\n", argreg64[i], arg->offset);
       break;
     }
-    i--;
   }
 
   printf("  push r10\n");
