@@ -1,4 +1,5 @@
 #define _GNU_SOURCE
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -549,9 +550,6 @@ struct function *find_func(char *name) {
 }
 
 struct var *find_var(struct token *tok) {
-  // for (struct var *var = locals; var; var = var->next) {
-  //   debug("locals: %s", var->name);
-  // }
   for (struct var *var = locals; var; var = var->next) {
     if (strlen(var->name) == tok->len &&
         strncmp(var->name, tok->str, tok->len) == 0) {
@@ -1463,13 +1461,9 @@ struct node *postfix(struct token **ret, struct token *tk) {
 
   while (true) {
     if (consume(&tk, tk, "[")) {
-      // while (consume(&tk, tk, "[")) {
-      // struct token *start = tk;
       struct node *index = expr(&tk, tk);
       skip(&tk, tk, "]");
       n = new_node_unary(ND_DEREF, new_add(n, index), start);
-      // }
-      // tk = tk;
       continue;
     }
 
@@ -1553,8 +1547,8 @@ struct node *primary(struct token **ret, struct token *tk) {
       ty->size += tk->len;
       ty->array_size += tk->len;
       char *data = malloc(ty->size * sizeof(char));
-      strcpy(data, v->data);
-      strcpy(&data[old_size], tk->str);
+      strncpy(data, v->data, old_size);
+      strncpy(&data[old_size], tk->str, tk->len);
       v->data = data;
       tk = tk->next;
     }
@@ -1568,16 +1562,13 @@ struct node *primary(struct token **ret, struct token *tk) {
 struct node *funcall(struct token **ret, struct token *tk,
                      struct token *ident) {
 
-  struct node head = {};
-  struct node *cur = &head;
-
   skip(&tk, tk, "(");
 
   struct node *funcall = new_node(ND_FUNCALL, ident);
 
   struct function *fn = find_func(ident->str);
   struct var *param = NULL;
-  struct node *n;
+  struct node *node = NULL;
 
   if (fn) {
     param = NULL;
@@ -1597,34 +1588,40 @@ struct node *funcall(struct token **ret, struct token *tk,
   int nargs = 0;
 
   while (!equal(tk, ")")) {
-
-    if (cur != &head)
+    if (nargs)
       skip(&tk, tk, ",");
 
-    n = assign(&tk, tk);
-    add_type(n);
+    struct node *arg = assign(&tk, tk);
+    add_type(arg);
 
     if (param) {
-      n = new_cast(n, param->type);
+      arg = new_cast(arg, param->type);
       param = param->next;
     }
 
-    struct var *v = n->type->ptr_to ? new_lvar("", pointer_to(n->type->ptr_to))
-                                    : new_lvar("", n->type);
+    struct var *v = arg->type->ptr_to
+                        ? new_lvar("", pointer_to(arg->type->ptr_to))
+                        : new_lvar("", arg->type);
 
     if (param) {
       v->name = param->name;
       v->type->name = param->name;
     }
 
-    cur = cur->next = n;
     funcall->args[nargs++] = v;
+
+    struct node *exp =
+        new_node_binary(ND_ASSIGN, new_node_var(v, v->type), arg);
+
+    node = new_node_binary(ND_COMMA, node, exp);
   }
   skip(&tk, tk, ")");
 
+  add_type(node);
+
   funcall->nargs = nargs;
   funcall->str = ident->str;
-  funcall->body = head.next;
+  funcall->args_node = node;
   funcall->type = funcall->func_ty->return_type;
 
   *ret = tk;
@@ -1651,7 +1648,6 @@ struct node *string_initializer(struct token **ret, struct token *tk,
   }
   array_size = start->len;
 
-  //
   if (type->array_size == 0) {
     type->array_size = array_size;
   }
@@ -1756,7 +1752,6 @@ void gvar_initilizer(struct token **ret, struct token *tk, struct var *var,
           cur->val = n->val;
         if (type->ptr_to->kind == PTR)
           cur->label = n->str;
-        //
         ;
       }
       var->val = head.next;

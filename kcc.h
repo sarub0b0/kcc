@@ -65,6 +65,7 @@ enum node_kind {
   ND_BITAND,
   ND_BITNOT,
   ND_MEMBER,
+  ND_COMMA,
 };
 
 enum type_kind {
@@ -152,6 +153,7 @@ struct node {
   // function call
   struct type *func_ty;
   struct var *args[10];
+  struct node *args_node;
   // var **args;
   int nargs;
 

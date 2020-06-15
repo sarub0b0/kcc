@@ -108,7 +108,6 @@ void add_type(struct node *n) {
     n->type = n->then->type;
     return;
   case ND_ASSIGN:
-
     if (is_scalar(n->rhs->type) && n->lhs->type->kind != n->rhs->type->kind)
       n->rhs = new_cast(n->rhs, n->lhs->type);
     n->type = n->lhs->type;
@@ -142,6 +141,9 @@ void add_type(struct node *n) {
     return;
   case ND_MEMBER:
     n->type = n->member->type;
+    return;
+  case ND_COMMA:
+    n->type = n->rhs->type;
     return;
   case ND_STMT_EXPR: {
     struct node *stmt = n->body;
