@@ -136,7 +136,8 @@ struct token *tokenize(char *filename, char *p) {
     if (starts_with(p, "==") || starts_with(p, "!=") || starts_with(p, ">=") ||
         starts_with(p, "<=") || starts_with(p, "++") || starts_with(p, "--") ||
         starts_with(p, "+=") || starts_with(p, "-=") || starts_with(p, "*=") ||
-        starts_with(p, "/=") || starts_with(p, "&&") || starts_with(p, "||")) {
+        starts_with(p, "/=") || starts_with(p, "&&") || starts_with(p, "||") ||
+        starts_with(p, "->")) {
       cur = new_token(TK_RESERVED, cur, p, 2);
       p += 2;
       continue;

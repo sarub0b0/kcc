@@ -483,11 +483,6 @@ char *get_ident(struct token *tok) {
 }
 
 struct member *get_member(struct type *ty, struct token *tk) {
-  // debug("token(%s)", tk->str);
-  // debug("struct(%s)", ty->name);
-  for (struct member *m = ty->members; m; m = m->next) {
-    // debug("  member(%s)", m->name);
-  }
   for (struct member *m = ty->members; m; m = m->next) {
     if (strlen(m->name) == tk->len && strncmp(m->name, tk->str, tk->len) == 0)
       return m;
@@ -525,16 +520,10 @@ struct function *find_func(char *name) {
 
 struct var *find_var(struct token *tok) {
   for (struct var *var = locals; var; var = var->next) {
-    // debug("lvar(%s)", var->name);
-  }
-  for (struct var *var = locals; var; var = var->next) {
     if (strlen(var->name) == tok->len &&
         strncmp(var->name, tok->str, tok->len) == 0) {
       return var;
     }
-  }
-  for (struct var *var = globals; var; var = var->next) {
-    // debug("gvar(%s)", var->name);
   }
   for (struct var *var = globals; var; var = var->next) {
     if (strlen(var->name) == tok->len &&
@@ -546,12 +535,6 @@ struct var *find_var(struct token *tok) {
 }
 
 struct tag *find_tag(struct token *tk) {
-  // debug("find_tag: token(%s)", tk->str);
-
-  for (struct tag *t = tags; t; t = t->next) {
-    // debug("tags(%s)", t->name);
-  }
-
   for (struct tag *t = tags; t; t = t->next) {
     if (strlen(t->name) == tk->len && strncmp(t->name, tk->str, tk->len) == 0)
       return t;
@@ -861,15 +844,11 @@ struct type *struct_declarator(struct token **ret, struct token *tk) {
       ty->align = m->align;
 
     ty->size = offset + m->type->size;
-    debug("type(%s)", type_to_name(m->type->kind));
-    debug("%s align:%d offset:%d", m->name, m->align, m->offset);
   }
 
   if (ty->size % ty->align != 0) {
     ty->size = offset + (ty->align - (offset % ty->align));
   }
-
-  debug("%s size:%ld", ty->name, ty->size);
 
   *ret = tk;
   return ty;
@@ -1393,10 +1372,17 @@ struct node *postfix(struct token **ret, struct token *tk) {
 
     if (consume(&tk, tk, ".")) {
       add_type(n);
-      struct member *m = get_member(n->type, tk);
       n = new_node_unary(ND_MEMBER, n, tk);
-      // n->member = get_member(n->lhs->type, tk);
-      n->member = m;
+      n->member = get_member(n->lhs->type, tk);
+      tk = tk->next;
+      continue;
+    }
+
+    if (consume(&tk, tk, "->")) {
+      n = new_node_unary(ND_DEREF, n, tk);
+      add_type(n);
+      n = new_node_unary(ND_MEMBER, n, tk);
+      n->member = get_member(n->lhs->type, tk);
       tk = tk->next;
       continue;
     }

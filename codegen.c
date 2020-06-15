@@ -104,8 +104,8 @@ void gen_addr(struct node *n) {
     gen_expr(n->lhs);
     return;
   case ND_MEMBER:
-    printf("  lea %s, [rbp-%d]\n", reg64[inc++],
-           n->lhs->var->offset - n->member->offset);
+    gen_addr(n->lhs);
+    printf("  add %s, %d\n", reg64[inc - 1], n->member->offset);
     return;
   }
 }
@@ -295,9 +295,6 @@ int gen_expr(struct node *node) {
   case ND_MEMBER:
     gen_addr(node);
     load(node->type);
-    // debug("member: (%s)%s.%s offset:%d align:%d",
-    //       type_to_name(node->type->kind), node->lhs->str, node->str,
-    //       node->member->offset, node->member->align);
     return 0;
   case ND_ASSIGN:
     gen_expr(node->rhs);
