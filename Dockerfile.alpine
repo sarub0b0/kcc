@@ -1,0 +1,3 @@
+FROM alpine
+RUN apk --no-cache add zsh git gcc make binutils libc6-compat gdb clang lldb bash
+WORKDIR /root
