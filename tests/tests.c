@@ -33,6 +33,20 @@ struct struct_a {
   int *f;
 };
 
+enum enum_a {
+  A,
+  B,
+  C = 10,
+  D,
+};
+
+enum enum_b {
+  A1,
+  B1,
+  C1 = 20,
+  D1,
+};
+
 // typedef int Int;
 
 int assert(int expected, int actual, char *code) {
@@ -818,6 +832,16 @@ int main() {
       "({ struct struct_a a,*p; p=&a; p->e[0]=1; p->e[1]=2; p->e[0]+p->e[1]; })");
 
   assert(10, ({ mixed(1, 2, 3, 4); }), "({ mixed(1,2,3,4); })");
+
+  assert(0, ({ A; }), "({ A; })");
+  assert(1, ({ B; }), "({ B; })");
+  assert(10, ({ C; }), "({ C; })");
+  assert(11, ({ D; }), "({ D; })");
+
+  assert(0, ({ A1; }), "({ A1; })");
+  assert(1, ({ B1; }), "({ B1; })");
+  assert(20, ({ C1; }), "({ C1; })");
+  assert(21, ({ D1; }), "({ D1; })");
 
   if (success == number)
     printf("result: \x1b[32mOK\x1b[0m, ");

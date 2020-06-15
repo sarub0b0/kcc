@@ -77,6 +77,7 @@ enum type_kind {
   LONG,
   BOOL,
   STRUCT,
+  ENUM,
   TY_KIND_NUM,
 };
 
@@ -216,6 +217,7 @@ extern struct type *ty_int;
 extern struct type *ty_long;
 extern struct type *ty_char;
 extern struct type *ty_bool;
+extern struct type *ty_enum;
 
 extern int verbose;
 #endif

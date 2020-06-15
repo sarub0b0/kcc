@@ -5,22 +5,37 @@
 
 #include "kcc.h"
 
-struct tag {
-  struct tag *next;
+struct tag_scope {
+  struct tag_scope *next;
   struct type *type;
+
   int depth;
   char *name;
+};
+
+struct var_scope {
+  struct var_scope *next;
+  struct var *var;
+  struct type *enum_ty;
+
+  int depth;
+  char *name;
+  int enum_val;
 };
 
 struct function *functions;
 struct function *current_fn;
 struct var *locals;
 struct var *globals;
-struct tag *tags;
+struct tag_scope *tags;
+struct var_scope *vars;
+
+int scope_depth;
 
 struct function *funcdef(struct token **, struct token *, struct type *);
 struct type *declarator(struct token **, struct token *, struct type *);
 struct type *struct_declarator(struct token **, struct token *);
+struct type *enum_declarator(struct token **, struct token *);
 struct type *funcdef_args(struct token **, struct token *, struct type *);
 struct type *type_suffix(struct token **, struct token *, struct type *);
 struct node *compound_stmt(struct token **, struct token *);
@@ -144,11 +159,11 @@ void print_globals(bool has_function) {
 
 void print_struct(bool has_function) {
 
-  struct tag *last = NULL;
-  for (struct tag *tag = tags; tag; tag = tag->next)
+  struct tag_scope *last = NULL;
+  for (struct tag_scope *tag = tags; tag; tag = tag->next)
     last = tag;
 
-  for (struct tag *t = tags; t; t = t->next) {
+  for (struct tag_scope *t = tags; t; t = t->next) {
     char *first_prefix = "| ";
     if (last == t && !has_function) {
       printf("`-Struct %s\n", t->name);
@@ -452,6 +467,21 @@ void skip(struct token **ret, struct token *tk, char *op) {
   *ret = tk->next;
 }
 
+bool consume_end(struct token **ret, struct token *tk) {
+
+  if (equal(tk, "}")) {
+    *ret = tk->next;
+    return true;
+  }
+
+  if (equal(tk, ",") && equal(tk->next, "}")) {
+    *ret = tk->next->next;
+    return true;
+  }
+
+  return false;
+}
+
 void expect(struct token **ret, struct token *tk, char *op) {
   if (tk->kind != TK_RESERVED || !equal(tk, op)) {
     error_at(tk->loc, "'%s'ではありません", op);
@@ -537,15 +567,22 @@ struct var *find_var(struct token *tok) {
   return NULL;
 }
 
-struct tag *find_tag(struct token *tk) {
-  for (struct tag *t = tags; t; t = t->next) {
+struct tag_scope *find_tag(struct token *tk) {
+  for (struct tag_scope *t = tags; t; t = t->next) {
     if (strlen(t->name) == tk->len && strncmp(t->name, tk->str, tk->len) == 0)
       return t;
   }
 
   return NULL;
 }
+struct var_scope *find_var_scope(struct token *tk) {
+  for (struct var_scope *v = vars; v; v = v->next) {
+    if (strlen(v->name) == tk->len && strncmp(v->name, tk->str, tk->len) == 0)
+      return v;
+  }
 
+  return NULL;
+}
 bool is_void_assign_element(struct node *node) {
   if (!node) {
     return false;
@@ -683,13 +720,21 @@ struct node *new_sub(struct token *tk, struct node *lhs, struct node *rhs) {
   return NULL;
 }
 
-struct tag *new_tag(struct type *type) {
-  struct tag *tag = calloc(1, sizeof(struct tag));
+struct tag_scope *new_tagscope(struct type *type) {
+  struct tag_scope *tag = calloc(1, sizeof(struct tag_scope));
   tag->name = type->name;
   tag->next = tags;
   tag->type = type;
   tags = tag;
   return tag;
+}
+
+struct var_scope *new_varscope(char *name) {
+  struct var_scope *vs = calloc(1, sizeof(struct var_scope));
+  vs->name = name;
+  vs->next = vars;
+  vars = vs;
+  return vs;
 }
 
 struct var *new_lvar(char *name, struct type *type) {
@@ -765,6 +810,10 @@ struct type *typespec(struct token **ret, struct token *tk) {
     ty = struct_declarator(&tk, tk);
   }
 
+  if (consume(&tk, tk, "enum")) {
+    ty = enum_declarator(&tk, tk);
+  }
+
   *ret = tk;
   return ty;
 }
@@ -806,7 +855,7 @@ struct type *struct_declarator(struct token **ret, struct token *tk) {
   if (tag && !equal(tk, "{")) {
 
     *ret = tk;
-    struct tag *t = find_tag(tag);
+    struct tag_scope *t = find_tag(tag);
     if (t) {
       return t->type;
     }
@@ -825,7 +874,7 @@ struct type *struct_declarator(struct token **ret, struct token *tk) {
   ty->name = tag->str;
   // }
 
-  new_tag(ty);
+  new_tagscope(ty);
 
   // align and offset calculation
   // アライメント
@@ -851,6 +900,57 @@ struct type *struct_declarator(struct token **ret, struct token *tk) {
 
   if (ty->size % ty->align != 0) {
     ty->size = offset + (ty->align - (offset % ty->align));
+  }
+
+  *ret = tk;
+  return ty;
+}
+
+struct type *enum_declarator(struct token **ret, struct token *tk) {
+
+  struct token *tag = consume_ident(&tk, tk);
+
+  if (tag && !equal(tk, "{")) {
+    *ret = tk;
+    struct tag_scope *ts = find_tag(tk);
+    if (!ts) {
+      error_at(tk->loc, "unknown enum");
+    }
+    if (ts->type->kind != ENUM) {
+      error_at(tk->loc, "not an enum tag");
+    }
+    return ts->type;
+  }
+
+  struct type *ty = copy_type(ty_enum);
+  ty->name = tag->str;
+
+  new_tagscope(ty);
+
+  skip(&tk, tk, "{");
+
+  int i = 0;
+  int val = 0;
+  while (!consume_end(&tk, tk)) {
+    if (0 < i++) {
+      skip(&tk, tk, ",");
+    }
+
+    char *name = get_ident(tk);
+    tk = tk->next;
+
+    if (equal(tk, "=")) {
+      val = get_number(tk->next);
+      tk = tk->next->next;
+    }
+
+    struct var_scope *vs = new_varscope(name);
+    vs->enum_ty = ty;
+    vs->enum_val = val++;
+  }
+
+  if (tag) {
+    new_tagscope(ty);
   }
 
   *ret = tk;
@@ -1415,15 +1515,21 @@ struct node *primary(struct token **ret, struct token *tk) {
     return n;
   }
 
-  struct token *tok = consume_ident(&tk, tk);
-  if (tok) {
+  struct token *ident = consume_ident(&tk, tk);
+  if (ident) {
     if (equal(tk, "(")) {
-      return funcall(ret, tk, tok);
+      return funcall(ret, tk, ident);
     }
 
-    struct var *var = find_var(tok);
+    struct var_scope *vs = find_var_scope(ident);
+    if (vs) {
+      *ret = tk;
+      return new_node_num(vs->enum_val);
+    }
+
+    struct var *var = find_var(ident);
     if (!var) {
-      error_at(tok->loc, "変数%sは定義されていません", tok->str);
+      error_at(ident->loc, "変数%sは定義されていません", ident->str);
     }
 
     *ret = tk;
@@ -1676,7 +1782,7 @@ void gvar_initilizer(struct token **ret, struct token *tk, struct var *var,
 }
 
 // program = ( funcdef | declaration ";" )*
-// typespec = "int" | "char" | struct-declarator
+// typespec = "int" | "char" | struct-declarator | enum-declarator
 // typename = typespec pointers
 // pointers = ( "*" )*
 // funcdef = typespec declarator compound-stmt
@@ -1684,6 +1790,12 @@ void gvar_initilizer(struct token **ret, struct token *tk, struct var *var,
 // declarator = pointers ident type-suffix
 // struct-declarator = "struct" ident "{" sturct-member "}" ";"
 // struct-member = (typespec declarator ( "," declarator )* ";" )*
+// enum-declarator = "enum" (
+//                       | ident? "{" enum-list? "}"
+//                       | ident ( "{" enum-list? "}" )?
+//                       )
+//
+// enum-list = ident ( "=" num )? ( "," ident ( "=" num )? )* ","?
 //
 // type-suffix = ( "[" num "]" )*
 //              | "(" funcdef-args? ")"
@@ -1746,6 +1858,8 @@ struct program *parse(struct token *tk) {
   functions = NULL;
   globals = NULL;
   tags = NULL;
+  vars = NULL;
+  scope_depth = 0;
 
   struct function head = {};
   struct function *cur = &head;

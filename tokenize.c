@@ -79,9 +79,9 @@ int is_alpha(char c) {
 int is_alnum(char c) { return is_alpha(c) || ('0' <= c && c <= '9'); }
 
 bool is_keyword(struct token *tok) {
-  char *keyword[] = {"return", "if",   "else",  "for",  "while",
-                     "sizeof", "int",  "void",  "char", "short",
-                     "long",   "bool", "struct"};
+  char *keyword[] = {"return", "if",   "else",   "for",  "while",
+                     "sizeof", "int",  "void",   "char", "short",
+                     "long",   "bool", "struct", "enum"};
 
   for (int i = 0; i < sizeof(keyword) / sizeof(*keyword); i++) {
     if (equal(tok, keyword[i])) {

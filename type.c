@@ -10,6 +10,7 @@ struct type *ty_bool = &(struct type){BOOL, 1, 1, ""};
 
 struct type *ty_char = &(struct type){CHAR, 1, 1, ""};
 struct type *ty_void = &(struct type){VOID, 1, 1, ""};
+struct type *ty_enum = &(struct type){ENUM, 4, 4, ""};
 
 char *type_to_name(enum type_kind kind) {
   switch (kind) {
