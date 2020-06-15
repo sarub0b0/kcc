@@ -838,10 +838,26 @@ int main() {
   assert(10, ({ C; }), "({ C; })");
   assert(11, ({ D; }), "({ D; })");
 
-  assert(0, ({ A1; }), "({ A1; })");
-  assert(1, ({ B1; }), "({ B1; })");
-  assert(20, ({ C1; }), "({ C1; })");
-  assert(21, ({ D1; }), "({ D1; })");
+  assert(0, ({
+           int a = A1;
+           a;
+         }),
+         "({ int a=A1; a; })");
+  assert(1, ({
+           int a = B1;
+           a;
+         }),
+         "({ int a=B1; a; })");
+  assert(20, ({
+           int a = C1;
+           a;
+         }),
+         "({ int a=C1; a; })");
+  assert(21, ({
+           int a = D1;
+           a;
+         }),
+         "({ int a=D1; a; })");
 
   if (success == number)
     printf("result: \x1b[32mOK\x1b[0m, ");
