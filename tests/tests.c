@@ -47,6 +47,8 @@ enum enum_b {
   D1,
 };
 
+struct struct_a g13;
+
 // typedef int Int;
 
 int assert(int expected, int actual, char *code) {
@@ -830,6 +832,12 @@ int main() {
          }),
          "({ struct struct_a a,*p; p=&a; p->e[0]=1; p->e[1]=2; "
          "p->e[0]+p->e[1]; })");
+
+  assert(5, ({
+           g13.a = 5;
+           g13.a;
+         }),
+         "({ g13.a=5; g13.a; })");
 
   assert(10, ({ mixed(1, 2, 3, 4); }), "({ mixed(1,2,3,4); })");
 

@@ -546,6 +546,9 @@ size_t align(struct type *ty) {
   if (ty->kind == ARRAY)
     return align(ty->ptr_to);
 
+  if (ty->kind == STRUCT)
+    return ty->align;
+
   return ty->size;
 }
 
