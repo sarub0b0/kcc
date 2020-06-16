@@ -99,8 +99,8 @@ void add_type(struct node *n) {
     else
       ty = ty1->size > ty2->size ? ty1 : ty2;
 
-    n->rhs = new_cast(n->rhs, ty);
-    n->lhs = new_cast(n->lhs, ty);
+    n->rhs = new_node_cast(n->rhs, ty);
+    n->lhs = new_node_cast(n->lhs, ty);
     n->type = ty;
     return;
   }
@@ -109,7 +109,7 @@ void add_type(struct node *n) {
     return;
   case ND_ASSIGN:
     if (is_scalar(n->rhs->type) && n->lhs->type->kind != n->rhs->type->kind)
-      n->rhs = new_cast(n->rhs, n->lhs->type);
+      n->rhs = new_node_cast(n->rhs, n->lhs->type);
     n->type = n->lhs->type;
     return;
   case ND_EQ:

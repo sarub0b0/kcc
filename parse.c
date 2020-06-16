@@ -348,7 +348,6 @@ void print_stmt(struct node *n, bool is_next_stmt, bool is_next_node,
     }
     break;
   case ND_FUNCALL:
-
     printf("%s-Funcall '%s'\n", local_prefix, n->str);
     if (is_next_node) {
       snprintf(buf, MAX_LEN, "%s |", scope_prefix);
@@ -356,13 +355,24 @@ void print_stmt(struct node *n, bool is_next_stmt, bool is_next_node,
       snprintf(buf, MAX_LEN, "%s  ", scope_prefix);
     }
     scope_prefix = strndup(buf, MAX_LEN);
-    for (struct node *arg = n->body; arg; arg = arg->next) {
+    for (struct node *arg = n->args_node; arg; arg = arg->next) {
       if (arg->next == NULL) {
         print_stmt(arg, is_next_stmt, false, scope_prefix);
       } else {
         print_stmt(arg, is_next_stmt, true, scope_prefix);
       }
     }
+    break;
+  case ND_COMMA:
+    printf("%s-Comma \n", local_prefix);
+    if (is_next_node) {
+      snprintf(buf, MAX_LEN, "%s |", scope_prefix);
+    } else {
+      snprintf(buf, MAX_LEN, "%s  ", scope_prefix);
+    }
+    scope_prefix = strndup(buf, MAX_LEN);
+    print_stmt(n->lhs, is_next_stmt, true, scope_prefix);
+    print_stmt(n->rhs, is_next_stmt, false, scope_prefix);
     break;
   case ND_COND:
     printf("%s-Cond '%s'\n", local_prefix, n->str);
@@ -534,7 +544,8 @@ struct member *get_member(struct type *ty, struct token *tk) {
 }
 
 bool is_typename(struct token *tok) {
-  char *keyword[] = {"int", "void", "char", "short", "long", "bool", "struct"};
+  char *keyword[] = {"int",  "void", "char",   "short",
+                     "long", "bool", "struct", "enum"};
   for (int i = 0; i < sizeof(keyword) / sizeof(*keyword); i++) {
     if (equal(tok, keyword[i])) {
       return true;
@@ -559,7 +570,7 @@ struct function *find_func(char *name) {
   }
   return NULL;
 }
-struct tag_scope *find_tag_scope(struct token *tk) {
+struct tag_scope *find_tag(struct token *tk) {
   for (struct tag_scope *t = tags; t; t = t->next) {
 
     if (strlen(t->name) == tk->len && strncmp(t->name, tk->str, tk->len) == 0)
@@ -568,7 +579,7 @@ struct tag_scope *find_tag_scope(struct token *tk) {
 
   return NULL;
 }
-struct var_scope *find_var_scope(struct token *tk) {
+struct var_scope *find_var(struct token *tk) {
   // debug("find var(%s)", tk->str);
   // for (struct var_scope *v = vars; v; v = v->next) {
   //   debug("  %s", v->name);
@@ -645,10 +656,12 @@ struct node *new_node_expr(struct token **ret, struct token *tk) {
 }
 
 struct node *new_node_assign(struct node *lhs, struct node *rhs) {
-  return new_node_binary(ND_ASSIGN, lhs, rhs);
+  struct node *n = new_node_binary(ND_ASSIGN, lhs, rhs);
+  n->str = "=";
+  return n;
 }
 
-struct node *new_cast(struct node *expr, struct type *ty) {
+struct node *new_node_cast(struct node *expr, struct type *ty) {
   add_type(expr);
   struct node *n = calloc(1, sizeof(struct node));
   n->kind = ND_CAST;
@@ -864,7 +877,7 @@ struct type *struct_declarator(struct token **ret, struct token *tk) {
   if (tag && !equal(tk, "{")) {
 
     *ret = tk;
-    struct tag_scope *t = find_tag_scope(tag);
+    struct tag_scope *t = find_tag(tag);
     if (t) {
       return t->type;
     }
@@ -921,7 +934,7 @@ struct type *enum_declarator(struct token **ret, struct token *tk) {
 
   if (tag && !equal(tk, "{")) {
     *ret = tk;
-    struct tag_scope *ts = find_tag_scope(tk);
+    struct tag_scope *ts = find_tag(tk);
     if (!ts) {
       error_at(tk->loc, "unknown enum");
     }
@@ -1434,7 +1447,7 @@ struct node *cast(struct token **ret, struct token *tk) {
     struct type *cast_type = typename(&tk, tk->next);
     skip(&tk, tk, ")");
     *ret = tk;
-    return new_cast(unary(ret, tk), cast_type);
+    return new_node_cast(unary(ret, tk), cast_type);
   }
 
   return unary(ret, tk);
@@ -1534,7 +1547,7 @@ struct node *primary(struct token **ret, struct token *tk) {
       return funcall(ret, tk, ident);
     }
 
-    struct var_scope *vs = find_var_scope(ident);
+    struct var_scope *vs = find_var(ident);
     if (vs) {
       *ret = tk;
       if (vs->var)
@@ -1611,7 +1624,7 @@ struct node *funcall(struct token **ret, struct token *tk,
     add_type(arg);
 
     if (param) {
-      arg = new_cast(arg, param->type);
+      arg = new_node_cast(arg, param->type);
       param = param->next;
     }
 
