@@ -776,7 +776,7 @@ int main() {
   assert(5, ({ logand(); }), "({ logand(); })");
 
   assert(1, ({
-           bool a = 0;
+           bool a;
            a = 1;
            a;
          }),
@@ -882,6 +882,23 @@ int main() {
            b;
          }),
          "({ int a=5; int b=a; { int b = 10; } b; })");
+
+  assert(2, ({
+           enum a { X, Y, Z };
+           Z;
+         }),
+         "({ enum a{X,Y,Z}; Z; })");
+
+  assert(5, ({
+           struct a {
+             int a;
+             int b;
+           };
+           struct a a;
+           a.a = 5;
+           a.a;
+         }),
+         "({ struct a { int a; int b; }; struct a a; a.a=5; a.a; })");
   if (success == number)
     printf("result: \x1b[32mOK\x1b[0m, ");
   else
