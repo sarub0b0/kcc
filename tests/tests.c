@@ -859,6 +859,21 @@ int main() {
          }),
          "({ int a=D1; a; })");
 
+  assert(5, ({
+           int a = 5;
+           { int b = 10; }
+           int b = a;
+           a;
+         }),
+         "({ int a=5; { int b = 10; } int b=a; a; })");
+
+  assert(5, ({
+           int a = 5;
+           int b = a;
+           { int b = 10; }
+           b;
+         }),
+         "({ int a=5; int b=a; { int b = 10; } b; })");
   if (success == number)
     printf("result: \x1b[32mOK\x1b[0m, ");
   else

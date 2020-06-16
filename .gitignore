@@ -9,3 +9,5 @@ core
 .zcompdump
 .zshrc
 .clang-format
+tests/
+!tests/tests.c
