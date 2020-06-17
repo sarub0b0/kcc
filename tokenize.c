@@ -26,6 +26,8 @@ int starts_with(const char *p, const char *q) {
   return strncmp(p, q, strlen(q)) == 0;
 }
 
+bool at_eof(struct token *tk) { return tk->kind == TK_EOF; }
+
 bool equal(struct token *token, char *op) {
   return token->len == strlen(op) && strncmp(token->str, op, strlen(op)) == 0;
 }
@@ -102,6 +104,32 @@ void convert_ident_to_reserved(struct token *token) {
       continue;
     }
   }
+}
+
+void add_line_info(struct token *tk) {
+  char *p = current_user_input;
+  bool at_bol = true;
+  bool has_space = false;
+  int line_num = 1;
+
+  do {
+    if (p == tk->loc) {
+      tk->at_bol = at_bol;
+      tk->has_space = has_space;
+      tk->line_num = line_num;
+      tk = tk->next;
+    }
+
+    if (*p == '\n') {
+      line_num++;
+      at_bol = true;
+    } else if (isspace(*p)) {
+      has_space = true;
+    } else {
+      has_space = false;
+      at_bol = false;
+    }
+  } while (*p++);
 }
 
 struct token *tokenize(char *filename, char *p) {
@@ -191,5 +219,6 @@ struct token *tokenize(char *filename, char *p) {
 
   new_token(TK_EOF, cur, p, 0);
   convert_ident_to_reserved(head.next);
+  add_line_info(head.next);
   return head.next;
 }

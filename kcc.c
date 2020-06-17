@@ -164,6 +164,7 @@ int main(int argc, char *argv[]) {
 
   user_input = readfile(cfg.filename);
   tk = tokenize(cfg.filename, user_input);
+  tk = preprocess(tk);
 
   if (cfg.is_dump_tokens)
     print_tokens(tk);

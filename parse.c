@@ -607,8 +607,6 @@ bool is_void_assign_element(struct node *node) {
   return is_void_assign_element(node->rhs);
 }
 
-bool at_eof(struct token *tk) { return tk->kind == TK_EOF; }
-
 struct node *new_node(enum node_kind kind, struct token *token) {
   struct node *n = calloc(1, sizeof(struct node));
   n->kind = kind;
