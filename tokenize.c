@@ -12,13 +12,18 @@ char *current_user_input;
 char *current_filename;
 
 const char *token_kind_str[TK_KIND_NUM] = {
-    "reserved", "identifier", "string", "number", "eof", "sizeof",
+    "reserved",
+    "identifier",
+    "string",
+    "number",
+    "eof",
+    "sizeof",
 };
 
 void print_tokens(struct token *token) {
 
   for (struct token *t = token; t->kind != TK_EOF; t = t->next) {
-    printf("%*s %s\n", 12, token_kind_str[t->kind], t->str);
+    fprintf(stderr, "%*s %s\n", 12, token_kind_str[t->kind], t->str);
   }
 }
 
@@ -26,7 +31,9 @@ int starts_with(const char *p, const char *q) {
   return strncmp(p, q, strlen(q)) == 0;
 }
 
-bool at_eof(struct token *tk) { return tk->kind == TK_EOF; }
+bool at_eof(struct token *tk) {
+  return tk->kind == TK_EOF;
+}
 
 bool equal(struct token *token, char *op) {
   return token->len == strlen(op) && strncmp(token->str, op, strlen(op)) == 0;
@@ -61,7 +68,9 @@ struct token *consume_num(struct token **ret, struct token *tk) {
   return NULL;
 }
 
-struct token *new_token(enum token_kind kind, struct token *cur, char *loc,
+struct token *new_token(enum token_kind kind,
+                        struct token *cur,
+                        char *loc,
                         int len) {
   struct token *t = calloc(1, sizeof(struct token));
   t->kind = kind;
@@ -78,12 +87,25 @@ int is_alpha(char c) {
   return ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z') || (c == '_');
 }
 
-int is_alnum(char c) { return is_alpha(c) || ('0' <= c && c <= '9'); }
+int is_alnum(char c) {
+  return is_alpha(c) || ('0' <= c && c <= '9');
+}
 
 bool is_keyword(struct token *tok) {
-  char *keyword[] = {"return", "if",   "else",   "for",  "while",
-                     "sizeof", "int",  "void",   "char", "short",
-                     "long",   "bool", "struct", "enum"};
+  char *keyword[] = {"return",
+                     "if",
+                     "else",
+                     "for",
+                     "while",
+                     "sizeof",
+                     "int",
+                     "void",
+                     "char",
+                     "short",
+                     "long",
+                     "bool",
+                     "struct",
+                     "enum"};
 
   for (int i = 0; i < sizeof(keyword) / sizeof(*keyword); i++) {
     if (equal(tok, keyword[i])) {
@@ -148,23 +170,23 @@ struct token *tokenize(char *filename, char *p) {
     }
 
     if (starts_with(p, "//")) {
-      while (*p != '\n')
-        p++;
+      while (*p != '\n') p++;
       continue;
     }
 
     if (starts_with(p, "/*")) {
       char *q = strstr(p + 2, "*/");
-      if (!q)
-        error_at(p, "コメントが閉じられていません");
+      if (!q) error_at(p, "コメントが閉じられていません");
       p = q + 2;
       continue;
     }
 
-    if (starts_with(p, "==") || starts_with(p, "!=") || starts_with(p, ">=") ||
-        starts_with(p, "<=") || starts_with(p, "++") || starts_with(p, "--") ||
-        starts_with(p, "+=") || starts_with(p, "-=") || starts_with(p, "*=") ||
-        starts_with(p, "/=") || starts_with(p, "&&") || starts_with(p, "||") ||
+    if (starts_with(p, "==") || starts_with(p, "!=") ||
+        starts_with(p, ">=") || starts_with(p, "<=") ||
+        starts_with(p, "++") || starts_with(p, "--") ||
+        starts_with(p, "+=") || starts_with(p, "-=") ||
+        starts_with(p, "*=") || starts_with(p, "/=") ||
+        starts_with(p, "&&") || starts_with(p, "||") ||
         starts_with(p, "->")) {
       cur = new_token(TK_RESERVED, cur, p, 2);
       p += 2;

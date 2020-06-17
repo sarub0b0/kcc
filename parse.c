@@ -59,14 +59,18 @@ struct node *primary(struct token **, struct token *);
 
 struct node *funcall(struct token **, struct token *, struct token *);
 
-struct node *lvar_initializer(struct token **, struct token *, struct var *,
+struct node *lvar_initializer(struct token **,
+                              struct token *,
+                              struct var *,
                               struct type *);
-void gvar_initializer(struct token **, struct token *, struct var *,
+void gvar_initializer(struct token **,
+                      struct token *,
+                      struct var *,
                       struct type *);
 
 struct function *find_func(char *);
 
-#define MAX_LEN (int)(256)
+#define MAX_LEN (int) (256)
 
 void print_tok(struct token *tk, char end_str) {
 
@@ -74,22 +78,19 @@ void print_tok(struct token *tk, char end_str) {
   char *line = tk->loc;
   char *input = tk->input;
   char *file = tk->file;
-  while (input < line && line[-1] != '\n')
-    line--;
+  while (input < line && line[-1] != '\n') line--;
 
   char *end = line;
-  while (*end != end_str)
-    end++;
+  while (*end != end_str) end++;
 
   end++;
 
   int line_num = 1;
   for (char *p = input; p < line; p++)
-    if (*p == '\n')
-      line_num++;
+    if (*p == '\n') line_num++;
 
   fprintf(stdout, " %s:%d: ", file, line_num);
-  fprintf(stdout, "%.*s\n", (int)(end - line), line);
+  fprintf(stdout, "%.*s\n", (int) (end - line), line);
 }
 
 void print_tok_pos(struct token *tk) {
@@ -98,19 +99,16 @@ void print_tok_pos(struct token *tk) {
   char *line = tk->loc;
   char *input = tk->input;
   char *file = tk->file;
-  while (input < line && line[-1] != '\n')
-    line--;
+  while (input < line && line[-1] != '\n') line--;
 
   char *end = line;
-  while (*end != '\n')
-    end++;
+  while (*end != '\n') end++;
 
   end++;
 
   int line_num = 1;
   for (char *p = input; p < line; p++)
-    if (*p == '\n')
-      line_num++;
+    if (*p == '\n') line_num++;
 
   fprintf(stdout, "%s:%d\n", file, line_num);
 }
@@ -145,13 +143,12 @@ void print_globals(bool has_function) {
     char *prefix = "|-";
     char *type = "Param";
 
-    if (!has_function)
-      prefix = "`-";
+    if (!has_function) prefix = "`-";
 
     printf("%s%s ", prefix, type);
     printf("%s %s", type_to_name(v->type->kind), v->name);
     if (v->data)
-      printf(": %d\n", *(int *)v->data);
+      printf(": %d\n", *(int *) v->data);
     else
       printf("\n");
   }
@@ -160,8 +157,7 @@ void print_globals(bool has_function) {
 void print_struct(bool has_function) {
 
   struct tag_scope *last = NULL;
-  for (struct tag_scope *tag = tags; tag; tag = tag->next)
-    last = tag;
+  for (struct tag_scope *tag = tags; tag; tag = tag->next) last = tag;
 
   for (struct tag_scope *t = tags; t; t = t->next) {
     char *first_prefix = "| ";
@@ -182,16 +178,20 @@ void print_struct(bool has_function) {
         second_prefix = "|-";
       else
         second_prefix = "`-";
-      printf("%s%sMember %s %s\n", first_prefix, second_prefix,
-             type_to_name(m->type->kind), m->name);
+      printf("%s%sMember %s %s\n",
+             first_prefix,
+             second_prefix,
+             type_to_name(m->type->kind),
+             m->name);
     }
   }
 }
 
-void print_stmt(struct node *n, bool is_next_stmt, bool is_next_node,
+void print_stmt(struct node *n,
+                bool is_next_stmt,
+                bool is_next_node,
                 char *prefix) {
-  if (!n)
-    return;
+  if (!n) return;
 
   char *local_prefix;
   char *scope_prefix;
@@ -211,203 +211,202 @@ void print_stmt(struct node *n, bool is_next_stmt, bool is_next_node,
   local_prefix = strndup(buf, MAX_LEN);
 
   switch (n->kind) {
-  case ND_RETURN:
-    printf("%s-Return\n", local_prefix);
-    if (is_next_node) {
-      snprintf(buf, MAX_LEN, "%s |", scope_prefix);
-    } else {
-      snprintf(buf, MAX_LEN, "%s  ", scope_prefix);
-    }
-    scope_prefix = strndup(buf, MAX_LEN);
-    print_stmt(n->lhs, is_next_stmt, false, scope_prefix);
-    break;
-  case ND_ADD:
-  case ND_SUB:
-  case ND_MUL:
-  case ND_DIV:
-  case ND_BITOR:
-  case ND_BITXOR:
-  case ND_BITAND:
-    printf("%s-Calc '%s'\n", local_prefix, n->str);
-    if (is_next_node) {
-      snprintf(buf, MAX_LEN, "%s |", scope_prefix);
-    } else {
-      snprintf(buf, MAX_LEN, "%s  ", scope_prefix);
-    }
-    scope_prefix = strndup(buf, MAX_LEN);
-    print_stmt(n->lhs, is_next_stmt, true, scope_prefix);
-    print_stmt(n->rhs, is_next_stmt, false, scope_prefix);
-    break;
-  case ND_NUM:
-    printf("%s-Num '%d'\n", local_prefix, n->val);
-    break;
-  case ND_VAR:
-    printf("%s-Var '%s'\n", local_prefix, n->str);
-    break;
-  case ND_ADDR:
-    printf("%s-Addr '%s'\n", local_prefix, n->str);
-    break;
-  case ND_DEREF:
-    printf("%s-Deref '%s'\n", local_prefix, n->str);
-    break;
-  case ND_EXPR_STMT:
-    printf("%s-ExprStmt\n", local_prefix);
-    if (is_next_node) {
-      snprintf(buf, MAX_LEN, "%s |", scope_prefix);
-    } else {
-      snprintf(buf, MAX_LEN, "%s  ", scope_prefix);
-    }
-    scope_prefix = strndup(buf, MAX_LEN);
-    print_stmt(n->lhs, is_next_stmt, false, scope_prefix);
-    break;
-  case ND_STMT_EXPR:
-    printf("%s-StmtExpr\n", local_prefix);
-    if (is_next_node) {
-      snprintf(buf, MAX_LEN, "%s |", scope_prefix);
-    } else {
-      snprintf(buf, MAX_LEN, "%s  ", scope_prefix);
-    }
-    scope_prefix = strndup(buf, MAX_LEN);
-    for (struct node *stmt = n->body; stmt; stmt = stmt->next) {
-      if (stmt->next == NULL) {
-        print_stmt(stmt, is_next_stmt, false, scope_prefix);
+    case ND_RETURN:
+      printf("%s-Return\n", local_prefix);
+      if (is_next_node) {
+        snprintf(buf, MAX_LEN, "%s |", scope_prefix);
       } else {
-        print_stmt(stmt, is_next_stmt, true, scope_prefix);
+        snprintf(buf, MAX_LEN, "%s  ", scope_prefix);
       }
-    }
-    break;
-  case ND_ASSIGN:
-    printf("%s-Assign '%s'\n", local_prefix, n->str);
-    if (is_next_node) {
-      snprintf(buf, MAX_LEN, "%s |", scope_prefix);
-    } else {
-      snprintf(buf, MAX_LEN, "%s  ", scope_prefix);
-    }
-    scope_prefix = strndup(buf, MAX_LEN);
-    print_stmt(n->lhs, is_next_stmt, true, scope_prefix);
-    print_stmt(n->rhs, is_next_stmt, false, scope_prefix);
-    break;
-  case ND_IF:
-    printf("%s-If '%s'\n", local_prefix, n->str);
-    if (is_next_node) {
-      snprintf(buf, MAX_LEN, "%s |", scope_prefix);
-    } else {
-      snprintf(buf, MAX_LEN, "%s  ", scope_prefix);
-    }
-    scope_prefix = strndup(buf, MAX_LEN);
-    print_stmt(n->cond, is_next_stmt, true, scope_prefix);
-    print_stmt(n->then, is_next_stmt, true, scope_prefix);
-    print_stmt(n->els, is_next_stmt, false, scope_prefix);
-    break;
-  case ND_FOR:
-    printf("%s-Loop '%s'\n", local_prefix, n->str);
-    if (is_next_node) {
-      snprintf(buf, MAX_LEN, "%s |", scope_prefix);
-    } else {
-      snprintf(buf, MAX_LEN, "%s  ", scope_prefix);
-    }
-    scope_prefix = strndup(buf, MAX_LEN);
-    print_stmt(n->init, is_next_stmt, true, scope_prefix);
-    print_stmt(n->cond, is_next_stmt, true, scope_prefix);
-    print_stmt(n->inc, is_next_stmt, true, scope_prefix);
-    print_stmt(n->then, is_next_stmt, false, scope_prefix);
-    break;
-  case ND_EQ:
-  case ND_NE:
-  case ND_LE:
-  case ND_LT:
-  case ND_GE:
-  case ND_GT:
-  case ND_LOGOR:
-  case ND_LOGAND:
-    printf("%s-Cond '%s'\n", local_prefix, n->str);
-    if (is_next_node) {
-      snprintf(buf, MAX_LEN, "%s |", scope_prefix);
-    } else {
-      snprintf(buf, MAX_LEN, "%s  ", scope_prefix);
-    }
+      scope_prefix = strndup(buf, MAX_LEN);
+      print_stmt(n->lhs, is_next_stmt, false, scope_prefix);
+      break;
+    case ND_ADD:
+    case ND_SUB:
+    case ND_MUL:
+    case ND_DIV:
+    case ND_BITOR:
+    case ND_BITXOR:
+    case ND_BITAND:
+      printf("%s-Calc '%s'\n", local_prefix, n->str);
+      if (is_next_node) {
+        snprintf(buf, MAX_LEN, "%s |", scope_prefix);
+      } else {
+        snprintf(buf, MAX_LEN, "%s  ", scope_prefix);
+      }
+      scope_prefix = strndup(buf, MAX_LEN);
+      print_stmt(n->lhs, is_next_stmt, true, scope_prefix);
+      print_stmt(n->rhs, is_next_stmt, false, scope_prefix);
+      break;
+    case ND_NUM:
+      printf("%s-Num '%d'\n", local_prefix, n->val);
+      break;
+    case ND_VAR:
+      printf("%s-Var '%s'\n", local_prefix, n->str);
+      break;
+    case ND_ADDR:
+      printf("%s-Addr '%s'\n", local_prefix, n->str);
+      break;
+    case ND_DEREF:
+      printf("%s-Deref '%s'\n", local_prefix, n->str);
+      break;
+    case ND_EXPR_STMT:
+      printf("%s-ExprStmt\n", local_prefix);
+      if (is_next_node) {
+        snprintf(buf, MAX_LEN, "%s |", scope_prefix);
+      } else {
+        snprintf(buf, MAX_LEN, "%s  ", scope_prefix);
+      }
+      scope_prefix = strndup(buf, MAX_LEN);
+      print_stmt(n->lhs, is_next_stmt, false, scope_prefix);
+      break;
+    case ND_STMT_EXPR:
+      printf("%s-StmtExpr\n", local_prefix);
+      if (is_next_node) {
+        snprintf(buf, MAX_LEN, "%s |", scope_prefix);
+      } else {
+        snprintf(buf, MAX_LEN, "%s  ", scope_prefix);
+      }
+      scope_prefix = strndup(buf, MAX_LEN);
+      for (struct node *stmt = n->body; stmt; stmt = stmt->next) {
+        if (stmt->next == NULL) {
+          print_stmt(stmt, is_next_stmt, false, scope_prefix);
+        } else {
+          print_stmt(stmt, is_next_stmt, true, scope_prefix);
+        }
+      }
+      break;
+    case ND_ASSIGN:
+      printf("%s-Assign '%s'\n", local_prefix, n->str);
+      if (is_next_node) {
+        snprintf(buf, MAX_LEN, "%s |", scope_prefix);
+      } else {
+        snprintf(buf, MAX_LEN, "%s  ", scope_prefix);
+      }
+      scope_prefix = strndup(buf, MAX_LEN);
+      print_stmt(n->lhs, is_next_stmt, true, scope_prefix);
+      print_stmt(n->rhs, is_next_stmt, false, scope_prefix);
+      break;
+    case ND_IF:
+      printf("%s-If '%s'\n", local_prefix, n->str);
+      if (is_next_node) {
+        snprintf(buf, MAX_LEN, "%s |", scope_prefix);
+      } else {
+        snprintf(buf, MAX_LEN, "%s  ", scope_prefix);
+      }
+      scope_prefix = strndup(buf, MAX_LEN);
+      print_stmt(n->cond, is_next_stmt, true, scope_prefix);
+      print_stmt(n->then, is_next_stmt, true, scope_prefix);
+      print_stmt(n->els, is_next_stmt, false, scope_prefix);
+      break;
+    case ND_FOR:
+      printf("%s-Loop '%s'\n", local_prefix, n->str);
+      if (is_next_node) {
+        snprintf(buf, MAX_LEN, "%s |", scope_prefix);
+      } else {
+        snprintf(buf, MAX_LEN, "%s  ", scope_prefix);
+      }
+      scope_prefix = strndup(buf, MAX_LEN);
+      print_stmt(n->init, is_next_stmt, true, scope_prefix);
+      print_stmt(n->cond, is_next_stmt, true, scope_prefix);
+      print_stmt(n->inc, is_next_stmt, true, scope_prefix);
+      print_stmt(n->then, is_next_stmt, false, scope_prefix);
+      break;
+    case ND_EQ:
+    case ND_NE:
+    case ND_LE:
+    case ND_LT:
+    case ND_GE:
+    case ND_GT:
+    case ND_LOGOR:
+    case ND_LOGAND:
+      printf("%s-Cond '%s'\n", local_prefix, n->str);
+      if (is_next_node) {
+        snprintf(buf, MAX_LEN, "%s |", scope_prefix);
+      } else {
+        snprintf(buf, MAX_LEN, "%s  ", scope_prefix);
+      }
 
-    scope_prefix = strndup(buf, MAX_LEN);
-    print_stmt(n->lhs, is_next_stmt, true, scope_prefix);
-    print_stmt(n->rhs, is_next_stmt, false, scope_prefix);
-    break;
-  case ND_BLOCK:
-    printf("%s-Block '%s'\n", local_prefix, n->str);
-    if (is_next_node) {
-      snprintf(buf, MAX_LEN, "%s |", scope_prefix);
-    } else {
-      snprintf(buf, MAX_LEN, "%s  ", scope_prefix);
-    }
-    scope_prefix = strndup(buf, MAX_LEN);
-    for (struct node *stmt = n->body; stmt; stmt = stmt->next) {
-      if (stmt->next == NULL) {
-        print_stmt(stmt, is_next_stmt, false, scope_prefix);
+      scope_prefix = strndup(buf, MAX_LEN);
+      print_stmt(n->lhs, is_next_stmt, true, scope_prefix);
+      print_stmt(n->rhs, is_next_stmt, false, scope_prefix);
+      break;
+    case ND_BLOCK:
+      printf("%s-Block '%s'\n", local_prefix, n->str);
+      if (is_next_node) {
+        snprintf(buf, MAX_LEN, "%s |", scope_prefix);
       } else {
-        print_stmt(stmt, is_next_stmt, true, scope_prefix);
+        snprintf(buf, MAX_LEN, "%s  ", scope_prefix);
       }
-    }
-    break;
-  case ND_FUNCALL:
-    printf("%s-Funcall '%s'\n", local_prefix, n->str);
-    if (is_next_node) {
-      snprintf(buf, MAX_LEN, "%s |", scope_prefix);
-    } else {
-      snprintf(buf, MAX_LEN, "%s  ", scope_prefix);
-    }
-    scope_prefix = strndup(buf, MAX_LEN);
-    for (struct node *arg = n->args_node; arg; arg = arg->next) {
-      if (arg->next == NULL) {
-        print_stmt(arg, is_next_stmt, false, scope_prefix);
+      scope_prefix = strndup(buf, MAX_LEN);
+      for (struct node *stmt = n->body; stmt; stmt = stmt->next) {
+        if (stmt->next == NULL) {
+          print_stmt(stmt, is_next_stmt, false, scope_prefix);
+        } else {
+          print_stmt(stmt, is_next_stmt, true, scope_prefix);
+        }
+      }
+      break;
+    case ND_FUNCALL:
+      printf("%s-Funcall '%s'\n", local_prefix, n->str);
+      if (is_next_node) {
+        snprintf(buf, MAX_LEN, "%s |", scope_prefix);
       } else {
-        print_stmt(arg, is_next_stmt, true, scope_prefix);
+        snprintf(buf, MAX_LEN, "%s  ", scope_prefix);
       }
-    }
-    break;
-  case ND_COMMA:
-    printf("%s-Comma \n", local_prefix);
-    if (is_next_node) {
-      snprintf(buf, MAX_LEN, "%s |", scope_prefix);
-    } else {
-      snprintf(buf, MAX_LEN, "%s  ", scope_prefix);
-    }
-    scope_prefix = strndup(buf, MAX_LEN);
-    print_stmt(n->lhs, is_next_stmt, true, scope_prefix);
-    print_stmt(n->rhs, is_next_stmt, false, scope_prefix);
-    break;
-  case ND_COND:
-    printf("%s-Cond '%s'\n", local_prefix, n->str);
-    if (is_next_node) {
-      snprintf(buf, MAX_LEN, "%s |", scope_prefix);
-    } else {
-      snprintf(buf, MAX_LEN, "%s  ", scope_prefix);
-    }
-    scope_prefix = strndup(buf, MAX_LEN);
-    print_stmt(n->cond, is_next_stmt, true, scope_prefix);
-    print_stmt(n->then, is_next_stmt, true, scope_prefix);
-    print_stmt(n->els, is_next_stmt, false, scope_prefix);
-    break;
-  case ND_MEMBER:
-    printf("%s-Var.Member '%s.%s'\n", local_prefix, n->lhs->str, n->str);
-    break;
-  case ND_CAST:
-    printf("%s-Cast %s\n", local_prefix, type_to_name(n->type->kind));
-    if (is_next_node) {
-      snprintf(buf, MAX_LEN, "%s |", scope_prefix);
-    } else {
-      snprintf(buf, MAX_LEN, "%s  ", scope_prefix);
-    }
-    scope_prefix = strndup(buf, MAX_LEN);
-    print_stmt(n->lhs, is_next_stmt, false, scope_prefix);
-    break;
-  default:
-    printf("%s-none(%d)\n", local_prefix, n->kind);
-    break;
+      scope_prefix = strndup(buf, MAX_LEN);
+      for (struct node *arg = n->args_node; arg; arg = arg->next) {
+        if (arg->next == NULL) {
+          print_stmt(arg, is_next_stmt, false, scope_prefix);
+        } else {
+          print_stmt(arg, is_next_stmt, true, scope_prefix);
+        }
+      }
+      break;
+    case ND_COMMA:
+      printf("%s-Comma \n", local_prefix);
+      if (is_next_node) {
+        snprintf(buf, MAX_LEN, "%s |", scope_prefix);
+      } else {
+        snprintf(buf, MAX_LEN, "%s  ", scope_prefix);
+      }
+      scope_prefix = strndup(buf, MAX_LEN);
+      print_stmt(n->lhs, is_next_stmt, true, scope_prefix);
+      print_stmt(n->rhs, is_next_stmt, false, scope_prefix);
+      break;
+    case ND_COND:
+      printf("%s-Cond '%s'\n", local_prefix, n->str);
+      if (is_next_node) {
+        snprintf(buf, MAX_LEN, "%s |", scope_prefix);
+      } else {
+        snprintf(buf, MAX_LEN, "%s  ", scope_prefix);
+      }
+      scope_prefix = strndup(buf, MAX_LEN);
+      print_stmt(n->cond, is_next_stmt, true, scope_prefix);
+      print_stmt(n->then, is_next_stmt, true, scope_prefix);
+      print_stmt(n->els, is_next_stmt, false, scope_prefix);
+      break;
+    case ND_MEMBER:
+      printf("%s-Var.Member '%s.%s'\n", local_prefix, n->lhs->str, n->str);
+      break;
+    case ND_CAST:
+      printf("%s-Cast %s\n", local_prefix, type_to_name(n->type->kind));
+      if (is_next_node) {
+        snprintf(buf, MAX_LEN, "%s |", scope_prefix);
+      } else {
+        snprintf(buf, MAX_LEN, "%s  ", scope_prefix);
+      }
+      scope_prefix = strndup(buf, MAX_LEN);
+      print_stmt(n->lhs, is_next_stmt, false, scope_prefix);
+      break;
+    default:
+      printf("%s-none(%d)\n", local_prefix, n->kind);
+      break;
   }
 }
 
 void print_compound_stmt(struct node *stmt, bool is_next) {
-  if (!stmt)
-    return;
+  if (!stmt) return;
 
   char buf[MAX_LEN];
   char *global_prefix;
@@ -452,8 +451,7 @@ void print_ast(struct program *pr, char *funcname) {
 
   print_struct(has_function);
 
-  for (struct function *fn = pr->functions; fn; fn = fn->next)
-    last = fn;
+  for (struct function *fn = pr->functions; fn; fn = fn->next) last = fn;
 
   for (struct function *fn = pr->functions; fn; fn = fn->next) {
     if (fn == last) {
@@ -469,7 +467,9 @@ void print_ast(struct program *pr, char *funcname) {
   printf("\n");
 }
 
-void enter_scope() { scope_depth++; }
+void enter_scope() {
+  scope_depth++;
+}
 void leave_scope() {
   scope_depth--;
 
@@ -536,16 +536,15 @@ char *get_ident(struct token *tok) {
 
 struct member *get_member(struct type *ty, struct token *tk) {
   for (struct member *m = ty->members; m; m = m->next) {
-    if (strlen(m->name) == tk->len && strncmp(m->name, tk->str, tk->len) == 0)
-      return m;
+    if (find_cond(m->name, tk)) return m;
   }
 
   return NULL;
 }
 
 bool is_typename(struct token *tok) {
-  char *keyword[] = {"int",  "void", "char",   "short",
-                     "long", "bool", "struct", "enum"};
+  char *keyword[] = {
+      "int", "void", "char", "short", "long", "bool", "struct", "enum"};
   for (int i = 0; i < sizeof(keyword) / sizeof(*keyword); i++) {
     if (equal(tok, keyword[i])) {
       return true;
@@ -572,9 +571,7 @@ struct function *find_func(char *name) {
 }
 struct tag_scope *find_tag(struct token *tk) {
   for (struct tag_scope *t = tags; t; t = t->next) {
-
-    if (strlen(t->name) == tk->len && strncmp(t->name, tk->str, tk->len) == 0)
-      return t;
+    if (find_cond(t->name, tk)) return t;
   }
 
   return NULL;
@@ -585,8 +582,7 @@ struct var_scope *find_var(struct token *tk) {
   //   debug("  %s", v->name);
   // }
   for (struct var_scope *v = vars; v; v = v->next) {
-    if (strlen(v->name) == tk->len && strncmp(v->name, tk->str, tk->len) == 0)
-      return v;
+    if (find_cond(v->name, tk)) return v;
   }
 
   return NULL;
@@ -614,7 +610,8 @@ struct node *new_node(enum node_kind kind, struct token *token) {
   return n;
 }
 
-struct node *new_node_binary(enum node_kind kind, struct node *lhs,
+struct node *new_node_binary(enum node_kind kind,
+                             struct node *lhs,
                              struct node *rhs) {
   struct node *n = calloc(1, sizeof(struct node));
   n->kind = kind;
@@ -640,7 +637,8 @@ struct node *new_node_var(struct var *var) {
   return n;
 }
 
-struct node *new_node_unary(enum node_kind kind, struct node *expr,
+struct node *new_node_unary(enum node_kind kind,
+                            struct node *expr,
                             struct token *token) {
   struct node *n = new_node(kind, token);
   n->lhs = expr;
@@ -674,17 +672,17 @@ struct node *new_comma_node(struct node *lhs, struct node *rhs) {
 
 int eval(struct node *node, struct var **var) {
   switch (node->kind) {
-  case ND_ADD:
-    return eval(node->lhs, var) + eval(node->rhs, NULL);
-  case ND_MUL:
-    return eval(node->lhs, NULL) * eval(node->rhs, NULL);
-  case ND_NUM:
-    return node->val;
-  case ND_VAR:
-    *var = node->var;
-    return 0;
-  default:
-    return 0;
+    case ND_ADD:
+      return eval(node->lhs, var) + eval(node->rhs, NULL);
+    case ND_MUL:
+      return eval(node->lhs, NULL) * eval(node->rhs, NULL);
+    case ND_NUM:
+      return node->val;
+    case ND_VAR:
+      *var = node->var;
+      return 0;
+    default:
+      return 0;
   }
 }
 
@@ -729,7 +727,8 @@ struct node *new_sub(struct token *tk, struct node *lhs, struct node *rhs) {
   // ptr - ptr
   if (lhs->type->ptr_to && rhs->type->ptr_to) {
     struct node *sub = new_node_binary(ND_SUB, lhs, rhs);
-    return new_node_binary(ND_DIV, sub, new_node_num(lhs->type->ptr_to->size));
+    return new_node_binary(
+        ND_DIV, sub, new_node_num(lhs->type->ptr_to->size));
   }
 
   error_at(tk->loc, "invalid operands");
@@ -912,8 +911,7 @@ struct type *struct_declarator(struct token **ret, struct token *tk) {
     }
     offset += m->type->size;
 
-    if (ty->align < m->align)
-      ty->align = m->align;
+    if (ty->align < m->align) ty->align = m->align;
 
     ty->size = offset + m->type->size;
   }
@@ -984,7 +982,8 @@ struct type *typename(struct token **ret, struct token *tk) {
   return pointers(ret, tk, ty);
 }
 
-struct function *funcdef(struct token **ret, struct token *tk,
+struct function *funcdef(struct token **ret,
+                         struct token *tk,
                          struct type *type) {
   locals = NULL;
 
@@ -1010,7 +1009,8 @@ struct function *funcdef(struct token **ret, struct token *tk,
   return fn;
 }
 
-struct type *declarator(struct token **ret, struct token *tk,
+struct type *declarator(struct token **ret,
+                        struct token *tk,
                         struct type *base) {
   struct type *type = base;
 
@@ -1029,7 +1029,8 @@ struct type *declarator(struct token **ret, struct token *tk,
   return type;
 }
 
-struct type *type_suffix(struct token **ret, struct token *tk,
+struct type *type_suffix(struct token **ret,
+                         struct token *tk,
                          struct type *type) {
 
   if (consume(&tk, tk, "(")) {
@@ -1051,7 +1052,8 @@ struct type *type_suffix(struct token **ret, struct token *tk,
   return type;
 }
 
-struct type *funcdef_args(struct token **ret, struct token *tk,
+struct type *funcdef_args(struct token **ret,
+                          struct token *tk,
                           struct type *type) {
 
   struct type head = {};
@@ -1235,8 +1237,7 @@ struct node *bitand(struct token **ret, struct token *tk) {
 struct node *compound_stmt(struct token **ret, struct token *tk) {
   struct node *n = NULL;
 
-  if (!equal(tk, "{"))
-    return NULL;
+  if (!equal(tk, "{")) return NULL;
 
   n = new_node(ND_BLOCK, tk);
   n->str = "{}";
@@ -1285,7 +1286,8 @@ struct node *stmt(struct token **ret, struct token *tk) {
       n->lhs = expr(&tk, tk->next);
     } else {
       if (!equal(tk->next, ";"))
-        error_at(tk->loc, "Void function '%s' should not return a value",
+        error_at(tk->loc,
+                 "Void function '%s' should not return a value",
                  current_fn->name);
       tk = tk->next;
     }
@@ -1548,10 +1550,8 @@ struct node *primary(struct token **ret, struct token *tk) {
     struct var_scope *vs = find_var(ident);
     if (vs) {
       *ret = tk;
-      if (vs->var)
-        return new_node_var(vs->var);
-      if (vs->enum_ty)
-        return new_node_num(vs->enum_val);
+      if (vs->var) return new_node_var(vs->var);
+      if (vs->enum_ty) return new_node_num(vs->enum_val);
     }
 
     error_at(ident->loc, "変数%sは定義されていません", ident->str);
@@ -1586,7 +1586,8 @@ struct node *primary(struct token **ret, struct token *tk) {
   return new_node_num(expect_number(ret, tk));
 }
 
-struct node *funcall(struct token **ret, struct token *tk,
+struct node *funcall(struct token **ret,
+                     struct token *tk,
                      struct token *ident) {
 
   skip(&tk, tk, "(");
@@ -1615,8 +1616,7 @@ struct node *funcall(struct token **ret, struct token *tk,
   int nargs = 0;
 
   while (!equal(tk, ")")) {
-    if (nargs)
-      skip(&tk, tk, ",");
+    if (nargs) skip(&tk, tk, ",");
 
     struct node *arg = assign(&tk, tk);
     add_type(arg);
@@ -1654,8 +1654,10 @@ struct node *funcall(struct token **ret, struct token *tk,
   return funcall;
 }
 
-struct node *string_initializer(struct token **ret, struct token *tk,
-                                struct var *var, struct type *type) {
+struct node *string_initializer(struct token **ret,
+                                struct token *tk,
+                                struct var *var,
+                                struct type *type) {
 
   struct node head = {};
   struct node *cur = &head;
@@ -1686,8 +1688,10 @@ struct node *string_initializer(struct token **ret, struct token *tk,
   return head.next;
 }
 
-struct node *array_initializer(struct token **ret, struct token *tk,
-                               struct var *var, struct type *type) {
+struct node *array_initializer(struct token **ret,
+                               struct token *tk,
+                               struct var *var,
+                               struct type *type) {
   struct node *node;
   struct token *start;
 
@@ -1702,8 +1706,7 @@ struct node *array_initializer(struct token **ret, struct token *tk,
 
     int cnt = 0;
     while (!equal(tk, "}")) {
-      if (cnt)
-        skip(&tk, tk, ",");
+      if (cnt) skip(&tk, tk, ",");
       start = tk;
       struct node *deref =
           new_node_unary(ND_DEREF, new_add(lvar, new_node_num(cnt)), start);
@@ -1727,13 +1730,17 @@ struct node *array_initializer(struct token **ret, struct token *tk,
   return head.next;
 }
 
-struct node *struct_initializer(struct token **ret, struct token *tk,
-                                struct var *var, struct type *type) {
+struct node *struct_initializer(struct token **ret,
+                                struct token *tk,
+                                struct var *var,
+                                struct type *type) {
   return NULL;
 }
 
-struct node *lvar_initializer(struct token **ret, struct token *tk,
-                              struct var *var, struct type *type) {
+struct node *lvar_initializer(struct token **ret,
+                              struct token *tk,
+                              struct var *var,
+                              struct type *type) {
   if (type->kind == ARRAY && type->ptr_to->kind == CHAR) {
     return string_initializer(ret, tk, var, type);
   }
@@ -1752,7 +1759,9 @@ struct node *lvar_initializer(struct token **ret, struct token *tk,
   *ret = tk;
   return node;
 }
-void gvar_initilizer(struct token **ret, struct token *tk, struct var *var,
+void gvar_initilizer(struct token **ret,
+                     struct token *tk,
+                     struct var *var,
                      struct type *type) {
 
   if (type->kind == ARRAY && type->ptr_to->kind == CHAR) {
@@ -1767,22 +1776,18 @@ void gvar_initilizer(struct token **ret, struct token *tk, struct var *var,
       int cnt = 0;
 
       while (!equal(tk, "}")) {
-        if (0 < cnt++)
-          skip(&tk, tk, ",");
+        if (0 < cnt++) skip(&tk, tk, ",");
 
         struct node *n = assign(&tk, tk);
 
         cur = cur->next = calloc(1, sizeof(struct value));
 
-        if (type->ptr_to->kind == INT)
-          cur->val = n->val;
-        if (type->ptr_to->kind == PTR)
-          cur->label = n->str;
+        if (type->ptr_to->kind == INT) cur->val = n->val;
+        if (type->ptr_to->kind == PTR) cur->label = n->str;
         ;
       }
       var->val = head.next;
-      if (var->type->array_size == 0)
-        var->type->array_size = cnt;
+      if (var->type->array_size == 0) var->type->array_size = cnt;
     }
 
     *ret = tk->next;
@@ -1793,7 +1798,7 @@ void gvar_initilizer(struct token **ret, struct token *tk, struct var *var,
 
   if (node->kind == ND_NUM) {
     var->data = calloc(1, type->size);
-    *(int *)var->data = node->val;
+    *(int *) var->data = node->val;
   }
   if (node->kind == ND_VAR) {
     var->data = node->var->name;
@@ -1895,8 +1900,7 @@ struct program *parse(struct token *tk) {
   while (!at_eof(tk)) {
 
     type = typespec(&tk, tk);
-    if (consume(&tk, tk, ";"))
-      continue;
+    if (consume(&tk, tk, ";")) continue;
 
     type = declarator(&tk, tk, type);
 
