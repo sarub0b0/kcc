@@ -49,16 +49,33 @@ enum enum_b {
 
 struct struct_a g13;
 
+#define TRUE 1
+#define FALSE 0
+#define MAX_LEN 128
+
+#define STRING "hoge"
+#define OK "\x1b[32mOK\x1b[0m"
+#define FAILED "\x1b[31mFAILED\x1b[0m"
+
+#define DEBUG
+
+#define one(x) (x)
+#define equal(x, y) (x == y)
+#define notequal(x, y) (x != y)
+#define add_sub(x, y) ((x + x) - (y + y))
+
+#define addadd(x, y) (one(x) + one(y))
+
 // typedef int Int;
 
 int assert(int expected, int actual, char *code) {
   printf("% 4d: ", number++);
   if (expected == actual) {
-    printf("%s => %d ... \x1b[32mOK\x1b[0m\n", code, actual);
+    printf("%s => %d ... " OK "\n", code, actual);
     success++;
   } else {
-    printf("%s => %d expected, but got %d ... \x1b[31mFAILED\x1b[0m\n", code,
-           expected, actual);
+    printf("%s => %d expected, but got %d ... %s\n", code, expected, actual,
+           FAILED);
 
     failed++;
   }
@@ -899,6 +916,16 @@ int main() {
            a.a;
          }),
          "({ struct a { int a; int b; }; struct a a; a.a=5; a.a; })");
+
+  assert(1, ({ TRUE; }), "({ TRUE; })");
+  assert(128, ({ MAX_LEN; }), "({ MAX_LEN; })");
+
+  assert(5, ({ one(5); }), "({ one(5); })");
+  assert(10, ({ one(5) + one(5); }), "({ one(5)+one(5); })");
+  assert(1, ({ equal(1, 1); }), "({ equal(1, 1); })");
+  assert(4, ({ add_sub(3, 1); }), "({ add_sub(3,1); })");
+  assert(5, ({ addadd(2, 3); }), "({ addadd(2,3); })");
+
   if (success == number)
     printf("result: \x1b[32mOK\x1b[0m, ");
   else

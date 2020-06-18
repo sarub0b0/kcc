@@ -10,6 +10,9 @@
     fprintf(stderr, "\n");                                                     \
   } while (0)
 
+#define find_cond(name, token)                                                 \
+  (strlen(name) == token->len && strncmp(name, token->str, token->len) == 0)
+
 enum token_kind {
   TK_RESERVED,
   TK_IDENT,
@@ -29,6 +32,11 @@ struct token {
   int len;
   char *file;
   char *input;
+
+  // line info
+  bool at_bol;
+  bool has_space;
+  int line_num;
 };
 
 enum node_kind {
@@ -188,20 +196,23 @@ struct program {
   struct var *globals;
 };
 
-void error(char *fmt, ...);
+void error(char *, ...);
 void error_at(char *, char *, ...);
 
 struct token *tokenize(char *, char *);
+struct token *preprocess(struct token *);
 struct program *parse(struct token *);
 void gen_code(struct program *);
 
+void skip(struct token **, struct token *, char *);
 bool consume(struct token **, struct token *, char *);
 struct token *consume_ident(struct token **, struct token *);
 bool equal(struct token *, char *);
-
+bool at_eof(struct token *);
 void print_tokens(struct token *);
 void print_ast(struct program *, char *);
 void print_function(struct program *);
+void print_tok_pos(struct token *);
 
 bool is_integer(struct type *);
 void add_type(struct node *);
@@ -209,9 +220,9 @@ void add_type(struct node *);
 struct node *new_node_cast(struct node *, struct type *);
 struct type *copy_type(struct type *);
 struct type *pointer_to(struct type *);
-struct type *array_to(struct type *, size_t len);
+struct type *array_to(struct type *, size_t);
 
-char *type_to_name(enum type_kind kind);
+char *type_to_name(enum type_kind);
 
 extern struct type *ty_void;
 extern struct type *ty_short;
