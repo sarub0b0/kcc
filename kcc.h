@@ -4,13 +4,13 @@
 #include <stdbool.h>
 #include <stddef.h>
 
-#define debug(fmt...)      \
-  do {                     \
-    fprintf(stderr, fmt);  \
-    fprintf(stderr, "\n"); \
+#define debug(fmt...)                                                          \
+  do {                                                                         \
+    fprintf(stderr, fmt);                                                      \
+    fprintf(stderr, "\n");                                                     \
   } while (0)
 
-#define find_cond(name, token) \
+#define find_cond(name, token)                                                 \
   (strlen(name) == token->len && strncmp(name, token->str, token->len) == 0)
 
 enum token_kind {
@@ -204,6 +204,7 @@ struct token *preprocess(struct token *);
 struct program *parse(struct token *);
 void gen_code(struct program *);
 
+void skip(struct token **, struct token *, char *);
 bool consume(struct token **, struct token *, char *);
 struct token *consume_ident(struct token **, struct token *);
 bool equal(struct token *, char *);
