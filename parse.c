@@ -25,7 +25,8 @@ struct var_scope {
 };
 
 static struct function *functions;
-static struct function *current_fn;
+// static struct function *current_fn;
+static struct var *current_fn;
 static struct var *locals;
 static struct var *globals;
 static struct tag_scope *tags;
@@ -555,18 +556,14 @@ bool is_typename(struct token *tok) {
 }
 
 struct function *find_func(char *name) {
-  for (struct function *fn = functions->next; fn; fn = fn->next) {
+  for (struct function *fn = functions; fn; fn = fn->next) {
+    if (!fn->name) continue;
     if (strlen(fn->name) == strlen(name) &&
         strncmp(fn->name, name, strlen(name)) == 0) {
       return fn;
     }
   }
 
-  struct function *fn = current_fn;
-  if (strlen(fn->name) == strlen(name) &&
-      strncmp(fn->name, name, strlen(name)) == 0) {
-    return fn;
-  }
   return NULL;
 }
 struct tag_scope *find_tag(struct token *tk) {
@@ -765,13 +762,15 @@ struct var *new_lvar(char *name, struct type *type) {
   return v;
 }
 
-struct var *new_gvar(char *name, struct type *type) {
+struct var *new_gvar(char *name, struct type *type, bool emit) {
   struct var *v = calloc(1, sizeof(struct var));
   v->name = name;
-  v->next = globals;
   v->type = type;
   v->is_local = false;
-  globals = v;
+  if (emit) {
+    v->next = globals;
+    globals = v;
+  }
   new_varscope(name)->var = v;
   return v;
 }
@@ -784,7 +783,7 @@ char *gvar_name() {
 struct var *new_string_literal(char *data, int len) {
   struct type *type = array_to(ty_char, len);
   char *name = gvar_name();
-  struct var *v = new_gvar(name, type);
+  struct var *v = new_gvar(name, type, true);
   v->name = name;
   v->data = data;
   return v;
@@ -986,26 +985,38 @@ struct function *funcdef(struct token **ret,
                          struct token *tk,
                          struct type *type) {
   locals = NULL;
-
   struct function *fn = calloc(1, sizeof(struct function));
 
-  current_fn = fn;
   fn->name = type->name;
   fn->type = type->return_type;
   fn->token = tk;
+  fn->is_variadic = false;
 
   enter_scope();
 
-  for (struct type *ty = type->params; ty; ty = ty->next) {
-    new_lvar(ty->name, ty);
+  int cnt0 = 0;
+  int cnt1 = 0;
+
+  for (struct type *ty = current_fn->type->params; ty; ty = ty->next) cnt0++;
+  for (struct type *ty = type->params; ty; ty = ty->next) cnt1++;
+
+  if (0 < cnt0 && cnt0 != cnt1) {
+    error_at(tk->loc, "different number of parameters");
   }
 
+  struct type *ty = type->params;
+  for (; ty; ty = ty->next) {
+    new_lvar(ty->name, ty);
+  }
   fn->params = locals;
 
-  fn->stmt = compound_stmt(ret, tk)->body;
-  fn->locals = locals;
-
+  if (equal(tk, "{")) {
+    fn->type->is_incomplete = false;
+    fn->stmt = compound_stmt(ret, tk)->body;
+    fn->locals = locals;
+  }
   leave_scope();
+
   return fn;
 }
 
@@ -1016,14 +1027,22 @@ struct type *declarator(struct token **ret,
 
   type = pointers(&tk, tk, type);
   // ident
-  if (tk->kind != TK_IDENT) {
-    error_at(tk->loc, "expected a variable name");
+  // if (tk->kind != TK_IDENT) {
+  //   error_at(tk->loc, "expected a variable name");
+  // }
+
+  char *type_name = "";
+  struct token *tk_name = tk;
+
+  if (tk->kind == TK_IDENT) {
+    type_name = get_ident(tk);
+    tk_name = tk;
+    tk = tk->next;
   }
 
-  char *type_name = get_ident(tk);
-
-  type = type_suffix(&tk, tk->next, type);
+  type = type_suffix(&tk, tk, type);
   type->name = type_name;
+  type->token = tk_name;
 
   *ret = tk;
   return type;
@@ -1594,21 +1613,22 @@ struct node *funcall(struct token **ret,
 
   struct node *funcall = new_node(ND_FUNCALL, ident);
 
-  struct function *fn = find_func(ident->str);
+  struct var_scope *scope = find_var(ident);
   struct var *param = NULL;
   struct node *node = NULL;
 
-  if (fn) {
-    param = NULL;
-    funcall->func_ty = fn->type;
-
-    for (struct var *v = fn->params; v; v = v->next) {
+  if (scope) {
+    struct var *v = scope->var;
+    struct type *ty = v->type;
+    for (struct type *p = ty->params; p; p = p->next) {
       struct var *v0 = calloc(1, sizeof(struct var));
-      v0->type = v->type;
-      v0->name = v->name;
+      v0->type = p;
+      v0->name = p->name;
       v0->next = param;
       param = v0;
     }
+    funcall->func_ty = ty->return_type;
+
   } else {
     funcall->func_ty = ty_void;
   }
@@ -1648,7 +1668,7 @@ struct node *funcall(struct token **ret,
   funcall->nargs = nargs;
   funcall->str = ident->str;
   funcall->args_node = node;
-  funcall->type = funcall->func_ty->return_type;
+  funcall->type = funcall->func_ty;
 
   *ret = tk;
   return funcall;
@@ -1822,9 +1842,10 @@ void gvar_initilizer(struct token **ret,
 // typespec = "int" | "char" | struct-declarator | enum-declarator
 // typename = typespec pointers
 // pointers = ( "*" )*
-// funcdef = typespec declarator compound-stmt
+// funcdef = typespec declarator ( ";" | compound-stmt )
 //
 // declarator = pointers ident type-suffix
+//
 // struct-declarator = "struct" ident "{" sturct-member "}" ";"
 // struct-member = (typespec declarator ( "," declarator )* ";" )*
 // enum-declarator = "enum" (
@@ -1896,7 +1917,7 @@ struct program *parse(struct token *tk) {
   struct function *cur = &head;
   struct type *type;
 
-  functions = cur;
+  functions = &head;
   while (!at_eof(tk)) {
 
     type = typespec(&tk, tk);
@@ -1904,12 +1925,20 @@ struct program *parse(struct token *tk) {
 
     type = declarator(&tk, tk, type);
 
-    if (equal(tk, "{")) {
-      cur = cur->next = funcdef(&tk, tk, type);
+    if (type->return_type) {
+      struct var_scope *vs = find_var(type->token);
+      if (vs) {
+        current_fn = vs->var;
+      } else {
+        current_fn = new_gvar(type->name, type, false);
+      }
+      if (!consume(&tk, tk, ";")) {
+        cur = cur->next = funcdef(&tk, tk, type);
+      }
       continue;
     }
 
-    struct var *gvar = new_gvar(type->name, type);
+    struct var *gvar = new_gvar(type->name, type, true);
     if (!equal(tk, ";")) {
       while (!equal(tk, ";")) {
         if (consume(&tk, tk, "=")) {
@@ -1917,7 +1946,7 @@ struct program *parse(struct token *tk) {
         }
         if (consume(&tk, tk, ",")) {
           type = declarator(&tk, tk, type);
-          gvar = new_gvar(type->name, type);
+          gvar = new_gvar(type->name, type, true);
         }
       }
     }
