@@ -5,14 +5,13 @@
 #include <stddef.h>
 #include <stdio.h>
 
-#define debug(fmt...)                                                          \
-  do {                                                                         \
-    fprintf(stderr, "%s:%s ", __FILE__, __LINE__);                             \
-    fprintf(stderr, fmt);                                                      \
-    fprintf(stderr, "\n");                                                     \
+#define debug(fmt...)      \
+  do {                     \
+    fprintf(stderr, fmt);  \
+    fprintf(stderr, "\n"); \
   } while (0)
 
-#define find_cond(name, token)                                                 \
+#define find_cond(name, token) \
   (strlen(name) == token->len && strncmp(name, token->str, token->len) == 0)
 
 enum token_kind {
@@ -102,12 +101,18 @@ struct type {
 
   struct type *next;
 
+  // name token
+  struct token *token;
+
   // function
   struct type *return_type;
   struct type *params;
 
   // struct member
   struct member *members;
+
+  //
+  bool is_incomplete;
 };
 
 struct value {
@@ -186,6 +191,8 @@ struct function {
   struct function *next;
   struct type *type;
   struct var *params;
+
+  bool is_variadic;
 
   struct node *stmt;
 
