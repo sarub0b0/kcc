@@ -3,9 +3,11 @@
 
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdio.h>
 
 #define debug(fmt...)                                                          \
   do {                                                                         \
+    fprintf(stderr, "%s:%s ", __FILE__, __LINE__);                             \
     fprintf(stderr, fmt);                                                      \
     fprintf(stderr, "\n");                                                     \
   } while (0)
