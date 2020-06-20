@@ -66,16 +66,17 @@ struct struct_a g13;
 
 #define addadd(x, y) (one(x) + one(y))
 
+#define p(...) printf(__VA_ARGS__)
+
 // typedef int Int;
 
 int assert(int expected, int actual, char *code) {
-  printf("% 4d: ", number++);
+  p("% 4d: ", number++);
   if (expected == actual) {
-    printf("%s => %d ... " OK "\n", code, actual);
+    p("%s => %d ... " OK "\n", code, actual);
     success++;
   } else {
-    printf("%s => %d expected, but got %d ... %s\n", code, expected, actual,
-           FAILED);
+    p("%s => %d expected, but got %d ... %s\n", code, expected, actual, FAILED);
 
     failed++;
   }
@@ -925,6 +926,9 @@ int main() {
   assert(1, ({ equal(1, 1); }), "({ equal(1, 1); })");
   assert(4, ({ add_sub(3, 1); }), "({ add_sub(3,1); })");
   assert(5, ({ addadd(2, 3); }), "({ addadd(2,3); })");
+  assert(10, ({ addadd((1 + 2), (3 + 4)); }), "({ addadd((1+2),(3+4)); })");
+  assert(10, ({ add((one(1) + one(2)), (3 + 4)); }),
+         "({ add((one(1)+one(2)),(3+4)); })");
 
   if (success == number)
     printf("result: \x1b[32mOK\x1b[0m, ");

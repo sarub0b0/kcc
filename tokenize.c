@@ -161,6 +161,11 @@ struct token *tokenize(char *filename, char *p) {
       continue;
     }
 
+    if (starts_with(p, "...")) {
+      cur = new_token(TK_RESERVED, cur, p, 3);
+      p += 3;
+    }
+
     if (starts_with(p, "==") || starts_with(p, "!=") || starts_with(p, ">=") ||
         starts_with(p, "<=") || starts_with(p, "++") || starts_with(p, "--") ||
         starts_with(p, "+=") || starts_with(p, "-=") || starts_with(p, "*=") ||
@@ -211,6 +216,7 @@ struct token *tokenize(char *filename, char *p) {
       cur->val = strtol(p, &p, 10);
       cur->len = p - prev;
       cur->str = strndup(prev, cur->len);
+
       continue;
     }
 

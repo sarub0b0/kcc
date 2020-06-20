@@ -58,7 +58,7 @@ char *readfile(char *path) {
   size_t size;
   FILE *f = fopen(path, "r");
   if (!f) {
-    error("cacnot open %s: %s", path, strerror(errno));
+    error("cannot open %s: %s", path, strerror(errno));
   }
 
   if (fseek(f, 0, SEEK_END) != 0) {
@@ -166,16 +166,22 @@ int main(int argc, char *argv[]) {
   tk = tokenize(cfg.filename, user_input);
   tk = preprocess(tk);
 
-  if (cfg.is_dump_tokens)
+  if (cfg.is_dump_tokens) {
     print_tokens(tk);
+    return 0;
+  }
 
   struct program *pr = parse(tk);
 
-  if (cfg.is_ast_dump)
+  if (cfg.is_ast_dump) {
     print_ast(pr, cfg.funcname);
+    return 0;
+  }
 
-  if (cfg.is_list_func)
+  if (cfg.is_list_func) {
     print_function(pr);
+    return 0;
+  }
 
   if (!cfg.is_ast_dump && !cfg.is_dump_tokens && !cfg.is_list_func)
     gen_code(pr);
