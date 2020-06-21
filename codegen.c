@@ -22,8 +22,7 @@ int gen_expr(struct node *);
 void gen_stmt(struct node *);
 
 size_t type_size(struct type *ty) {
-  if (ty->kind == ARRAY)
-    return type_size(ty->ptr_to);
+  if (ty->kind == ARRAY) return type_size(ty->ptr_to);
 
   return ty->size;
 }
@@ -31,82 +30,79 @@ size_t type_size(struct type *ty) {
 const char *areg(struct type *ty) {
   const char *r[] = {"al", "ax", "eax", "rax"};
 
-  if (ty->kind == ARRAY)
-    return areg(ty->ptr_to);
+  if (ty->kind == ARRAY) return areg(ty->ptr_to);
 
   switch (ty->size) {
-  case 1:
-    return r[0];
-  case 2:
-    return r[1];
-  case 4:
-    return r[2];
-  default:
-    return r[3];
+    case 1:
+      return r[0];
+    case 2:
+      return r[1];
+    case 4:
+      return r[2];
+    default:
+      return r[3];
   }
 }
 
 const char *argreg(struct type *ty, int i) {
-  if (ty->kind == ARRAY)
-    return argreg(ty->ptr_to, i);
+  if (ty->kind == ARRAY) return argreg(ty->ptr_to, i);
 
   switch (ty->size) {
-  case 1:
-    return argreg8[i];
-  case 2:
-    return argreg16[i];
-  case 4:
-    return argreg32[i];
-  default:
-    return argreg64[i];
+    case 1:
+      return argreg8[i];
+    case 2:
+      return argreg16[i];
+    case 4:
+      return argreg32[i];
+    default:
+      return argreg64[i];
   }
 }
 
 const char *reg(struct type *ty, int i) {
-  if (ty->kind == ARRAY)
-    return reg(ty->ptr_to, i);
+  if (ty->kind == ARRAY) return reg(ty->ptr_to, i);
 
   switch (ty->size) {
-  case 1:
-    return reg8[i];
-  case 2:
-    return reg16[i];
-  case 4:
-    return reg32[i];
-  default:
-    return reg64[i];
+    case 1:
+      return reg8[i];
+    case 2:
+      return reg16[i];
+    case 4:
+      return reg32[i];
+    default:
+      return reg64[i];
   }
 }
 
 const char *size_name(struct type *ty) {
   switch (ty->size) {
-  case 1:
-    return "BYTE";
-  case 2:
-    return "WORD";
-  case 4:
-    return "DWORD";
-  default:
-    return "QWORD";
+    case 1:
+      return "BYTE";
+    case 2:
+      return "WORD";
+    case 4:
+      return "DWORD";
+    default:
+      return "QWORD";
   }
 }
 
 void gen_addr(struct node *n) {
   switch (n->kind) {
-  case ND_VAR:
-    if (n->var->is_local) {
-      printf("  lea %s, [rbp-%d]\n", reg64[inc++], n->var->offset);
-    } else {
-      printf("  mov %s, offset %s\n", reg64[inc++], n->var->name);
-    }
-    return;
-  case ND_DEREF:
-    gen_expr(n->lhs);
-    return;
-  case ND_MEMBER:
-    gen_addr(n->lhs);
-    printf("  add %s, %d\n", reg64[inc - 1], n->member->offset);
-    return;
+    case ND_VAR:
+      if (n->var->is_local) {
+        printf("  lea %s, [rbp-%d]\n", reg64[inc++], n->var->offset);
+      } else {
+        printf("  mov %s, offset %s\n", reg64[inc++], n->var->name);
+      }
+      return;
+    case ND_DEREF:
+      gen_expr(n->lhs);
+      return;
+    case ND_MEMBER:
+      gen_addr(n->lhs);
+      printf("  add %s, %d\n", reg64[inc - 1], n->member->offset);
+      return;
   }
 }
 
@@ -199,15 +195,16 @@ void gen_for(struct node *node) {
 }
 
 void gen_block(struct node *node) {
-  for (struct node *n = node->body; n; n = n->next)
-    gen_stmt(n);
+  for (struct node *n = node->body; n; n = n->next) gen_stmt(n);
 }
 
 void gen_func(struct node *node) {
   struct type *fn_ty = node->func_ty;
 
-  gen_expr(node->args_node);
-
+  for (struct node *n = node->body; n; n = n->next) {
+    gen_expr(n);
+    inc--;
+  }
   if (6 < node->nargs) {
     error("Too many funcall argumentes");
   }
@@ -218,22 +215,21 @@ void gen_func(struct node *node) {
     int size = type_size(arg->type);
     struct type *arg_ty = arg->type;
 
-    if (arg_ty->kind == ARRAY)
-      size = 8;
+    if (arg_ty->kind == ARRAY) size = 8;
 
     switch (size) {
-    case 1:
-      printf("  movsx %s, BYTE PTR [rbp-%d]\n", argreg32[i], arg->offset);
-      break;
-    case 2:
-      printf("  movsx %s, WORD PTR [rbp-%d]\n", argreg32[i], arg->offset);
-      break;
-    case 4:
-      printf("  mov %s, DWORD PTR [rbp-%d]\n", argreg32[i], arg->offset);
-      break;
-    case 8:
-      printf("  mov %s, [rbp-%d]\n", argreg64[i], arg->offset);
-      break;
+      case 1:
+        printf("  movsx %s, BYTE PTR [rbp-%d]\n", argreg32[i], arg->offset);
+        break;
+      case 2:
+        printf("  movsx %s, WORD PTR [rbp-%d]\n", argreg32[i], arg->offset);
+        break;
+      case 4:
+        printf("  mov %s, DWORD PTR [rbp-%d]\n", argreg32[i], arg->offset);
+        break;
+      case 8:
+        printf("  mov %s, [rbp-%d]\n", argreg64[i], arg->offset);
+        break;
     }
   }
 
@@ -262,10 +258,10 @@ void load(struct type *type) {
 
   printf("  mov %s, %s PTR [%s]\n", r, s, reg64[inc - 1]);
   switch (type->size) {
-  case 1:
-  case 2:
-    printf("  movsx %s, %s\n", reg32[inc - 1], r);
-    break;
+    case 1:
+    case 2:
+      printf("  movsx %s, %s\n", reg32[inc - 1], r);
+      break;
   }
 }
 
@@ -281,121 +277,121 @@ int gen_expr(struct node *node) {
 
   struct type *ty = node->type;
   switch (node->kind) {
-  case ND_NUM:
-    printf("  mov %s, %d\n", reg(ty, inc++), node->val);
-    return 0;
-  case ND_VAR:
-    gen_addr(node);
-    load(node->type);
-    return 0;
-  case ND_MEMBER:
-    gen_addr(node);
-    load(node->type);
-    return 0;
-  case ND_ASSIGN:
-    gen_expr(node->rhs);
-    gen_addr(node->lhs);
-    store(node->type);
-    return 0;
-  case ND_FUNCALL:
-    gen_expr(node->lhs);
-    gen_func(node);
-    return 0;
-  case ND_COMMA:
-    gen_expr(node->lhs);
-    gen_expr(node->rhs);
-    inc--;
-    return 0;
-  case ND_ADDR:
-    gen_addr(node->lhs);
-    return 0;
-  case ND_DEREF:
-    gen_expr(node->lhs);
-    load(node->type);
-    return 0;
-  case ND_BITNOT:
-    gen_expr(node->lhs);
-    printf("  not %s\n", reg(node->lhs->type, inc - 1));
-    return 0;
-  case ND_LOGOR:
-    // lhs || rhs
-    // lhs == 0 ?
-    gen_expr(node->lhs);
-    printf("  cmp %s, 0\n", reg(node->lhs->type, --inc));
-    printf("  jne .L.true.%03d\n", label_seq);
+    case ND_NUM:
+      printf("  mov %s, %d\n", reg(ty, inc++), node->val);
+      return 0;
+    case ND_VAR:
+      gen_addr(node);
+      load(node->type);
+      return 0;
+    case ND_MEMBER:
+      gen_addr(node);
+      load(node->type);
+      return 0;
+    case ND_ASSIGN:
+      gen_expr(node->rhs);
+      gen_addr(node->lhs);
+      store(node->type);
+      return 0;
+    case ND_FUNCALL:
+      gen_expr(node->lhs);
+      gen_func(node);
+      return 0;
+    case ND_COMMA:
+      gen_expr(node->lhs);
+      gen_expr(node->rhs);
+      inc--;
+      return 0;
+    case ND_ADDR:
+      gen_addr(node->lhs);
+      return 0;
+    case ND_DEREF:
+      gen_expr(node->lhs);
+      load(node->type);
+      return 0;
+    case ND_BITNOT:
+      gen_expr(node->lhs);
+      printf("  not %s\n", reg(node->lhs->type, inc - 1));
+      return 0;
+    case ND_LOGOR:
+      // lhs || rhs
+      // lhs == 0 ?
+      gen_expr(node->lhs);
+      printf("  cmp %s, 0\n", reg(node->lhs->type, --inc));
+      printf("  jne .L.true.%03d\n", label_seq);
 
-    // rhs == 0 ?
-    gen_expr(node->rhs);
-    printf("  cmp %s, 0\n", reg(node->rhs->type, --inc));
-    printf("  jne .L.true.%03d\n", label_seq);
-    printf("  mov %s, 0\n", reg64[inc - 1]);
-    printf("  jmp .L.end.%03d\n", label_seq);
-    printf(".L.true.%03d:\n", label_seq);
-    printf("  mov %s, 1\n", reg64[inc++]);
-    printf(".L.end.%03d:\n", label_seq);
-    label_seq++;
-    return 0;
-  case ND_LOGAND:
-    // lhs && rhs
-    // lhs == 0 ?
-    gen_expr(node->lhs);
-    printf("  cmp %s, 0\n", reg(node->lhs->type, --inc));
-    printf("  je .L.false.%03d\n", label_seq);
+      // rhs == 0 ?
+      gen_expr(node->rhs);
+      printf("  cmp %s, 0\n", reg(node->rhs->type, --inc));
+      printf("  jne .L.true.%03d\n", label_seq);
+      printf("  mov %s, 0\n", reg64[inc - 1]);
+      printf("  jmp .L.end.%03d\n", label_seq);
+      printf(".L.true.%03d:\n", label_seq);
+      printf("  mov %s, 1\n", reg64[inc++]);
+      printf(".L.end.%03d:\n", label_seq);
+      label_seq++;
+      return 0;
+    case ND_LOGAND:
+      // lhs && rhs
+      // lhs == 0 ?
+      gen_expr(node->lhs);
+      printf("  cmp %s, 0\n", reg(node->lhs->type, --inc));
+      printf("  je .L.false.%03d\n", label_seq);
 
-    // rhs == 0 ?
-    gen_expr(node->rhs);
-    printf("  cmp %s, 0\n", reg(node->rhs->type, --inc));
-    printf("  je .L.false.%03d\n", label_seq);
-    printf("  mov %s, 1\n", reg64[inc - 1]);
-    printf("  jmp .L.end.%03d\n", label_seq);
-    printf(".L.false.%03d:\n", label_seq);
-    printf("  mov %s, 0\n", reg64[inc++]);
-    printf(".L.end.%03d:\n", label_seq);
-    label_seq++;
-    return 0;
-  case ND_STMT_EXPR:
-    for (struct node *n = node->body; n; n = n->next) {
-      gen_stmt(n);
+      // rhs == 0 ?
+      gen_expr(node->rhs);
+      printf("  cmp %s, 0\n", reg(node->rhs->type, --inc));
+      printf("  je .L.false.%03d\n", label_seq);
+      printf("  mov %s, 1\n", reg64[inc - 1]);
+      printf("  jmp .L.end.%03d\n", label_seq);
+      printf(".L.false.%03d:\n", label_seq);
+      printf("  mov %s, 0\n", reg64[inc++]);
+      printf(".L.end.%03d:\n", label_seq);
+      label_seq++;
+      return 0;
+    case ND_STMT_EXPR:
+      for (struct node *n = node->body; n; n = n->next) {
+        gen_stmt(n);
+      }
+      inc++;
+      return 0;
+    case ND_CAST: {
+      gen_expr(node->lhs);
+
+      struct type *from = node->lhs->type;
+      struct type *to = node->type;
+
+      if (to->size == 1) {
+        printf("  movsx %s, %s\n", reg32[inc - 1], reg8[inc - 1]);
+      } else if (to->size == 2) {
+        printf("  movsx %s, %s\n", reg32[inc - 1], reg16[inc - 1]);
+      } else if (to->size == 4) {
+        printf("  mov %s, %s\n", reg32[inc - 1], reg32[inc - 1]);
+      } else if (is_integer(from) && from->size < 8) {
+        printf("  movsx %s, %s\n", reg64[inc - 1], reg(from, inc - 1));
+      }
+
+      return 0;
     }
-    inc++;
-    return 0;
-  case ND_CAST: {
-    gen_expr(node->lhs);
+    case ND_COND:
+      gen_expr(node->cond);
+      printf("  cmp %s, 0\n", reg64[inc - 1]);
+      inc--;
 
-    struct type *from = node->lhs->type;
-    struct type *to = node->type;
+      printf("  je  .L.else.%03d\n", label_seq);
 
-    if (to->size == 1) {
-      printf("  movsx %s, %s\n", reg32[inc - 1], reg8[inc - 1]);
-    } else if (to->size == 2) {
-      printf("  movsx %s, %s\n", reg32[inc - 1], reg16[inc - 1]);
-    } else if (to->size == 4) {
-      printf("  mov %s, %s\n", reg32[inc - 1], reg32[inc - 1]);
-    } else if (is_integer(from) && from->size < 8) {
-      printf("  movsx %s, %s\n", reg64[inc - 1], reg(from, inc - 1));
-    }
+      gen_expr(node->then);
+      inc--;
 
-    return 0;
-  }
-  case ND_COND:
-    gen_expr(node->cond);
-    printf("  cmp %s, 0\n", reg64[inc - 1]);
-    inc--;
+      printf("  jmp  .L.end.%03d\n", label_seq);
+      printf(".L.else.%03d:\n", label_seq);
 
-    printf("  je  .L.else.%03d\n", label_seq);
+      gen_expr(node->els);
 
-    gen_expr(node->then);
-    inc--;
+      printf(".L.end.%03d:\n", label_seq);
+      label_seq++;
 
-    printf("  jmp  .L.end.%03d\n", label_seq);
-    printf(".L.else.%03d:\n", label_seq);
-
-    gen_expr(node->els);
-
-    printf(".L.end.%03d:\n", label_seq);
-    label_seq++;
-
-    return 0;
+      return 0;
   }
 
   gen_expr(node->lhs);
@@ -407,63 +403,63 @@ int gen_expr(struct node *node) {
   inc--;
 
   switch (node->kind) {
-  case ND_ADD:
-    printf("  add %s, %s\n", rd, rs);
-    break;
-  case ND_SUB:
-    printf("  sub %s, %s\n", rd, rs);
-    break;
-  case ND_MUL:
-    printf("  imul %s, %s\n", rd, rs);
-    break;
-  case ND_DIV:
-    printf("  mov %s, %s\n", ra, rd);
-    printf("  cqo\n");
-    printf("  idiv %s\n", rs);
-    printf("  mov %s, %s\n", rd, ra);
-    break;
-  case ND_EQ:
-    printf("  cmp %s, %s\n", rd, rs);
-    printf("  sete al\n");
-    printf("  movzb %s, al\n", rd);
-    break;
-  case ND_NE:
-    printf("  cmp %s, %s\n", rd, rs);
-    printf("  setne al\n");
-    printf("  movzb %s, al\n", rd);
-    break;
-  case ND_LE:
-    printf("  cmp %s, %s\n", rd, rs);
-    printf("  setle al\n");
-    printf("  movzb %s, al\n", rd);
-    break;
-  case ND_LT:
-    printf("  cmp %s, %s\n", rd, rs);
-    printf("  setl al\n");
-    printf("  movzb %s, al\n", rd);
-    break;
-  case ND_GE:
-    printf("  cmp %s, %s\n", rd, rs);
-    printf("  setge al\n");
-    printf("  movzb %s, al\n", rd);
-    break;
-  case ND_GT:
-    printf("  cmp %s, %s\n", rd, rs);
-    printf("  setg al\n");
-    printf("  movzb %s, al\n", rd);
-    break;
-  case ND_BITOR:
-    printf("  or %s, %s\n", rd, rs);
-    break;
-  case ND_BITXOR:
-    printf("  xor %s, %s\n", rd, rs);
-    break;
-  case ND_BITAND:
-    printf("  and %s, %s\n", rd, rs);
-    break;
-  default:
-    error("Don't assembly");
-    break;
+    case ND_ADD:
+      printf("  add %s, %s\n", rd, rs);
+      break;
+    case ND_SUB:
+      printf("  sub %s, %s\n", rd, rs);
+      break;
+    case ND_MUL:
+      printf("  imul %s, %s\n", rd, rs);
+      break;
+    case ND_DIV:
+      printf("  mov %s, %s\n", ra, rd);
+      printf("  cqo\n");
+      printf("  idiv %s\n", rs);
+      printf("  mov %s, %s\n", rd, ra);
+      break;
+    case ND_EQ:
+      printf("  cmp %s, %s\n", rd, rs);
+      printf("  sete al\n");
+      printf("  movzb %s, al\n", rd);
+      break;
+    case ND_NE:
+      printf("  cmp %s, %s\n", rd, rs);
+      printf("  setne al\n");
+      printf("  movzb %s, al\n", rd);
+      break;
+    case ND_LE:
+      printf("  cmp %s, %s\n", rd, rs);
+      printf("  setle al\n");
+      printf("  movzb %s, al\n", rd);
+      break;
+    case ND_LT:
+      printf("  cmp %s, %s\n", rd, rs);
+      printf("  setl al\n");
+      printf("  movzb %s, al\n", rd);
+      break;
+    case ND_GE:
+      printf("  cmp %s, %s\n", rd, rs);
+      printf("  setge al\n");
+      printf("  movzb %s, al\n", rd);
+      break;
+    case ND_GT:
+      printf("  cmp %s, %s\n", rd, rs);
+      printf("  setg al\n");
+      printf("  movzb %s, al\n", rd);
+      break;
+    case ND_BITOR:
+      printf("  or %s, %s\n", rd, rs);
+      break;
+    case ND_BITXOR:
+      printf("  xor %s, %s\n", rd, rs);
+      break;
+    case ND_BITAND:
+      printf("  and %s, %s\n", rd, rs);
+      break;
+    default:
+      error("Don't assembly");
+      break;
   }
 
   return 0;
@@ -471,30 +467,32 @@ int gen_expr(struct node *node) {
 
 void gen_stmt(struct node *node) {
   switch (node->kind) {
-  case ND_RETURN:
-    gen_expr(node->lhs);
-    if (node->lhs) {
-      printf("  mov rax, %s\n", reg64[--inc]);
-    }
-    printf("  jmp .L.return.%s\n", current_fn->name);
-    return;
-  case ND_IF:
-    gen_if(node);
-    return;
-  case ND_FOR:
-    gen_for(node);
-    return;
-  case ND_BLOCK:
-    gen_block(node);
-    return;
-  case ND_EXPR_STMT:
-    gen_expr(node->lhs);
-    inc--;
-    return;
+    case ND_RETURN:
+      gen_expr(node->lhs);
+      if (node->lhs) {
+        printf("  mov rax, %s\n", reg64[--inc]);
+      }
+      printf("  jmp .L.return.%s\n", current_fn->name);
+      return;
+    case ND_IF:
+      gen_if(node);
+      return;
+    case ND_FOR:
+      gen_for(node);
+      return;
+    case ND_BLOCK:
+      gen_block(node);
+      return;
+    case ND_EXPR_STMT:
+      gen_expr(node->lhs);
+      inc--;
+      return;
   }
 }
 
-void header() { printf(".intel_syntax noprefix\n"); }
+void header() {
+  printf(".intel_syntax noprefix\n");
+}
 
 void prologue(int stack_size) {
   printf("  push rbp\n");
@@ -508,7 +506,9 @@ void epilogue() {
   printf("  ret\n");
 }
 
-int stack_size(int offset) { return (offset + 15) & ~15; }
+int stack_size(int offset) {
+  return (offset + 15) & ~15;
+}
 
 void set_offset_and_stack_size(struct function *fn) {
   int offset = 32;
@@ -530,24 +530,22 @@ int nargs(struct var *v) {
 
 char *data_symbol(int size) {
   switch (size) {
-  case 1:
-    return ".byte";
-  case 2:
-    return ".short";
-  case 4:
-    return ".long";
-  case 8:
-    return ".quad";
+    case 1:
+      return ".byte";
+    case 2:
+      return ".short";
+    case 4:
+      return ".long";
+    case 8:
+      return ".quad";
   }
   return ".quad";
 }
 
 size_t align(struct type *ty) {
-  if (ty->kind == ARRAY)
-    return align(ty->ptr_to);
+  if (ty->kind == ARRAY) return align(ty->ptr_to);
 
-  if (ty->kind == STRUCT)
-    return ty->align;
+  if (ty->kind == STRUCT) return ty->align;
 
   return ty->size;
 }
@@ -562,7 +560,7 @@ void global_data(struct program *prog) {
 
     if (is_integer(v->type)) {
       if (v->data)
-        printf("  %s %d\n", data_symbol(v->type->size), *(int *)v->data);
+        printf("  %s %d\n", data_symbol(v->type->size), *(int *) v->data);
       else
         printf("  .quad 0\n");
       continue;
@@ -589,7 +587,8 @@ void global_data(struct program *prog) {
         for (int i = 0; i < v->type->array_size; i++) {
           if (value) {
             if (is_integer(v->type->ptr_to))
-              printf("  %s %d\n", data_symbol(v->type->ptr_to->size),
+              printf("  %s %d\n",
+                     data_symbol(v->type->ptr_to->size),
                      value->val);
 
             if (v->type->ptr_to->kind == PTR) {
@@ -605,8 +604,7 @@ void global_data(struct program *prog) {
         continue;
       }
     }
-    if (!v->data)
-      printf("  .zero %lu\n", v->type->size);
+    if (!v->data) printf("  .zero %lu\n", v->type->size);
   }
   return;
 }
@@ -640,7 +638,8 @@ void gen_code(struct program *prog) {
     int params_num = nargs(fn->params);
 
     for (struct var *v = fn->params; v; v = v->next) {
-      printf("  mov [rbp-%d], %s\n", v->offset, argreg(v->type, --params_num));
+      printf(
+          "  mov [rbp-%d], %s\n", v->offset, argreg(v->type, --params_num));
     }
     for (struct node *n = fn->stmt; n; n = n->next) {
       gen_stmt(n);

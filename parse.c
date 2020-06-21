@@ -25,6 +25,15 @@ struct var_scope {
   int enum_val;
 };
 
+struct init_data {
+  struct token *token;
+  struct type *type;
+  int len;
+  struct node *expr;
+
+  struct init_data **child;
+};
+
 static struct function *functions;
 // static struct function *current_fn;
 static struct var *current_fn;
@@ -62,14 +71,15 @@ struct node *primary(struct token **, struct token *);
 
 struct node *funcall(struct token **, struct token *, struct token *);
 
-struct node *lvar_initializer(struct token **,
-                              struct token *,
-                              struct var *,
-                              struct type *);
+struct node *lvar_initializer(struct token **, struct token *, struct var *);
 void gvar_initializer(struct token **,
                       struct token *,
                       struct var *,
                       struct type *);
+
+struct init_data *initializer_new(struct token **,
+                                  struct token *,
+                                  struct type *);
 
 struct function *find_func(char *);
 
@@ -153,9 +163,21 @@ void print_globals(bool has_function) {
     if (!has_function) prefix = "`-";
 
     printf("%s%s ", prefix, type);
-    printf("%s %s", type_to_name(v->type->kind), v->name);
-    if (v->data)
-      printf(": %d\n", *(int *) v->data);
+    if (v->type->kind == STRUCT) {
+      printf("struct %s %s", v->type->tag, v->name);
+    } else {
+      printf("%s %s", type_to_name(v->type->kind), v->name);
+    }
+    if (v->data) switch (v->type->kind) {
+        case INT:
+          printf(": %d\n", *(int *) v->data);
+          break;
+        case ARRAY:
+          if (v->type->ptr_to->kind == CHAR) {
+            printf(": %s\n", (char *) v->data);
+          }
+          break;
+      }
     else
       printf("\n");
   }
@@ -256,6 +278,13 @@ void print_stmt(struct node *n,
       break;
     case ND_DEREF:
       printf("%s-Deref '%s'\n", local_prefix, n->str);
+      if (is_next_node) {
+        snprintf(buf, MAX_LEN, "%s |", scope_prefix);
+      } else {
+        snprintf(buf, MAX_LEN, "%s  ", scope_prefix);
+      }
+      scope_prefix = strndup(buf, MAX_LEN);
+      print_stmt(n->lhs, is_next_stmt, false, scope_prefix);
       break;
     case ND_EXPR_STMT:
       printf("%s-ExprStmt\n", local_prefix);
@@ -362,7 +391,7 @@ void print_stmt(struct node *n,
         snprintf(buf, MAX_LEN, "%s  ", scope_prefix);
       }
       scope_prefix = strndup(buf, MAX_LEN);
-      for (struct node *arg = n->args_node; arg; arg = arg->next) {
+      for (struct node *arg = n->body; arg; arg = arg->next) {
         if (arg->next == NULL) {
           print_stmt(arg, is_next_stmt, false, scope_prefix);
         } else {
@@ -394,7 +423,11 @@ void print_stmt(struct node *n,
       print_stmt(n->els, is_next_stmt, false, scope_prefix);
       break;
     case ND_MEMBER:
-      printf("%s-Var.Member '%s.%s'\n", local_prefix, n->lhs->str, n->str);
+      printf("%s-Var.Member %s '%s.%s'\n",
+             local_prefix,
+             type_to_name(n->type->kind),
+             n->lhs->str,
+             n->str);
       break;
     case ND_CAST:
       printf("%s-Cast %s\n", local_prefix, type_to_name(n->type->kind));
@@ -454,9 +487,8 @@ void print_ast(struct program *pr, char *funcname) {
 
   bool has_function = pr->functions ? true : false;
   bool has_struct = tags ? true : false;
-  print_globals(has_function || has_struct);
-
   print_struct(has_function);
+  print_globals(has_function || has_struct);
 
   for (struct function *fn = pr->functions; fn; fn = fn->next) last = fn;
 
@@ -725,29 +757,42 @@ struct node *new_add(struct node *lhs, struct node *rhs) {
   // ptr + num
   // num * sizeof(type)
   rhs = new_node_binary(ND_MUL, rhs, new_node_num(lhs->type->ptr_to->size));
-  return new_node_binary(ND_ADD, lhs, rhs);
+  rhs->str = "*";
+
+  struct node *n = new_node_binary(ND_ADD, lhs, rhs);
+  n->str = "+";
+
+  return n;
 }
 
 struct node *new_sub(struct token *tk, struct node *lhs, struct node *rhs) {
   add_type(lhs);
   add_type(rhs);
 
+  struct node *n;
   // num - num
   if (is_integer(lhs->type) && is_integer(rhs->type)) {
-    return new_node_binary(ND_SUB, lhs, rhs);
+    n = new_node_binary(ND_SUB, lhs, rhs);
+    n->str = "-";
+    return n;
   }
 
   // ptr - num
   if (lhs->type->ptr_to && rhs->type->kind == INT) {
     rhs = new_node_binary(ND_MUL, rhs, new_node_num(lhs->type->ptr_to->size));
-    return new_node_binary(ND_SUB, lhs, rhs);
+    rhs->str = "*";
+    n = new_node_binary(ND_SUB, lhs, rhs);
+    n->str = "-";
+    return n;
   }
 
   // ptr - ptr
   if (lhs->type->ptr_to && rhs->type->ptr_to) {
     struct node *sub = new_node_binary(ND_SUB, lhs, rhs);
-    return new_node_binary(
-        ND_DIV, sub, new_node_num(lhs->type->ptr_to->size));
+    sub->str = "-";
+    n = new_node_binary(ND_DIV, sub, new_node_num(lhs->type->ptr_to->size));
+    n->str = "/";
+    return n;
   }
 
   error_at(tk->loc, "invalid operands");
@@ -777,7 +822,7 @@ struct var *new_lvar(char *name, struct type *type) {
   struct var *v = calloc(1, sizeof(struct var));
   v->name = name;
   v->next = locals;
-  v->type = type;
+  v->type = copy_type(type);
   v->is_local = true;
   locals = v;
   new_varscope(name)->var = v;
@@ -787,7 +832,7 @@ struct var *new_lvar(char *name, struct type *type) {
 struct var *new_gvar(char *name, struct type *type, bool emit) {
   struct var *v = calloc(1, sizeof(struct var));
   v->name = name;
-  v->type = type;
+  v->type = copy_type(type);
   v->is_local = false;
   if (emit) {
     v->next = globals;
@@ -922,6 +967,7 @@ struct type *struct_declarator(struct token **ret, struct token *tk) {
   ty->members = struct_members(&tk, tk);
   if (tag) {
     ty->name = tag->str;
+    ty->tag = tag->str;
     new_tagscope(ty);
   } else {
     ty->name = "";
@@ -1107,13 +1153,20 @@ struct type *type_suffix(struct token **ret,
 
   if (consume(&tk, tk, "[")) {
     int size = 0;
+    bool is_incomplete = true;
     if (!equal(tk, "]")) {
       size = get_number(tk);
       tk = tk->next;
+      is_incomplete = false;
     }
     skip(&tk, tk, "]");
     type = type_suffix(&tk, tk, type);
     type = array_to(type, size);
+    type->is_incomplete = is_incomplete;
+    if (is_incomplete)
+      debug("incompleted");
+    else
+      debug("completed");
   }
 
   *ret = tk;
@@ -1164,9 +1217,10 @@ struct node *declaration(struct token **ret, struct token *tk) {
     var = new_lvar(type->name, type);
 
     if (consume(&tk, tk, "=")) {
-      cur = cur->next = lvar_initializer(&tk, tk, var, type);
-    } else
+      cur = cur->next = lvar_initializer(&tk, tk, var);
+    } else {
       cur = cur->next = new_node_var(var);
+    }
   }
 
   node = new_node(ND_BLOCK, tk);
@@ -1524,20 +1578,30 @@ struct node *cast(struct token **ret, struct token *tk) {
 struct node *unary(struct token **ret, struct token *tk) {
 
   if (consume(&tk, tk, "+")) {
-    return cast(ret, tk);
+    struct node *n = cast(ret, tk);
+    n->str = "+";
+    return n;
   }
   if (consume(&tk, tk, "-")) {
-    return new_node_binary(ND_SUB, new_node_num(0), cast(ret, tk));
+    struct node *n = new_node_binary(ND_SUB, new_node_num(0), cast(ret, tk));
+    n->str = "-";
+    return n;
   }
 
   if (consume(&tk, tk, "*")) {
-    return new_node_unary(ND_DEREF, cast(ret, tk), tk);
+    struct node *n = new_node_unary(ND_DEREF, cast(ret, tk), tk);
+    n->str = "*";
+    return n;
   }
   if (consume(&tk, tk, "&")) {
-    return new_node_unary(ND_ADDR, cast(ret, tk), tk);
+    struct node *n = new_node_unary(ND_ADDR, cast(ret, tk), tk);
+    n->str = "&";
+    return n;
   }
   if (consume(&tk, tk, "~")) {
-    return new_node_unary(ND_BITNOT, cast(ret, tk), tk);
+    struct node *n = new_node_unary(ND_BITNOT, cast(ret, tk), tk);
+    n->str = "~";
+    return n;
   }
   // ++a
   // assign a = a + 1
@@ -1660,6 +1724,9 @@ struct node *funcall(struct token **ret,
 
   skip(&tk, tk, "(");
 
+  struct node head = {};
+  struct node *cur = &head;
+
   struct node *funcall = new_node(ND_FUNCALL, ident);
 
   struct var_scope *scope = find_var(ident);
@@ -1706,17 +1773,14 @@ struct node *funcall(struct token **ret,
 
     funcall->args[nargs++] = v;
 
-    struct node *exp = new_node_assign(new_node_var(v), arg);
-
-    node = new_node_binary(ND_COMMA, node, exp);
+    cur = cur->next = new_node_assign(new_node_var(v), arg);
+    add_type(cur);
   }
   skip(&tk, tk, ")");
 
-  add_type(node);
-
   funcall->nargs = nargs;
   funcall->str = ident->str;
-  funcall->args_node = node;
+  funcall->body = head.next;
   funcall->type = funcall->func_ty;
 
   *ret = tk;
@@ -1859,7 +1923,6 @@ struct node *struct_initializer(struct token **ret,
 
     int cnt = 0;
     for (struct member *m = lvar->type->members; m; m = m->next) {
-      debug("mem(%d): (%s) %s", cnt, type_to_name(m->type->kind), m->name);
       cnt++;
     }
     struct member *m0 = lvar->type->members;
@@ -1879,19 +1942,17 @@ struct node *struct_initializer(struct token **ret,
       m0 = m0->next;
       m1 = m1->next;
     }
-
-    debug("lvar %s", lvar->name);
-    debug("rvar %s", rvar->name);
   }
 
   *ret = tk->next;
   return head.next;
 }
 
-struct node *lvar_initializer(struct token **ret,
-                              struct token *tk,
-                              struct var *var,
-                              struct type *type) {
+struct node *initializer(struct token **ret,
+                         struct token *tk,
+                         struct var *var,
+                         struct type *type) {
+
   if (type->kind == ARRAY && type->ptr_to->kind == CHAR) {
     return string_initializer(ret, tk, var, type);
   }
@@ -1908,6 +1969,141 @@ struct node *lvar_initializer(struct token **ret,
   node->lhs = new_node_assign(lvar, assign(&tk, tk));
   node->lhs->str = "=";
   *ret = tk;
+  return node;
+}
+struct init_data *string_initializer_new(struct token **ret,
+                                         struct token *tk,
+                                         struct type *type) {
+  debug("%s", type_to_name(type->kind));
+}
+
+bool is_end(struct token *tk) {
+  return equal(tk, "}") || equal(tk, ",") && equal(tk->next, "}");
+}
+struct init_data *array_initializer_new(struct token **ret,
+                                        struct token *tk,
+                                        struct type *type) {
+
+  consume(&tk, tk, "{");
+  debug("%s", type_to_name(type->kind));
+  if (type->is_incomplete) {
+    debug("incomplete");
+    int array_size = 0;
+    for (struct token *tk1 = tk; !is_end(tk1); array_size++) {
+      if (array_size > 0) skip(&tk1, tk1, ",");
+      initializer_new(&tk1, tk1, type->ptr_to);
+    }
+    type->size = type->ptr_to->size * array_size;
+    type->array_size = array_size;
+
+    type->is_incomplete = false;
+  }
+
+  print_type(type);
+  struct init_data *init = calloc(1, sizeof(struct init_data));
+
+  init->len = type->array_size;
+  init->type = type;
+  init->token = tk;
+
+  init->child = calloc(init->len, sizeof(struct init_data));
+
+  for (int i = 0; i < init->len && !is_end(tk); i++) {
+    if (0 < i) skip(&tk, tk, ",");
+    init->child[i] = initializer_new(&tk, tk, type->ptr_to);
+    debug("child: %s", init->child[i]->token->str);
+  }
+
+  consume(&tk, tk, "}");
+
+  *ret = tk;
+
+  return init;
+}
+struct init_data *struct_initializer_new(struct token **ret,
+                                         struct token *tk,
+                                         struct type *type) {
+  debug("%s", type_to_name(type->kind));
+}
+
+struct init_data *initializer_new(struct token **ret,
+                                  struct token *tk,
+                                  struct type *type) {
+
+  if (type->kind == ARRAY && type->ptr_to->kind == CHAR) {
+    return string_initializer_new(ret, tk, type);
+  }
+  if (type->kind == ARRAY) {
+    return array_initializer_new(ret, tk, type);
+  }
+
+  if (type->kind == STRUCT) {
+    return struct_initializer_new(ret, tk, type);
+  }
+
+  struct token *start = tk;
+  bool has_parent = consume(&tk, tk, "{");
+  struct init_data *init = calloc(1, sizeof(struct init_data));
+  init->expr = assign(&tk, tk);
+  init->type = type;
+  init->token = start;
+
+  if (has_parent) {
+    consume_end(&tk, tk);
+  }
+
+  *ret = tk;
+  return init;
+}
+
+struct node *create_lvar_init_node(struct init_data *init,
+                                   struct var *var,
+                                   struct node *lvar,
+                                   struct type *type,
+                                   struct token *tk) {
+
+  if (type->kind == ARRAY) {
+
+    debug("var %s", var->name);
+
+    struct node head = {};
+    struct node *cur = &head;
+
+    for (int i = 0; i < type->array_size; i++) {
+      struct init_data *child = init ? init->child[i] : NULL;
+
+      struct node *deref = new_node_unary(
+          ND_DEREF, new_add(lvar, new_node_num(i)), type->token);
+
+      deref->str = var->name;
+
+      struct node *n =
+          create_lvar_init_node(child, var, deref, type->ptr_to, tk);
+
+      cur = cur->next = n;
+    }
+
+    return head.next;
+  }
+
+  struct node *n = new_node(ND_EXPR_STMT, tk);
+  struct node *expr = init ? init->expr : new_node_num(0);
+  n->lhs = new_node_assign(lvar, expr);
+  n->lhs->str = "=";
+
+  return n;
+}
+
+struct node *lvar_initializer(struct token **ret,
+                              struct token *tk,
+                              struct var *var) {
+
+  struct init_data *init = initializer_new(ret, tk, var->type);
+
+  struct node *nvar = new_node_var(var);
+  struct node *node = create_lvar_init_node(init, var, nvar, var->type, tk);
+
+  // exit(0);
   return node;
 }
 void gvar_initilizer(struct token **ret,
@@ -1935,7 +2131,6 @@ void gvar_initilizer(struct token **ret,
 
         if (type->ptr_to->kind == INT) cur->val = n->val;
         if (type->ptr_to->kind == PTR) cur->label = n->str;
-        ;
       }
       var->val = head.next;
       if (var->type->array_size == 0) var->type->array_size = cnt;
