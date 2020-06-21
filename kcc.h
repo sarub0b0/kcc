@@ -64,7 +64,7 @@ enum node_kind {
   ND_DEREF,
   ND_EXPR_STMT,
   ND_STMT_EXPR,
-  ND_NULL_STMT,
+  ND_NULL_STMT, // using funcall, array and struct initializer
   ND_CAST,
   ND_COND,
   ND_LOGOR,

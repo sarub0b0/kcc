@@ -918,12 +918,10 @@ int main() {
 
   assert(5,
          ({
-           Struct a;
-           a.a = 3;
-           a.b = 2;
+           Struct a = {3, 2};
            a.b + a.a;
          }),
-         "({ Struct a; a.a=3; a.b=2; a.b; })");
+         "({ Struct a={3,2}; a.b+a.a; })");
 
   assert(3,
          ({
@@ -936,12 +934,11 @@ int main() {
 
   assert(10,
          ({
-           Struct a;
+           Struct a = {10};
            Struct *p = &a;
-           p->a = 10;
            p->a;
          }),
-         "({ Struct a; Struct *p=&a; p->a=10; p->a; })");
+         "({ Struct a={10}; Struct *p=&a; p->a; })");
 
   assert(10,
          ({
@@ -954,7 +951,7 @@ int main() {
 
   assert(3,
          ({
-           Struct a, *p;
+           Struct a = {1, 2, 3, 4}, *p;
            p = &a;
            p->e[0] = 1;
            p->e[1] = 2;

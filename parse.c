@@ -1803,7 +1803,89 @@ struct node *struct_initializer(struct token **ret,
                                 struct token *tk,
                                 struct var *var,
                                 struct type *type) {
-  return NULL;
+
+  struct node head = {};
+  struct node *cur = &head;
+
+  struct node *lnvar = new_node_var(var);
+
+  if (equal(tk, "{") && equal(tk->next, "}")) {
+    struct var *lvar = var;
+
+    for (struct member *m = lvar->type->members; m; m = m->next) {
+      struct node *lhs = new_node_unary(ND_MEMBER, lnvar, m->type->token);
+      lhs->member = get_member(lvar->type, m->type->token);
+
+      struct node *stmt = new_node(ND_EXPR_STMT, tk);
+      stmt->lhs = new_node_assign(lhs, new_node_num(0));
+      stmt->lhs->str = "=";
+
+      cur = cur->next = stmt;
+    }
+
+    tk = tk->next;
+  } else if (equal(tk, "{")) {
+    tk = tk->next;
+
+    struct var *lvar = var;
+    struct member *m = lvar->type->members;
+    while (!equal(tk, "}")) {
+      struct node *lhs = new_node_unary(ND_MEMBER, lnvar, m->type->token);
+      lhs->member = get_member(lvar->type, m->type->token);
+
+      struct node *stmt = new_node(ND_EXPR_STMT, tk);
+      stmt->lhs = new_node_assign(lhs, assign(&tk, tk));
+      stmt->lhs->str = "=";
+
+      cur = cur->next = stmt;
+      m = m->next;
+
+      consume(&tk, tk, ",");
+    }
+  } else {
+    struct var_scope *vs = find_var(tk);
+
+    if (!vs) {
+      error_at(tk->loc, "undeclared identifier");
+    }
+
+    struct var *lvar = var;
+    struct var *rvar = vs->var;
+
+    struct node *rnvar = new_node_var(vs->var);
+
+    add_type(lnvar);
+    add_type(rnvar);
+
+    int cnt = 0;
+    for (struct member *m = lvar->type->members; m; m = m->next) {
+      debug("mem(%d): (%s) %s", cnt, type_to_name(m->type->kind), m->name);
+      cnt++;
+    }
+    struct member *m0 = lvar->type->members;
+    struct member *m1 = rvar->type->members;
+    for (int i = 0; i < cnt; i++) {
+      struct node *lhs = new_node_unary(ND_MEMBER, lnvar, m0->type->token);
+      lhs->member = get_member(lvar->type, m0->type->token);
+
+      struct node *rhs = new_node_unary(ND_MEMBER, rnvar, m1->type->token);
+      rhs->member = get_member(rvar->type, m1->type->token);
+
+      struct node *stmt = new_node(ND_EXPR_STMT, tk);
+      stmt->lhs = new_node_assign(lhs, rhs);
+      stmt->lhs->str = "=";
+
+      cur = cur->next = stmt;
+      m0 = m0->next;
+      m1 = m1->next;
+    }
+
+    debug("lvar %s", lvar->name);
+    debug("rvar %s", rvar->name);
+  }
+
+  *ret = tk->next;
+  return head.next;
 }
 
 struct node *lvar_initializer(struct token **ret,
@@ -1861,6 +1943,9 @@ void gvar_initilizer(struct token **ret,
 
     *ret = tk->next;
     return;
+  }
+
+  if (type->kind == STRUCT) {
   }
 
   struct node *node = assign(&tk, tk);
