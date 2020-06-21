@@ -18,6 +18,7 @@ struct var_scope {
   struct var_scope *next;
   struct var *var;
   struct type *enum_ty;
+  struct type *type_def;
 
   int depth;
   char *name;
@@ -37,6 +38,7 @@ struct function *funcdef(struct token **, struct token *, struct type *);
 struct type *declarator(struct token **, struct token *, struct type *);
 struct type *struct_declarator(struct token **, struct token *);
 struct type *enum_declarator(struct token **, struct token *);
+struct type *typedef_declarator(struct token **, struct token *);
 struct type *funcdef_args(struct token **, struct token *, struct type *);
 struct type *type_suffix(struct token **, struct token *, struct type *);
 struct node *compound_stmt(struct token **, struct token *);
@@ -70,6 +72,10 @@ void gvar_initializer(struct token **,
                       struct type *);
 
 struct function *find_func(char *);
+
+struct tag_scope *find_tag(struct token *);
+struct var_scope *find_var(struct token *);
+struct type *find_typedef(struct token *);
 
 #define MAX_LEN (int) (256)
 
@@ -543,16 +549,32 @@ struct member *get_member(struct type *ty, struct token *tk) {
   return NULL;
 }
 
+struct type *find_typedef(struct token *tk) {
+
+  struct var_scope *vs = find_var(tk);
+  if (vs) {
+    return vs->type_def;
+  }
+  return NULL;
+}
+
 bool is_typename(struct token *tok) {
-  char *keyword[] = {
-      "int", "void", "char", "short", "long", "bool", "struct", "enum"};
+  char *keyword[] = {"int",
+                     "void",
+                     "char",
+                     "short",
+                     "long",
+                     "bool",
+                     "struct",
+                     "enum",
+                     "typedef"};
   for (int i = 0; i < sizeof(keyword) / sizeof(*keyword); i++) {
     if (equal(tok, keyword[i])) {
       return true;
     }
   }
 
-  return false;
+  return find_typedef(tok);
 }
 
 struct function *find_func(char *name) {
@@ -832,6 +854,16 @@ struct type *typespec(struct token **ret, struct token *tk) {
     ty = enum_declarator(&tk, tk);
   }
 
+  if (consume(&tk, tk, "typedef")) {
+    ty = typedef_declarator(&tk, tk);
+  }
+
+  struct type *ty2 = find_typedef(tk);
+  if (ty2) {
+    ty = copy_type(ty2);
+    tk = tk->next;
+  }
+
   *ret = tk;
   return ty;
 }
@@ -888,11 +920,12 @@ struct type *struct_declarator(struct token **ret, struct token *tk) {
 
   ty->kind = STRUCT;
   ty->members = struct_members(&tk, tk);
-  // if (tag) {
-  ty->name = tag->str;
-  // }
-
-  new_tagscope(ty);
+  if (tag) {
+    ty->name = tag->str;
+    new_tagscope(ty);
+  } else {
+    ty->name = "";
+  }
 
   // align and offset calculation
   // アライメント
@@ -940,9 +973,10 @@ struct type *enum_declarator(struct token **ret, struct token *tk) {
   }
 
   struct type *ty = copy_type(ty_enum);
-  ty->name = tag->str;
-
-  new_tagscope(ty);
+  if (tag) {
+    ty->name = tag->str;
+    new_tagscope(ty);
+  }
 
   skip(&tk, tk, "{");
 
@@ -970,6 +1004,21 @@ struct type *enum_declarator(struct token **ret, struct token *tk) {
     new_tagscope(ty);
   }
 
+  *ret = tk;
+  return ty;
+}
+
+struct type *typedef_declarator(struct token **ret, struct token *tk) {
+  struct type *src = typespec(&tk, tk);
+
+  struct type *ty = copy_type(src);
+
+  do {
+
+    struct var_scope *vs = new_varscope(tk->str);
+    vs->type_def = src;
+
+  } while (consume(&tk, tk->next, ","));
   *ret = tk;
   return ty;
 }
@@ -1839,12 +1888,15 @@ void gvar_initilizer(struct token **ret,
 }
 
 // program = ( funcdef | declaration ";" )*
-// typespec = "int" | "char" | struct-declarator | enum-declarator
+//
+// typespec = "int" | "char"
+//          | struct-declarator
+//          | enum-declarator
+//          | typedef-declarator
+//
 // typename = typespec pointers
 // pointers = ( "*" )*
-// funcdef = typespec declarator ( ";" | compound-stmt )
 //
-// declarator = pointers ident type-suffix
 //
 // struct-declarator = "struct" ident "{" sturct-member "}" ";"
 // struct-member = (typespec declarator ( "," declarator )* ";" )*
@@ -1853,10 +1905,16 @@ void gvar_initilizer(struct token **ret,
 //                       | ident ( "{" enum-list? "}" )?
 //                       )
 //
+// typedef-declarator = "typedef" typespec type-name
+//
 // enum-list = ident ( "=" num )? ( "," ident ( "=" num )? )* ","?
+//
+// funcdef = typespec declarator ( ";" | compound-stmt )
+// declarator = pointers ident type-suffix
 //
 // type-suffix = ( "[" num "]" )*
 //              | "(" funcdef-args? ")"
+//
 // funcdef-args = param ( "," param )*
 // param = typespec declarator
 // declaration = typespec declarator

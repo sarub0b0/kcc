@@ -6,13 +6,15 @@
  *
  */
 
-int number = 0;
-int success = 0;
-int failed = 0;
-int g0 = 1;
-int g1, g2;
-int g3 = 0, g4 = 0;
-int g5[5];
+typedef int Int32;
+
+Int32 number = 0;
+Int32 success = 0;
+Int32 failed = 0;
+Int32 g0 = 1;
+Int32 g1, g2;
+Int32 g3 = 0, g4 = 0;
+Int32 g5[5];
 
 char *g6 = "abc";
 char g7[] = "abc";
@@ -24,14 +26,14 @@ int g10[10] = {0, 1, 2, 3, 4, 5};
 char *g11[] = {"abc", "def", "ghi"};
 char *g12[5] = {"abc", "def", "ghi"};
 
-struct struct_a {
+typedef struct {
   short a;
   int b;
   long c;
   char d;
   int e[3];
   int *f;
-};
+} Struct;
 
 enum enum_a {
   A,
@@ -47,7 +49,7 @@ enum enum_b {
   D1,
 };
 
-struct struct_a g13;
+Struct g13;
 
 #define TRUE 1
 #define FALSE 0
@@ -906,59 +908,59 @@ int main() {
 
   assert(3,
          ({
-           struct struct_a a;
-           struct struct_a b;
+           Struct a;
+           Struct b;
            a.a = 3;
            a.b = 2;
            a.a;
          }),
-         "({ struct struct_a a; a.a=3; a.b=2; a.a; })");
+         "({ Struct a; a.a=3; a.b=2; a.a; })");
 
   assert(5,
          ({
-           struct struct_a a;
+           Struct a;
            a.a = 3;
            a.b = 2;
            a.b + a.a;
          }),
-         "({ struct struct_a a; a.a=3; a.b=2; a.b; })");
+         "({ Struct a; a.a=3; a.b=2; a.b; })");
 
   assert(3,
          ({
-           struct struct_a a;
+           Struct a;
            a.e[0] = 1;
            a.e[1] = 2;
            a.e[0] + a.e[1];
          }),
-         "({ struct struct_a a; a.e[0]=1; a.e[1]=2; a.e[0]+a.e[1]; })");
+         "({ Struct a; a.e[0]=1; a.e[1]=2; a.e[0]+a.e[1]; })");
 
   assert(10,
          ({
-           struct struct_a a;
-           struct struct_a *p = &a;
+           Struct a;
+           Struct *p = &a;
            p->a = 10;
            p->a;
          }),
-         "({ struct struct_a a; struct struct_a *p=&a; p->a=10; p->a; })");
+         "({ Struct a; Struct *p=&a; p->a=10; p->a; })");
 
   assert(10,
          ({
-           struct struct_a a;
-           struct struct_a *p = &a;
+           Struct a;
+           Struct *p = &a;
            p->b = 10;
            p->b;
          }),
-         "({ struct struct_a a; struct struct_a *p=&a; p->b=10; p->b; })");
+         "({ Struct a; Struct *p=&a; p->b=10; p->b; })");
 
   assert(3,
          ({
-           struct struct_a a, *p;
+           Struct a, *p;
            p = &a;
            p->e[0] = 1;
            p->e[1] = 2;
            p->e[0] + p->e[1];
          }),
-         "({ struct struct_a a,*p; p=&a; p->e[0]=1; p->e[1]=2; "
+         "({ Struct a,*p; p=&a; p->e[0]=1; p->e[1]=2; "
          "p->e[0]+p->e[1]; })");
 
   assert(5,
