@@ -236,7 +236,7 @@ void gen_func(struct node *node) {
   printf("  push r10\n");
   printf("  push r11\n");
   printf("  mov rax, 0\n");
-  printf("  call %s\n", node->str);
+  printf("  call %s\n", node->token->str);
 
   printf("  pop r11\n");
   printf("  pop r10\n");
@@ -392,6 +392,13 @@ int gen_expr(struct node *node) {
       label_seq++;
 
       return 0;
+    case ND_LIST_EXPR:
+      for (struct node *n = node->body; n; n = n->next) {
+        gen_expr(n);
+        inc--;
+      }
+      inc++;
+      return 0;
   }
 
   gen_expr(node->lhs);
@@ -458,7 +465,8 @@ int gen_expr(struct node *node) {
       printf("  and %s, %s\n", rd, rs);
       break;
     default:
-      error("Don't assembly");
+      error_at(
+          node->token->loc, "Don't assembly calculation (%d)", node->kind);
       break;
   }
 
@@ -486,6 +494,9 @@ void gen_stmt(struct node *node) {
     case ND_EXPR_STMT:
       gen_expr(node->lhs);
       inc--;
+      return;
+    default:
+      error_at(node->token->loc, "Don't assembly statement (%d)", node->kind);
       return;
   }
 }

@@ -64,7 +64,7 @@ enum node_kind {
   ND_DEREF,
   ND_EXPR_STMT,
   ND_STMT_EXPR,
-  // ND_NULL_STMT, // using funcall, array and struct initializer
+  ND_LIST_EXPR,
   ND_CAST,
   ND_COND,
   ND_LOGOR,
@@ -127,7 +127,7 @@ struct var {
   struct var *next;
   char *name;
   struct type *type;
-  struct token *token;
+  // struct token *token;
 
   // local
   int offset;
@@ -149,7 +149,7 @@ struct member {
 
 struct node {
   enum node_kind kind;
-  char *str;
+  struct token *token;
   struct type *type;
 
   struct node *lhs;
