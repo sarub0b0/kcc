@@ -34,6 +34,10 @@ struct token {
   char *file;
   char *input;
 
+  // string-literal
+  int str_len;
+  char *str_literal;
+
   // line info
   bool at_bol;
   bool has_space;

@@ -1244,10 +1244,6 @@ struct type *type_suffix(struct token **ret,
     type = type_suffix(&tk, tk, type);
     type = array_to(type, size);
     type->is_incomplete = is_incomplete;
-    if (is_incomplete)
-      debug("incompleted");
-    else
-      debug("completed");
   }
 
   *ret = tk;
@@ -1778,19 +1774,23 @@ struct node *primary(struct token **ret, struct token *tk) {
   }
 
   if (tk->kind == TK_STR) {
-    struct var *v = new_string_literal(tk->str, tk->len);
+    struct var *v = new_string_literal(tk->str_literal, tk->str_len);
     tk = tk->next;
+
     while (tk->kind == TK_STR) {
       struct type *ty = v->type;
-      int old_size = ty->size;
-      ty->size += tk->len;
-      ty->array_size += tk->len;
+      int old_size = ty->size - 1;
+      int str_len = strlen(tk->str_literal);
+      ty->size += str_len;
+      ty->array_size += str_len;
+
       char *data = malloc(ty->size * sizeof(char));
       strncpy(data, v->data, old_size);
-      strncpy(&data[old_size], tk->str, tk->len);
+      strncpy(&data[old_size], tk->str_literal, tk->str_len - 1);
       v->data = data;
       tk = tk->next;
     }
+
     *ret = tk;
     return new_node_var(v, tk);
   }
@@ -1867,85 +1867,6 @@ struct node *funcall(struct token **ret,
   *ret = tk;
   return funcall;
 }
-
-// struct node *string_initializer(struct token **ret,
-//                                 struct token *tk,
-//                                 struct var *var,
-//                                 struct type *type) {
-
-//   struct node head = {};
-//   struct node *cur = &head;
-
-//   struct node *lvar = new_node_var(var, tk);
-//   int array_size = 0;
-//   struct token *start = tk;
-
-//   for (int i = 0; i < tk->len; i++) {
-//     struct node *deref =
-//         new_node_unary(ND_DEREF, new_add(lvar, new_node_num(i)), start);
-//     struct node *node = new_node(ND_EXPR_STMT, start);
-//     node->lhs = new_node_assign(deref, new_node_num(tk->str[i]));
-//     node->lhs->str = "=";
-//     cur = cur->next = node;
-//   }
-//   array_size = start->len;
-
-//   if (type->array_size == 0) {
-//     type->array_size = array_size;
-//   }
-
-//   if (type->array_size < array_size) {
-//     error_at(start->loc, "Initializer-string for char array is too
-//     long\n");
-//   }
-
-//   *ret = tk->next;
-//   return head.next;
-// }
-
-// struct node *array_initializer(struct token **ret,
-//                                struct token *tk,
-//                                struct var *var,
-//                                struct type *type) {
-//   struct node *node;
-//   struct token *start;
-
-//   struct node head = {};
-//   struct node *cur = &head;
-
-//   struct node *lvar = new_node_var(var);
-//   int array_size = 0;
-
-//   if (equal(tk, "{")) {
-//     tk = tk->next;
-
-//     int cnt = 0;
-//     while (!equal(tk, "}")) {
-//       if (cnt) skip(&tk, tk, ",");
-//       start = tk;
-//       struct node *deref =
-//           new_node_unary(ND_DEREF, new_add(lvar, new_node_num(cnt)),
-//           start);
-//       node = new_node(ND_EXPR_STMT, start);
-//       node->lhs = new_node_assign(deref, unary(&tk, tk));
-//       node->lhs->str = "=";
-
-//       cur = cur->next = node;
-//       cnt++;
-//     }
-//   }
-//   if (type->array_size == 0) {
-//     type->array_size = array_size;
-//   }
-
-//   if (type->array_size < array_size) {
-//     error_at(start->loc, "Initializer-string for char array is too
-//     long\n");
-//   }
-
-//   *ret = tk->next;
-//   return head.next;
-// }
 
 // struct node *struct_initializer(struct token **ret,
 //                                 struct token *tk,
@@ -2055,10 +1976,37 @@ struct node *funcall(struct token **ret,
 //   *ret = tk;
 //   return node;
 // }
+
 struct init_data *string_initializer_new(struct token **ret,
                                          struct token *tk,
                                          struct type *type) {
   debug("string-init: %s", type_to_name(type->kind));
+
+  if (type->is_incomplete) {
+    type->size = tk->str_len;
+    type->array_size = tk->str_len;
+    type->is_incomplete = false;
+  }
+
+  struct init_data *init = calloc(1, sizeof(struct init_data));
+  init->len = type->array_size;
+  init->type = type;
+  init->token = tk;
+  init->child = calloc(init->len, sizeof(struct init_data *));
+
+  for (int i = 0; i < tk->str_len; i++) {
+    init->child[i] = calloc(1, sizeof(struct init_data));
+
+    struct init_data *child = init->child[i];
+    child->len = 0;
+    child->type = type->ptr_to;
+    child->token = tk;
+
+    child->expr = new_node_num(tk->str_literal[i], tk);
+  }
+
+  *ret = tk->next;
+  return init;
 }
 
 bool is_end(struct token *tk) {
@@ -2068,9 +2016,8 @@ struct init_data *array_initializer_new(struct token **ret,
                                         struct token *tk,
                                         struct type *type) {
 
-  debug("array-init: %s", type_to_name(type->kind));
   consume(&tk, tk, "{");
-  debug("%s", type_to_name(type->kind));
+
   if (type->is_incomplete) {
     int array_size = 0;
     for (struct token *tk1 = tk; !is_end(tk1); array_size++) {
@@ -2083,7 +2030,6 @@ struct init_data *array_initializer_new(struct token **ret,
     type->is_incomplete = false;
   }
 
-  print_type(type);
   struct init_data *init = calloc(1, sizeof(struct init_data));
 
   init->len = type->array_size;
@@ -2094,7 +2040,6 @@ struct init_data *array_initializer_new(struct token **ret,
 
   for (int i = 0; i < init->len && !is_end(tk); i++) {
     if (0 < i) skip(&tk, tk, ",");
-    debug("%s", tk->str);
     init->child[i] = initializer_new(&tk, tk, type->ptr_to);
   }
 
@@ -2108,6 +2053,8 @@ struct init_data *struct_initializer_new(struct token **ret,
                                          struct token *tk,
                                          struct type *type) {
   debug("struct-init: %s", type_to_name(type->kind));
+
+  struct init_data *init = calloc(1, sizeof(struct init_data));
 }
 
 struct init_data *initializer_new(struct token **ret,
@@ -2201,7 +2148,7 @@ void gvar_initilizer(struct token **ret,
                      struct type *type) {
 
   if (type->kind == ARRAY && type->ptr_to->kind == CHAR) {
-    var->data = tk->str;
+    var->data = tk->str_literal;
     *ret = tk->next;
     return;
   }
@@ -2219,7 +2166,7 @@ void gvar_initilizer(struct token **ret,
         cur = cur->next = calloc(1, sizeof(struct value));
 
         if (type->ptr_to->kind == INT) cur->val = n->val;
-        if (type->ptr_to->kind == PTR) cur->label = n->token->str;
+        if (type->ptr_to->kind == PTR) cur->label = n->var->name;
       }
       var->val = head.next;
       if (var->type->array_size == 0) var->type->array_size = cnt;
