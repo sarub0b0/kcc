@@ -33,6 +33,11 @@ typedef struct {
   char d;
   int e[3];
   int *f;
+  struct {
+    int a;
+    long b;
+    short c;
+  } g;
 } Struct;
 
 enum enum_a {
@@ -1081,6 +1086,28 @@ int main() {
          }),
          "({ int d[][2]={{1,2},{3,4},{5,6}}; d[0][0]+d[1][0]+d[2][0]; })");
 
+  assert(7,
+         ({
+           Struct a = {1, 2, 3, 4, {5, 6, 7}, 0, {9, 10, 11}};
+           a.e[2];
+         }),
+         "({ Struct a={1,2,3,4,{5,6,7},0,{9,10,11}}; a.e[2];})");
+
+  assert(11,
+         ({
+           Struct a = {1, 2, 3, 4, {5, 6, 7}, 0, {9, 10, 11}};
+           a.g.c;
+         }),
+         "({ Struct a={1,2,3,4,{5,6,7},0,{9,10,11}}; a.g.c;})");
+
+  assert(4,
+         ({
+           Struct a;
+           Struct b = {1, 2, 3, 4};
+           a = b;
+           a.d;
+         }),
+         "({ Struct a; Struct b={1,2,3,4}; a=b; a.d; })");
   if (success == number)
     printf("result: \x1b[32mOK\x1b[0m, ");
   else

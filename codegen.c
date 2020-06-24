@@ -250,7 +250,7 @@ void gen_func(struct node *node) {
 }
 
 void load(struct type *type) {
-  if (type->kind == ARRAY) {
+  if (type->kind == ARRAY || type->kind == STRUCT) {
     return;
   }
   const char *r = reg(type, inc - 1);
@@ -266,7 +266,15 @@ void load(struct type *type) {
 }
 
 void store(struct type *type) {
-  printf("  mov [%s], %s\n", reg64[inc - 1], reg(type, inc - 2));
+  if (type->kind == STRUCT) {
+
+    for (int i = 0; i < type->size; i++) {
+      printf("  mov al, [%s+%d]\n", reg64[inc - 2], i);
+      printf("  mov [%s+%d], al\n", reg64[inc - 1], i);
+    }
+  } else {
+    printf("  mov [%s], %s\n", reg64[inc - 1], reg(type, inc - 2));
+  }
   inc--;
 }
 

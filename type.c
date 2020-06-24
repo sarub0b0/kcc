@@ -43,6 +43,8 @@ char *type_to_name(enum type_kind kind) {
     case STRUCT:
       return "struct";
   }
+
+  debug("None(%d)", kind);
   return "None";
 }
 bool is_integer(struct type *type) {

@@ -78,9 +78,7 @@ void gvar_initializer(struct token **,
                       struct var *,
                       struct type *);
 
-struct init_data *initializer_new(struct token **,
-                                  struct token *,
-                                  struct type *);
+struct init_data *initializer(struct token **, struct token *, struct type *);
 
 struct function *find_func(char *);
 
@@ -651,6 +649,10 @@ char *get_ident(struct token *tok) {
 }
 
 struct member *get_member(struct type *ty, struct token *tk) {
+  // debug("(%s)'s members: ", ty->name);
+  // for (struct member *m = ty->members; m; m = m->next) {
+  //   debug("  %s", m->name);
+  // }
   for (struct member *m = ty->members; m; m = m->next) {
     if (find_cond(m->name, tk)) return m;
   }
@@ -800,9 +802,21 @@ struct node *new_node_cast(struct node *expr, struct type *ty) {
   return n;
 }
 
-// struct node *new_comma_node(struct node *lhs, struct node *rhs) {
-//   return new_node_binary(ND_COMMA, lhs, rhs);
-// }
+struct init_data *new_init(struct type *type,
+                           int len,
+                           struct node *expr,
+                           struct token *tk) {
+  struct init_data *init = calloc(1, sizeof(struct init_data));
+  init->type = type;
+  init->len = len;
+  init->expr = expr;
+  init->token = tk;
+
+  if (len) {
+    init->child = calloc(len, sizeof(struct init_data *));
+  }
+  return init;
+}
 
 int eval(struct node *node, struct var **var) {
   switch (node->kind) {
@@ -1868,141 +1882,20 @@ struct node *funcall(struct token **ret,
   return funcall;
 }
 
-// struct node *struct_initializer(struct token **ret,
-//                                 struct token *tk,
-//                                 struct var *var,
-//                                 struct type *type) {
-
-//   struct node head = {};
-//   struct node *cur = &head;
-
-//   struct node *lnvar = new_node_var(var);
-
-//   if (equal(tk, "{") && equal(tk->next, "}")) {
-//     struct var *lvar = var;
-
-//     for (struct member *m = lvar->type->members; m; m = m->next) {
-//       struct node *lhs = new_node_unary(ND_MEMBER, lnvar, m->type->token);
-//       lhs->member = get_member(lvar->type, m->type->token);
-
-//       struct node *stmt = new_node(ND_EXPR_STMT, tk);
-//       stmt->lhs = new_node_assign(lhs, new_node_num(0));
-//       stmt->lhs->str = "=";
-
-//       cur = cur->next = stmt;
-//     }
-
-//     tk = tk->next;
-//   } else if (equal(tk, "{")) {
-//     tk = tk->next;
-
-//     struct var *lvar = var;
-//     struct member *m = lvar->type->members;
-//     while (!equal(tk, "}")) {
-//       struct node *lhs = new_node_unary(ND_MEMBER, lnvar, m->type->token);
-//       lhs->member = get_member(lvar->type, m->type->token);
-
-//       struct node *stmt = new_node(ND_EXPR_STMT, tk);
-//       stmt->lhs = new_node_assign(lhs, assign(&tk, tk));
-//       stmt->lhs->str = "=";
-
-//       cur = cur->next = stmt;
-//       m = m->next;
-
-//       consume(&tk, tk, ",");
-//     }
-//   } else {
-//     struct var_scope *vs = find_var(tk);
-
-//     if (!vs) {
-//       error_at(tk->loc, "undeclared identifier");
-//     }
-
-//     struct var *lvar = var;
-//     struct var *rvar = vs->var;
-
-//     struct node *rnvar = new_node_var(vs->var);
-
-//     add_type(lnvar);
-//     add_type(rnvar);
-
-//     int cnt = 0;
-//     for (struct member *m = lvar->type->members; m; m = m->next) {
-//       cnt++;
-//     }
-//     struct member *m0 = lvar->type->members;
-//     struct member *m1 = rvar->type->members;
-//     for (int i = 0; i < cnt; i++) {
-//       struct node *lhs = new_node_unary(ND_MEMBER, lnvar, m0->type->token);
-//       lhs->member = get_member(lvar->type, m0->type->token);
-
-//       struct node *rhs = new_node_unary(ND_MEMBER, rnvar, m1->type->token);
-//       rhs->member = get_member(rvar->type, m1->type->token);
-
-//       struct node *stmt = new_node(ND_EXPR_STMT, tk);
-//       stmt->lhs = new_node_assign(lhs, rhs);
-//       stmt->lhs->str = "=";
-
-//       cur = cur->next = stmt;
-//       m0 = m0->next;
-//       m1 = m1->next;
-//     }
-//   }
-
-//   *ret = tk->next;
-//   return head.next;
-// }
-
-// struct node *initializer(struct token **ret,
-//                          struct token *tk,
-//                          struct var *var,
-//                          struct type *type) {
-
-//   if (type->kind == ARRAY && type->ptr_to->kind == CHAR) {
-//     return string_initializer(ret, tk, var, type);
-//   }
-//   if (type->kind == ARRAY) {
-//     return array_initializer(ret, tk, var, type);
-//   }
-
-//   if (type->kind == STRUCT) {
-//     return struct_initializer(ret, tk, var, type);
-//   }
-
-//   struct node *lvar = new_node_var(var);
-//   struct node *node = new_node(ND_EXPR_STMT, tk);
-//   node->lhs = new_node_assign(lvar, assign(&tk, tk));
-//   node->lhs->str = "=";
-//   *ret = tk;
-//   return node;
-// }
-
-struct init_data *string_initializer_new(struct token **ret,
-                                         struct token *tk,
-                                         struct type *type) {
-  debug("string-init: %s", type_to_name(type->kind));
-
+struct init_data *string_initializer(struct token **ret,
+                                     struct token *tk,
+                                     struct type *type) {
   if (type->is_incomplete) {
     type->size = tk->str_len;
     type->array_size = tk->str_len;
     type->is_incomplete = false;
   }
 
-  struct init_data *init = calloc(1, sizeof(struct init_data));
-  init->len = type->array_size;
-  init->type = type;
-  init->token = tk;
-  init->child = calloc(init->len, sizeof(struct init_data *));
+  struct init_data *init = new_init(type, type->array_size, NULL, tk);
 
   for (int i = 0; i < tk->str_len; i++) {
-    init->child[i] = calloc(1, sizeof(struct init_data));
-
-    struct init_data *child = init->child[i];
-    child->len = 0;
-    child->type = type->ptr_to;
-    child->token = tk;
-
-    child->expr = new_node_num(tk->str_literal[i], tk);
+    init->child[i] =
+        new_init(type->ptr_to, 0, new_node_num(tk->str_literal[i], tk), tk);
   }
 
   *ret = tk->next;
@@ -2012,9 +1905,9 @@ struct init_data *string_initializer_new(struct token **ret,
 bool is_end(struct token *tk) {
   return equal(tk, "}") || (equal(tk, ",") && equal(tk->next, "}"));
 }
-struct init_data *array_initializer_new(struct token **ret,
-                                        struct token *tk,
-                                        struct type *type) {
+struct init_data *array_initializer(struct token **ret,
+                                    struct token *tk,
+                                    struct type *type) {
 
   consume(&tk, tk, "{");
 
@@ -2022,7 +1915,7 @@ struct init_data *array_initializer_new(struct token **ret,
     int array_size = 0;
     for (struct token *tk1 = tk; !is_end(tk1); array_size++) {
       if (array_size > 0) skip(&tk1, tk1, ",");
-      initializer_new(&tk1, tk1, type->ptr_to);
+      initializer(&tk1, tk1, type->ptr_to);
     }
     type->size = type->ptr_to->size * array_size;
     type->array_size = array_size;
@@ -2030,17 +1923,11 @@ struct init_data *array_initializer_new(struct token **ret,
     type->is_incomplete = false;
   }
 
-  struct init_data *init = calloc(1, sizeof(struct init_data));
-
-  init->len = type->array_size;
-  init->type = type;
-  init->token = tk;
-
-  init->child = calloc(init->len, sizeof(struct init_data *));
+  struct init_data *init = new_init(type, type->array_size, NULL, tk);
 
   for (int i = 0; i < init->len && !is_end(tk); i++) {
     if (0 < i) skip(&tk, tk, ",");
-    init->child[i] = initializer_new(&tk, tk, type->ptr_to);
+    init->child[i] = initializer(&tk, tk, type->ptr_to);
   }
 
   consume_end(&tk, tk);
@@ -2049,36 +1936,59 @@ struct init_data *array_initializer_new(struct token **ret,
 
   return init;
 }
-struct init_data *struct_initializer_new(struct token **ret,
-                                         struct token *tk,
-                                         struct type *type) {
-  debug("struct-init: %s", type_to_name(type->kind));
+struct init_data *struct_initializer(struct token **ret,
+                                     struct token *tk,
+                                     struct type *type) {
 
-  struct init_data *init = calloc(1, sizeof(struct init_data));
+  if (!equal(tk, "{")) {
+    struct token *tk0 = tk;
+    struct node *n = assign(&tk0, tk0);
+
+    if (n->type->kind == STRUCT) {
+      struct init_data *init = new_init(type, 0, n, tk);
+      *ret = tk0;
+      return init;
+    }
+  }
+
+  int member_num = 0;
+
+  for (struct member *m = type->members; m; m = m->next) member_num++;
+
+  struct init_data *init = new_init(type, member_num, NULL, tk);
+
+  consume(&tk, tk, "{");
+  int i = 0;
+  for (struct member *m = type->members; m && !is_end(tk); m = m->next, i++) {
+    if (0 < i) skip(&tk, tk, ",");
+
+    init->child[i] = initializer(&tk, tk, m->type);
+  }
+
+  consume_end(&tk, tk);
+  *ret = tk;
+  return init;
 }
 
-struct init_data *initializer_new(struct token **ret,
-                                  struct token *tk,
-                                  struct type *type) {
+struct init_data *initializer(struct token **ret,
+                              struct token *tk,
+                              struct type *type) {
 
   if (type->kind == ARRAY && type->ptr_to->kind == CHAR &&
       tk->kind == TK_STR) {
-    return string_initializer_new(ret, tk, type);
+    return string_initializer(ret, tk, type);
   }
   if (type->kind == ARRAY) {
-    return array_initializer_new(ret, tk, type);
+    return array_initializer(ret, tk, type);
   }
 
   if (type->kind == STRUCT) {
-    return struct_initializer_new(ret, tk, type);
+    return struct_initializer(ret, tk, type);
   }
 
   struct token *start = tk;
   bool has_parent = consume(&tk, tk, "{");
-  struct init_data *init = calloc(1, sizeof(struct init_data));
-  init->expr = assign(&tk, tk);
-  init->type = type;
-  init->token = start;
+  struct init_data *init = new_init(type, 0, assign(&tk, tk), start);
 
   if (has_parent) {
     consume_end(&tk, tk);
@@ -2088,11 +1998,11 @@ struct init_data *initializer_new(struct token **ret,
   return init;
 }
 
-struct node *create_lvar_init_node(struct init_data *init,
-                                   struct var *var,
-                                   struct node *lvar,
-                                   struct type *type,
-                                   struct token *tk) {
+struct node *create_lvar_init(struct init_data *init,
+                              struct var *var,
+                              struct node *lvar,
+                              struct type *type,
+                              struct token *tk) {
 
   if (type->kind == ARRAY) {
 
@@ -2106,23 +2016,34 @@ struct node *create_lvar_init_node(struct init_data *init,
       struct node *deref = new_node_unary(
           ND_DEREF, new_add(lvar, new_node_num(i, tk), tk), tk);
 
-      // deref->str = var->name;
-
-      // n = new_node(ND_EXPR_STMT, tk);
-      // n->lhs = create_lvar_init_node(child, var, deref, type->ptr_to, tk);
-      // n = new_comma_node(n, rhs);
-
-      cur = cur->next =
-          create_lvar_init_node(child, var, deref, type->ptr_to, tk);
+      cur = cur->next = create_lvar_init(child, var, deref, type->ptr_to, tk);
     }
 
     n->body = head.next;
     return n;
   }
 
-  // struct node *n = new_node(ND_COMMA, tk);
+  if (type->kind == STRUCT && (!init || init->len)) {
+
+    struct node head = {};
+    struct node *cur = &head;
+    struct node *n = new_node(ND_LIST_EXPR, tk);
+
+    int i = 0;
+    for (struct member *m = type->members; m; m = m->next, i++) {
+      struct init_data *child = init ? init->child[i] : NULL;
+
+      struct node *mem = new_node_unary(ND_MEMBER, lvar, tk);
+      mem->member = m;
+
+      cur = cur->next = create_lvar_init(child, var, mem, m->type, tk);
+    }
+
+    n->body = head.next;
+    return n;
+  }
+
   struct node *expr = init ? init->expr : new_node_num(0, tk);
-  // n->lhs = new_node_assign(lvar, expr);
   struct node *node = new_node_assign(lvar, expr, tk);
 
   return node;
@@ -2132,11 +2053,11 @@ struct node *lvar_initializer(struct token **ret,
                               struct token *tk,
                               struct var *var) {
 
-  struct init_data *init = initializer_new(ret, tk, var->type);
+  struct init_data *init = initializer(ret, tk, var->type);
 
   struct node *nvar = new_node_var(var, var->type->token);
   struct node *node =
-      create_lvar_init_node(init, var, nvar, var->type, nvar->token);
+      create_lvar_init(init, var, nvar, var->type, nvar->token);
 
   node = new_node_unary(ND_EXPR_STMT, node, tk);
 
