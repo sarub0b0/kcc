@@ -34,6 +34,10 @@ struct token {
   char *file;
   char *input;
 
+  // string-literal
+  int str_len;
+  char *str_literal;
+
   // line info
   bool at_bol;
   bool has_space;
@@ -64,7 +68,7 @@ enum node_kind {
   ND_DEREF,
   ND_EXPR_STMT,
   ND_STMT_EXPR,
-  ND_NULL_STMT,
+  ND_LIST_EXPR,
   ND_CAST,
   ND_COND,
   ND_LOGOR,
@@ -110,6 +114,7 @@ struct type {
 
   // struct member
   struct member *members;
+  char *tag;
 
   //
   bool is_incomplete;
@@ -126,7 +131,7 @@ struct var {
   struct var *next;
   char *name;
   struct type *type;
-  // struct type *type_def;
+  // struct token *token;
 
   // local
   int offset;
@@ -148,7 +153,7 @@ struct member {
 
 struct node {
   enum node_kind kind;
-  char *str;
+  struct token *token;
   struct type *type;
 
   struct node *lhs;
@@ -222,6 +227,7 @@ void print_tokens(struct token *);
 void print_ast(struct program *, char *);
 void print_function(struct program *);
 void print_tok_pos(struct token *);
+void print_type(struct type *);
 
 bool is_integer(struct type *);
 void add_type(struct node *);

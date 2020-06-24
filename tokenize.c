@@ -83,6 +83,38 @@ struct token *new_token(enum token_kind kind,
   return t;
 }
 
+char escaped_char(char **new_pos, char *c) {
+}
+
+struct token *string_literal_token(struct token *cur, char *start) {
+  char *p = start + 1;
+
+  char *end = p;
+
+  while (*end != '"') {
+    if (*end == '\\') {
+      end++;
+    }
+    end++;
+  }
+
+  char *buf = malloc(end - p + 1);
+  int len = 0;
+
+  while (*p != '"') {
+    if (*p == '\\') buf[len++] = *p++;
+    buf[len++] = *p++;
+  }
+
+  buf[len++] = '\0';
+
+  struct token *ret = new_token(TK_STR, cur, start, p - start + 1);
+  ret->str_len = len;
+  ret->str_literal = buf;
+
+  return ret;
+}
+
 int is_alpha(char c) {
   return ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z') || (c == '_');
 }
@@ -208,23 +240,9 @@ struct token *tokenize(char *filename, char *p) {
       continue;
     }
 
-    // if (*p == '+' || *p == '-' || *p == '*' || *p == '/') {
-    //   cur = new_token(TK_RESERVED, cur, p++, 1);
-    //   continue;
-    // }
-
     if (*p == '"') {
-      p++;
-      char *q = p;
-      while (*p != '"') {
-        if (*p == '\\' && *(p + 1) == 0x22) {
-          p++;
-        }
-        p++;
-      }
-      cur = new_token(TK_STR, cur, q, p - q);
-
-      p++;
+      cur = string_literal_token(cur, p);
+      p += cur->len;
       continue;
     }
 

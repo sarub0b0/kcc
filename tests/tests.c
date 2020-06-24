@@ -33,6 +33,11 @@ typedef struct {
   char d;
   int e[3];
   int *f;
+  struct {
+    int a;
+    long b;
+    short c;
+  } g;
 } Struct;
 
 enum enum_a {
@@ -69,8 +74,6 @@ Struct g13;
 #define addadd(x, y) (one(x) + one(y))
 
 #define p(...) printf(__VA_ARGS__)
-
-// typedef int Int;
 
 int assert(int expected, int actual, char *code) {
   p("% 4d: ", number++);
@@ -918,12 +921,10 @@ int main() {
 
   assert(5,
          ({
-           Struct a;
-           a.a = 3;
-           a.b = 2;
+           Struct a = {3, 2};
            a.b + a.a;
          }),
-         "({ Struct a; a.a=3; a.b=2; a.b; })");
+         "({ Struct a={3,2}; a.b+a.a; })");
 
   assert(3,
          ({
@@ -936,12 +937,11 @@ int main() {
 
   assert(10,
          ({
-           Struct a;
+           Struct a = {10};
            Struct *p = &a;
-           p->a = 10;
            p->a;
          }),
-         "({ Struct a; Struct *p=&a; p->a=10; p->a; })");
+         "({ Struct a={10}; Struct *p=&a; p->a; })");
 
   assert(10,
          ({
@@ -954,7 +954,7 @@ int main() {
 
   assert(3,
          ({
-           Struct a, *p;
+           Struct a = {1, 2, 3, 4}, *p;
            p = &a;
            p->e[0] = 1;
            p->e[1] = 2;
@@ -1059,6 +1059,55 @@ int main() {
          }),
          "({ int x=5; int y=10; padd(&x, &y); })");
 
+  assert(97,
+         ({
+           char *c = "abc\n";
+           c[0];
+         }),
+         "({ char *c=\"abc\\n\"; c[0]; })");
+
+  assert(48 + 50 + 52,
+         ({
+           char *c[] = {"01", "23", "45"};
+           c[0][0] + c[1][0] + c[2][0];
+         }),
+         "({ char *c[]={\"01\",\"23\",\"45\"}; c[0][0]+c[1][0]+c[2][0]; })");
+
+  assert(3,
+         ({
+           int a[] = {0, 1, 2};
+           a[0] + a[1] + a[2];
+         }),
+         "({ int a[]={0,1,2}; a[0]+a[1]+a[2]; })");
+  assert(9,
+         ({
+           int d[][2] = {{1, 2}, {3, 4}, {5, 6}};
+           d[0][0] + d[1][0] + d[2][0];
+         }),
+         "({ int d[][2]={{1,2},{3,4},{5,6}}; d[0][0]+d[1][0]+d[2][0]; })");
+
+  assert(7,
+         ({
+           Struct a = {1, 2, 3, 4, {5, 6, 7}, 0, {9, 10, 11}};
+           a.e[2];
+         }),
+         "({ Struct a={1,2,3,4,{5,6,7},0,{9,10,11}}; a.e[2];})");
+
+  assert(11,
+         ({
+           Struct a = {1, 2, 3, 4, {5, 6, 7}, 0, {9, 10, 11}};
+           a.g.c;
+         }),
+         "({ Struct a={1,2,3,4,{5,6,7},0,{9,10,11}}; a.g.c;})");
+
+  assert(4,
+         ({
+           Struct a;
+           Struct b = {1, 2, 3, 4};
+           a = b;
+           a.d;
+         }),
+         "({ Struct a; Struct b={1,2,3,4}; a=b; a.d; })");
   if (success == number)
     printf("result: \x1b[32mOK\x1b[0m, ");
   else
