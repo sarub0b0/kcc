@@ -12,6 +12,7 @@ struct type *ty_bool = &(struct type){BOOL, 1, 1, ""};
 struct type *ty_char = &(struct type){CHAR, 1, 1, ""};
 struct type *ty_void = &(struct type){VOID, 1, 1, ""};
 struct type *ty_enum = &(struct type){ENUM, 4, 4, ""};
+struct type *ty_struct = &(struct type){STRUCT, 0, 1, ""};
 
 void print_type(struct type *ty) {
   if (!ty) return;
@@ -53,6 +54,17 @@ bool is_integer(struct type *type) {
     return true;
   }
   return false;
+}
+
+int size_of(struct type *ty) {
+  if (ty->kind == VOID) {
+    error_at(ty->token->loc, "void type");
+  }
+  if (ty->is_incomplete) {
+    error_at(ty->token->loc, "incomplete type");
+  }
+
+  return ty->size;
 }
 
 struct type *copy_type(struct type *ty) {

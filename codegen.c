@@ -32,7 +32,7 @@ const char *areg(struct type *ty) {
 
   if (ty->kind == ARRAY) return areg(ty->ptr_to);
 
-  switch (ty->size) {
+  switch (size_of(ty)) {
     case 1:
       return r[0];
     case 2:
@@ -47,7 +47,7 @@ const char *areg(struct type *ty) {
 const char *argreg(struct type *ty, int i) {
   if (ty->kind == ARRAY) return argreg(ty->ptr_to, i);
 
-  switch (ty->size) {
+  switch (size_of(ty)) {
     case 1:
       return argreg8[i];
     case 2:
@@ -62,7 +62,7 @@ const char *argreg(struct type *ty, int i) {
 const char *reg(struct type *ty, int i) {
   if (ty->kind == ARRAY) return reg(ty->ptr_to, i);
 
-  switch (ty->size) {
+  switch (size_of(ty)) {
     case 1:
       return reg8[i];
     case 2:
@@ -75,7 +75,7 @@ const char *reg(struct type *ty, int i) {
 }
 
 const char *size_name(struct type *ty) {
-  switch (ty->size) {
+  switch (size_of(ty)) {
     case 1:
       return "BYTE";
     case 2:
@@ -212,7 +212,7 @@ void gen_func(struct node *node) {
   for (int i = node->nargs - 1; 0 <= i; i--) {
     struct var *arg = node->args[i];
 
-    int size = type_size(arg->type);
+    int size = size_of(arg->type);
     struct type *arg_ty = arg->type;
 
     if (arg_ty->kind == ARRAY) size = 8;
@@ -257,7 +257,7 @@ void load(struct type *type) {
   const char *s = size_name(type);
 
   printf("  mov %s, %s PTR [%s]\n", r, s, reg64[inc - 1]);
-  switch (type->size) {
+  switch (size_of(type)) {
     case 1:
     case 2:
       printf("  movsx %s, %s\n", reg32[inc - 1], r);
@@ -268,7 +268,7 @@ void load(struct type *type) {
 void store(struct type *type) {
   if (type->kind == STRUCT) {
 
-    for (int i = 0; i < type->size; i++) {
+    for (int i = 0; i < size_of(type); i++) {
       printf("  mov al, [%s+%d]\n", reg64[inc - 2], i);
       printf("  mov [%s+%d], al\n", reg64[inc - 1], i);
     }
@@ -369,13 +369,14 @@ int gen_expr(struct node *node) {
       struct type *from = node->lhs->type;
       struct type *to = node->type;
 
-      if (to->size == 1) {
+      int to_size = size_of(to);
+      if (to_size == 1) {
         printf("  movsx %s, %s\n", reg32[inc - 1], reg8[inc - 1]);
-      } else if (to->size == 2) {
+      } else if (to_size == 2) {
         printf("  movsx %s, %s\n", reg32[inc - 1], reg16[inc - 1]);
-      } else if (to->size == 4) {
+      } else if (to_size == 4) {
         printf("  mov %s, %s\n", reg32[inc - 1], reg32[inc - 1]);
-      } else if (is_integer(from) && from->size < 8) {
+      } else if (is_integer(from) && size_of(from) < 8) {
         printf("  movsx %s, %s\n", reg64[inc - 1], reg(from, inc - 1));
       }
 
@@ -513,40 +514,6 @@ void header() {
   printf(".intel_syntax noprefix\n");
 }
 
-void prologue(int stack_size) {
-  printf("  push rbp\n");
-  printf("  mov rbp, rsp\n");
-  printf("  sub rsp, %d\n", stack_size);
-}
-
-void epilogue() {
-  printf("  mov rsp, rbp\n");
-  printf("  pop rbp\n");
-  printf("  ret\n");
-}
-
-int stack_size(int offset) {
-  return (offset + 15) & ~15;
-}
-
-void set_offset_and_stack_size(struct function *fn) {
-  int offset = 32;
-  for (struct var *v = fn->locals; v; v = v->next) {
-    offset += v->type->size;
-    v->offset = offset;
-  }
-
-  fn->stack_size = stack_size(offset);
-}
-
-int nargs(struct var *v) {
-  int n = 0;
-  for (struct var *i = v; i; i = i->next) {
-    n++;
-  }
-  return n;
-}
-
 char *data_symbol(int size) {
   switch (size) {
     case 1:
@@ -569,73 +536,140 @@ size_t align(struct type *ty) {
   return ty->size;
 }
 
-void global_data(struct program *prog) {
-  for (struct var *v = prog->globals; v; v = v->next) {
-    printf(".align %lu\n", align(v->type));
-    printf("%s: // %s", v->name, type_to_name(v->type->kind));
-    if (v->type->ptr_to)
-      printf(" -> %s", type_to_name(v->type->ptr_to->kind));
-    printf("\n");
+void emit_value(int *pos,
+                int size,
+                struct var *var,
+                struct type *type,
+                struct value **value) {
 
-    if (is_integer(v->type)) {
-      if (v->data)
-        printf("  %s %d\n", data_symbol(v->type->size), *(int *) v->data);
-      else
-        printf("  .quad 0\n");
-      continue;
-    }
-    if (v->type->kind == PTR) {
-      if (v->data)
-        printf("  .quad %s", v->data);
-      else
-        printf("  .quad 0");
-
-      if (v->addend) {
-        printf(" + %d", v->addend);
-      }
-      printf("\n");
-      continue;
-    }
-    if (v->type->kind == ARRAY) {
-      if (v->type->ptr_to->kind == CHAR) {
-        printf("  .string \"%s\"\n", v->data);
-        continue;
-      } else {
-
-        struct value *value = v->val;
-        for (int i = 0; i < v->type->array_size; i++) {
-          if (value) {
-            if (is_integer(v->type->ptr_to))
-              printf("  %s %d\n",
-                     data_symbol(v->type->ptr_to->size),
-                     value->val);
-
-            if (v->type->ptr_to->kind == PTR) {
-              if (v->type->ptr_to->ptr_to->kind == CHAR) {
-                printf("  .quad %s\n", value->label);
-              }
-            }
-            value = value->next;
-          } else {
-            printf("  %s %d\n", data_symbol(v->type->ptr_to->size), 0);
-          }
-        }
-        continue;
-      }
-    }
-    if (!v->data) printf("  .zero %lu\n", v->type->size);
+  struct value *val = *value;
+  if (val && val->offset == *pos) {
+    printf("  .quad %s%+ld\n", val->label, val->addend);
+    *value = val->next;
+    *pos += 8;
+    return;
   }
-  return;
+
+  if (type->is_string) {
+    printf("  .string \"%s\"\n", var->data);
+    *pos += var->type->size;
+    return;
+  }
+
+  if (type->kind == ARRAY) {
+    for (int i = 0; i < type->array_size; i++) {
+      emit_value(pos, size_of(type->ptr_to), var, type->ptr_to, value);
+    }
+    return;
+  }
+
+  if (type->kind == STRUCT) {
+    for (struct member *m = type->members; m; m = m->next) {
+      int sz = 0;
+      if (m->next) {
+        sz = m->next->offset - m->offset;
+      } else {
+        sz = size - m->offset;
+      }
+
+      emit_value(pos, sz, var, m->type, value);
+    }
+    return;
+  }
+
+  switch (size) {
+    case 1:
+      printf("  .byte %d\n", (char) var->data[*pos]);
+      *pos += 1;
+      return;
+    case 2:
+      printf("  .short %d\n", (short) var->data[*pos]);
+      *pos += 2;
+      return;
+    case 4:
+      printf("  .long %d\n", (int) var->data[*pos]);
+      *pos += 4;
+      return;
+    case 8:
+      printf("  .quad %ld\n", (long) var->data[*pos]);
+      *pos += 8;
+  }
 }
 
-void gen_code(struct program *prog) {
+void emit_data_info(struct var *v) {
+  printf(".align %lu\n", align(v->type));
 
-  header();
+  printf("%s: // %s", v->name, type_to_name(v->type->kind));
 
+  if (v->type->ptr_to) {
+    printf(" -> %s", type_to_name(v->type->ptr_to->kind));
+  }
+
+  printf("\n");
+}
+
+void data_section(struct program *prog) {
   printf(".data\n");
 
-  global_data(prog);
+  for (struct var *v = prog->globals; v; v = v->next) {
+    if (!v->data) continue;
 
+    emit_data_info(v);
+
+    struct value **value = &v->values;
+
+    int size = size_of(v->type);
+    int pos = 0;
+    while (pos < size) {
+      emit_value(&pos, size, v, v->type, value);
+    }
+  }
+}
+void bss_section(struct program *prog) {
+  printf(".bss\n");
+
+  for (struct var *v = prog->globals; v; v = v->next) {
+    if (v->data) continue;
+
+    emit_data_info(v);
+    printf("  .zero %d\n", size_of(v->type));
+  }
+}
+void prologue(int stack_size) {
+  printf("  push rbp\n");
+  printf("  mov rbp, rsp\n");
+  printf("  sub rsp, %d\n", stack_size);
+}
+
+void epilogue() {
+  printf("  mov rsp, rbp\n");
+  printf("  pop rbp\n");
+  printf("  ret\n");
+}
+
+int stack_size(int offset) {
+  return (offset + 15) & ~15;
+}
+
+void set_offset_and_stack_size(struct function *fn) {
+  int offset = 32;
+  for (struct var *v = fn->locals; v; v = v->next) {
+    offset += size_of(v->type);
+    v->offset = offset;
+  }
+
+  fn->stack_size = stack_size(offset);
+}
+
+int nargs(struct var *v) {
+  int n = 0;
+  for (struct var *i = v; i; i = i->next) {
+    n++;
+  }
+  return n;
+}
+
+void text_section(struct program *prog) {
   printf(".text\n");
 
   for (struct function *fn = prog->functions; fn; fn = fn->next) {
@@ -674,5 +708,15 @@ void gen_code(struct program *prog) {
 
     epilogue();
   }
+}
+
+void gen_code(struct program *prog) {
+
+  header();
+
+  bss_section(prog);
+  data_section(prog);
+  text_section(prog);
+
   return;
 }

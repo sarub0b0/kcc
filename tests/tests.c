@@ -56,6 +56,16 @@ enum enum_b {
 
 Struct g13;
 
+struct {
+  char a;
+  int b;
+} g14 = {1, 2};
+
+struct {
+  char a;
+  int b;
+} g15[2] = {{1, 2}, {3, 4}};
+
 #define TRUE 1
 #define FALSE 0
 #define MAX_LEN 128
@@ -1108,6 +1118,10 @@ int main() {
            a.d;
          }),
          "({ Struct a; Struct b={1,2,3,4}; a=b; a.d; })");
+
+  assert(3, ({ g14.a + g14.b; }), "({ g14.a+g14.b; })");
+  assert(5, ({ g15[0].a + g15[1].b; }), "({ g15[0].a+g15[1].b; })");
+
   if (success == number)
     printf("result: \x1b[32mOK\x1b[0m, ");
   else

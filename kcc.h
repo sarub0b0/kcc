@@ -118,13 +118,14 @@ struct type {
 
   //
   bool is_incomplete;
+  bool is_string;
 };
 
 struct value {
   struct value *next;
-
+  int offset;
   char *label;
-  int val;
+  long addend;
 };
 
 struct var {
@@ -140,7 +141,7 @@ struct var {
 
   char *data;
   int addend;
-  struct value *val;
+  struct value *values;
 };
 
 struct member {
@@ -231,6 +232,7 @@ void print_type(struct type *);
 
 bool is_integer(struct type *);
 void add_type(struct node *);
+int size_of(struct type *);
 
 struct node *new_node_cast(struct node *, struct type *);
 struct type *copy_type(struct type *);
@@ -246,6 +248,7 @@ extern struct type *ty_long;
 extern struct type *ty_char;
 extern struct type *ty_bool;
 extern struct type *ty_enum;
+extern struct type *ty_struct;
 
 extern int verbose;
 #endif
