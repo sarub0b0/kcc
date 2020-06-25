@@ -167,7 +167,8 @@ void print_globals(bool has_function) {
     } else {
       printf("%s %s", type_to_name(v->type->kind), v->name);
     }
-    if (v->data) switch (v->type->kind) {
+    if (v->data) {
+      switch (v->type->kind) {
         case INT:
           printf(": %d\n", *(int *) v->data);
           break;
@@ -177,7 +178,7 @@ void print_globals(bool has_function) {
           }
           break;
       }
-    else
+    } else
       printf("\n");
   }
 }
@@ -829,9 +830,29 @@ int eval(struct node *node, struct var **var) {
     case ND_VAR:
       *var = node->var;
       return 0;
-    default:
+    case ND_ADDR:
+      *var = node->lhs->var;
       return 0;
+    case ND_CAST: {
+      long val = eval(node->lhs, var);
+      if (!is_integer(node->type) || size_of(node->type) == 8) {
+        return val;
+      }
+      switch (size_of(node->type)) {
+        case 1:
+          return (char) val;
+        case 2:
+          return (short) val;
+        default:
+          if ((size_of(node->type)) != 4) {
+            error_at(node->token->loc, "invalid size");
+          }
+          return (int) val;
+      }
+    }
   }
+  error_at(node->token->loc, "not a constant expression");
+  return 0;
 }
 
 struct node *new_add(struct node *lhs,
@@ -856,7 +877,7 @@ struct node *new_add(struct node *lhs,
   // ptr + num
   // num * sizeof(type)
   rhs = new_node_binary(
-      ND_MUL, rhs, new_node_num(lhs->type->ptr_to->size, token), token);
+      ND_MUL, rhs, new_node_num(size_of(lhs->type->ptr_to), token), token);
 
   struct node *n = new_node_binary(ND_ADD, lhs, rhs, token);
 
@@ -877,7 +898,7 @@ struct node *new_sub(struct node *lhs, struct node *rhs, struct token *tk) {
   // ptr - num
   if (lhs->type->ptr_to && rhs->type->kind == INT) {
     rhs = new_node_binary(
-        ND_MUL, rhs, new_node_num(lhs->type->ptr_to->size, tk), tk);
+        ND_MUL, rhs, new_node_num(size_of(lhs->type->ptr_to), tk), tk);
     n = new_node_binary(ND_SUB, lhs, rhs, tk);
     return n;
   }
@@ -886,7 +907,7 @@ struct node *new_sub(struct node *lhs, struct node *rhs, struct token *tk) {
   if (lhs->type->ptr_to && rhs->type->ptr_to) {
     struct node *sub = new_node_binary(ND_SUB, lhs, rhs, tk);
     n = new_node_binary(
-        ND_DIV, sub, new_node_num(lhs->type->ptr_to->size, tk), tk);
+        ND_DIV, sub, new_node_num(size_of(lhs->type->ptr_to), tk), tk);
     return n;
   }
 
@@ -944,6 +965,7 @@ char *gvar_name() {
 }
 struct var *new_string_literal(char *data, int len) {
   struct type *type = array_to(ty_char, len);
+  type->is_string = true;
   char *name = gvar_name();
   struct var *v = new_gvar(name, type, true);
   v->name = name;
@@ -1050,16 +1072,16 @@ struct type *struct_declarator(struct token **ret, struct token *tk) {
       return t->type;
     }
 
-    struct type *ty = calloc(1, sizeof(struct type));
-    ty->kind = STRUCT;
+    struct type *ty = copy_type(ty_struct);
+    ty->is_incomplete = true;
+    new_tagscope(ty);
 
     return ty;
   }
 
-  struct type *ty = calloc(1, sizeof(struct type));
-
-  ty->kind = STRUCT;
+  struct type *ty = copy_type(ty_struct);
   ty->members = struct_members(&tk, tk);
+
   if (tag) {
     ty->name = tag->str;
     ty->tag = tag->str;
@@ -1082,14 +1104,14 @@ struct type *struct_declarator(struct token **ret, struct token *tk) {
       m->offset = offset + (m->align - (offset % m->align));
       offset = m->offset;
     }
-    offset += m->type->size;
+    offset += size_of(m->type);
 
     if (ty->align < m->align) ty->align = m->align;
 
-    ty->size = offset + m->type->size;
+    ty->size = offset + size_of(m->type);
   }
 
-  if (ty->size % ty->align != 0) {
+  if (size_of(ty) % ty->align != 0) {
     ty->size = offset + (ty->align - (offset % ty->align));
   }
 
@@ -1784,7 +1806,7 @@ struct node *primary(struct token **ret, struct token *tk) {
     struct node *node = unary(&tk, tk);
     add_type(node);
     *ret = tk;
-    return new_node_num(node->type->size, tk);
+    return new_node_num(size_of(node->type), tk);
   }
 
   if (tk->kind == TK_STR) {
@@ -1793,12 +1815,12 @@ struct node *primary(struct token **ret, struct token *tk) {
 
     while (tk->kind == TK_STR) {
       struct type *ty = v->type;
-      int old_size = ty->size - 1;
+      int old_size = size_of(ty) - 1;
       int str_len = strlen(tk->str_literal);
       ty->size += str_len;
       ty->array_size += str_len;
 
-      char *data = malloc(ty->size * sizeof(char));
+      char *data = malloc(size_of(ty) * sizeof(char));
       strncpy(data, v->data, old_size);
       strncpy(&data[old_size], tk->str_literal, tk->str_len - 1);
       v->data = data;
@@ -1893,6 +1915,8 @@ struct init_data *string_initializer(struct token **ret,
 
   struct init_data *init = new_init(type, type->array_size, NULL, tk);
 
+  type->is_string = true;
+
   for (int i = 0; i < tk->str_len; i++) {
     init->child[i] =
         new_init(type->ptr_to, 0, new_node_num(tk->str_literal[i], tk), tk);
@@ -1917,7 +1941,7 @@ struct init_data *array_initializer(struct token **ret,
       if (array_size > 0) skip(&tk1, tk1, ",");
       initializer(&tk1, tk1, type->ptr_to);
     }
-    type->size = type->ptr_to->size * array_size;
+    type->size = size_of(type->ptr_to) * array_size;
     type->array_size = array_size;
 
     type->is_incomplete = false;
@@ -2063,67 +2087,82 @@ struct node *lvar_initializer(struct token **ret,
 
   return node;
 }
-void gvar_initilizer(struct token **ret,
-                     struct token *tk,
-                     struct var *var,
-                     struct type *type) {
 
-  if (type->kind == ARRAY && type->ptr_to->kind == CHAR) {
-    var->data = tk->str_literal;
-    *ret = tk->next;
-    return;
-  }
-  if (type->kind == ARRAY) {
-    if (consume(&tk, tk, "{")) {
-      struct value head = {};
-      struct value *cur = &head;
-      int cnt = 0;
-
-      while (!equal(tk, "}")) {
-        if (0 < cnt++) skip(&tk, tk, ",");
-
-        struct node *n = assign(&tk, tk);
-
-        cur = cur->next = calloc(1, sizeof(struct value));
-
-        if (type->ptr_to->kind == INT) cur->val = n->val;
-        if (type->ptr_to->kind == PTR) cur->label = n->var->name;
+void write_data(char *data, long val, int size) {
+  switch (size) {
+    case 1:
+      *(char *) data = val;
+      return;
+    case 2:
+      *(short *) data = val;
+      return;
+    case 4:
+      *(int *) data = val;
+      return;
+    default:
+      if (size != 8) {
+        error("invalid value size");
       }
-      var->val = head.next;
-      if (var->type->array_size == 0) var->type->array_size = cnt;
-    }
+      *(long *) data = val;
+      return;
+  }
+}
 
-    *ret = tk->next;
-    return;
+struct value *create_gvar_data(struct value *cur,
+                               char *data,
+                               struct init_data *init,
+                               struct type *type,
+                               int offset) {
+
+  if (type->kind == ARRAY) {
+    int size = size_of(type->ptr_to);
+    for (int i = 0; i < type->array_size; i++) {
+      struct init_data *child = init->child[i];
+      if (child)
+        cur = create_gvar_data(
+            cur, data, child, type->ptr_to, offset + size * i);
+    }
+    return cur;
   }
 
   if (type->kind == STRUCT) {
+    int i = 0;
+    for (struct member *m = type->members; m; m = m->next, i++) {
+      struct init_data *child = init->child[i];
+      if (child)
+        cur = create_gvar_data(cur, data, child, m->type, offset + m->offset);
+    }
+
+    return cur;
   }
 
-  struct node *node = assign(&tk, tk);
+  struct var *var = NULL;
+  long val = eval(init->expr, &var);
 
-  if (node->kind == ND_NUM) {
-    var->data = calloc(1, type->size);
-    *(int *) var->data = node->val;
-  }
-  if (node->kind == ND_VAR) {
-    var->data = node->var->name;
-  }
-  if (node->kind == ND_ADDR) {
-    var->data = node->lhs->var->name;
-  }
-
-  if (node->kind == ND_ADD) {
-    struct var *v = NULL;
-    int addend = eval(node, &v);
-    var->data = v->name;
-    var->addend = addend;
+  if (var) {
+    struct value *v = calloc(1, sizeof(struct value));
+    v->offset = offset;
+    v->label = var->name;
+    v->addend = val;
+    cur->next = v;
+    return cur->next;
   }
 
-  *ret = tk;
-  return;
+  write_data(data + offset, val, size_of(type));
+  return cur;
 }
 
+void gvar_initilizer(struct token **ret, struct token *tk, struct var *var) {
+
+  struct init_data *init = initializer(ret, tk, var->type);
+
+  char *data = calloc(1, size_of(var->type));
+  struct value head = head;
+  create_gvar_data(&head, data, init, var->type, 0);
+  var->data = data;
+  var->values = head.next;
+  return;
+}
 // program = ( funcdef | declaration ";" )*
 //
 // typespec = "int" | "char"
@@ -2237,7 +2276,7 @@ struct program *parse(struct token *tk) {
     if (!equal(tk, ";")) {
       while (!equal(tk, ";")) {
         if (consume(&tk, tk, "=")) {
-          gvar_initilizer(&tk, tk, gvar, type);
+          gvar_initilizer(&tk, tk, gvar);
         }
         if (consume(&tk, tk, ",")) {
           type = declarator(&tk, tk, type);
