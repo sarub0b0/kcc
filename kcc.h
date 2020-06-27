@@ -5,14 +5,14 @@
 #include <stddef.h>
 #include <stdio.h>
 
-#define debug(fmt...)                                                          \
-  do {                                                                         \
-    fprintf(stderr, "%s:%d ", __FILE__, __LINE__);                             \
-    fprintf(stderr, fmt);                                                      \
-    fprintf(stderr, "\n");                                                     \
+#define debug(fmt...)                              \
+  do {                                             \
+    fprintf(stderr, "%s:%d ", __FILE__, __LINE__); \
+    fprintf(stderr, fmt);                          \
+    fprintf(stderr, "\n");                         \
   } while (0)
 
-#define find_cond(name, token)                                                 \
+#define find_cond(name, token) \
   (strlen(name) == token->len && strncmp(name, token->str, token->len) == 0)
 
 enum token_kind {
@@ -219,6 +219,7 @@ void warn_tok(struct token *, char *, ...);
 void error_tok(struct token *, char *, ...);
 
 struct token *tokenize(char *, char *);
+struct token *tokenize_file(char *);
 struct token *preprocess(struct token *);
 struct program *parse(struct token *);
 void gen_code(struct program *);
@@ -258,6 +259,7 @@ extern struct type *ty_enum;
 extern struct type *ty_struct;
 
 extern int verbose;
-extern char *current_user_input;
+extern char *current_userinput;
 extern char *current_filename;
+extern char **include_paths;
 #endif
