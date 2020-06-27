@@ -24,6 +24,7 @@ struct macro {
   struct macro_param *params;
   bool is_objlike;
   bool is_variadic;
+  bool is_delete;
 };
 
 struct condition {
@@ -40,6 +41,9 @@ static struct condition *conds;
 void print_macro(struct macro *m) {
   if (!m) {
     fprintf(stderr, "This macro is NULL\n");
+    return;
+  }
+  if (m->is_delete) {
     return;
   }
 
@@ -186,7 +190,7 @@ struct macro *find_macro(struct token *tk) {
   //   debug("  %s", m->name);
   // }
   for (struct macro *m = macros; m; m = m->next) {
-    if (find_cond(m->name, tk)) return m;
+    if (find_cond(m->name, tk) && !m->is_delete) return m;
   }
 
   return NULL;
@@ -197,7 +201,7 @@ void undef_macro(struct token **ret, struct token *tk) {
   }
   struct macro *m = find_macro(tk);
   if (m) {
-    m->name = "";
+    m->is_delete = true;
   }
   *ret = skip_line(tk->next);
 }
