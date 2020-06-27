@@ -9,7 +9,7 @@ kcc: $(OBJS)
 $(OBJS): kcc.h
 
 test: kcc
-	./kcc tests/tests.c > tmp.s
+	./kcc -I tests/ tests/tests.c > tmp.s
 	cc -static -g -o tmp tmp.s
 	./tmp
 

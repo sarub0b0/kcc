@@ -1,4 +1,5 @@
 #define _GNU_SOURCE
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -8,7 +9,7 @@
 #include "kcc.h"
 
 struct string *strings;
-char *current_user_input;
+char *current_userinput;
 char *current_filename;
 
 const char *token_kind_str[TK_KIND_NUM] = {
@@ -77,7 +78,7 @@ struct token *new_token(enum token_kind kind,
   t->len = len;
   t->str = strndup(loc, len);
   t->loc = loc;
-  t->input = current_user_input;
+  t->input = current_userinput;
   t->filename = current_filename;
   cur->next = t;
   return t;
@@ -159,7 +160,7 @@ void convert_ident_to_reserved(struct token *token) {
 }
 
 void add_line_info(struct token *tk) {
-  char *p = current_user_input;
+  char *p = current_userinput;
   bool at_bol = true;
   bool has_space = false;
   int line_num = 1;
@@ -184,15 +185,16 @@ void add_line_info(struct token *tk) {
   } while (*p++);
 }
 
-struct token *tokenize(char *filename, char *p) {
+struct token *tokenize(char *filename, char *input) {
   strings = NULL;
   current_filename = filename;
-  current_user_input = p;
+  current_userinput = input;
 
   struct token head = {};
   struct token *cur = &head;
   int string_idx = 0;
 
+  char *p = input;
   while (*p) {
     if (isspace(*p)) {
       p++;
@@ -251,6 +253,7 @@ struct token *tokenize(char *filename, char *p) {
     if (isdigit(*p)) {
       char *prev = p;
       cur = new_token(TK_NUM, cur, p, 1);
+
       cur->val = strtol(p, &p, 10);
       cur->len = p - prev;
       cur->str = strndup(prev, cur->len);
@@ -265,4 +268,62 @@ struct token *tokenize(char *filename, char *p) {
   convert_ident_to_reserved(head.next);
   add_line_info(head.next);
   return head.next;
+}
+
+char *readfile(char *path) {
+  size_t size;
+  FILE *f = fopen(path, "r");
+  if (!f) {
+    error("cannot open %s: %s", path, strerror(errno));
+  }
+
+  if (fseek(f, 0, SEEK_END) != 0) {
+    error("%s: fseek: %s", path, strerror(errno));
+  }
+
+  size = ftell(f);
+
+  if (fseek(f, 0, SEEK_SET) != 0) {
+    error("%s: fseek: %s", path, strerror(errno));
+  }
+
+  char *buf = calloc(1, size + 2);
+
+  fread(buf, size, 1, f);
+
+  if (size == 0 || buf[size - 1] != '\n') buf[size++] = '\n';
+
+  buf[size] = '\0';
+  fclose(f);
+
+  return buf;
+}
+
+void remove_backslash(char *input) {
+  char *q = input;
+  char *p = input;
+  int cnt = 0;
+  while (*p) {
+    if (starts_with(p, "\\\n")) {
+      p += 2;
+      cnt++;
+    } else if (*p == '\n') {
+      *q++ = *p++;
+      for (; cnt > 0; cnt--) {
+        *q++ = '\n';
+      }
+    } else {
+      *q++ = *p++;
+    }
+  }
+
+  *q = '\0';
+}
+
+struct token *tokenize_file(char *file) {
+  char *input = readfile(file);
+
+  remove_backslash(input);
+
+  return tokenize(file, input);
 }

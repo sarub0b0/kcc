@@ -6,6 +6,8 @@
  *
  */
 
+#include "include.h"
+
 typedef int Int32;
 
 Int32 number = 0;

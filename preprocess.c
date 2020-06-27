@@ -1,9 +1,16 @@
+#define _GNU_SOURCE
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 
 #include "kcc.h"
+
+struct predefined {
+  char *ident;
+  char *replace;
+};
 
 struct macro_arg {
   struct macro_arg *next;
@@ -37,6 +44,8 @@ struct condition {
 
 static struct macro *macros;
 static struct condition *conds;
+
+struct token *preprocess2(struct token *tk);
 
 void print_macro(struct macro *m) {
   if (!m) {
@@ -102,6 +111,142 @@ struct token *skip_line(struct token *tk) {
   }
   return tk;
 }
+struct macro *add_macro(char *name, bool is_objlike, struct token *tk) {
+  struct macro *m = calloc(1, sizeof(struct macro));
+  m->next = macros;
+  m->name = name;
+  m->is_objlike = is_objlike;
+  m->is_variadic = false;
+  m->expand = tk;
+  macros = m;
+  return m;
+}
+
+struct token *copy_token(struct token *tk) {
+  struct token *t = calloc(1, sizeof(struct token));
+  *t = *tk;
+  t->next = NULL;
+  return t;
+}
+
+struct token *new_eof() {
+  struct token *eof = calloc(1, sizeof(struct token));
+  eof->kind = TK_EOF;
+  eof->len = 0;
+  return eof;
+}
+
+struct token *new_comma() {
+  struct token *tk = calloc(1, sizeof(struct token));
+  tk->kind = TK_RESERVED;
+  tk->str = ",";
+  tk->len = 1;
+  return tk;
+}
+struct token *append_tokens(struct token *first, struct token *second) {
+  if (!first || first->kind == TK_EOF) {
+    return second;
+  }
+
+  struct token head = {};
+  struct token *cur = &head;
+
+  for (; first && first->kind != TK_EOF; first = first->next) {
+    cur = cur->next = copy_token(first);
+  }
+
+  cur->next = second;
+
+  return head.next;
+}
+
+bool exist_file(char *path) {
+  struct stat st;
+  return !stat(path, &st);
+}
+
+char *join_path(char *dir, char *file) {
+  int size = strlen(dir) + strlen(file) + 2;
+  char *buf = malloc(size);
+  snprintf(buf, size, "%s/%s", dir, file);
+  return buf;
+}
+
+char *join_tokens(struct token *start, struct token *end) {
+
+  int len = 1;
+  for (struct token *tk = start; tk != end; tk = tk->next) {
+    if (tk != start && tk->has_space) {
+      len++;
+    }
+    len += tk->len;
+  }
+
+  char *buf = malloc(len);
+
+  int pos = 0;
+  for (struct token *tk = start; tk != end; tk = tk->next) {
+    if (tk != start && tk->has_space) {
+      buf[pos++] = ' ';
+    }
+
+    strncpy(buf + pos, tk->loc, tk->len);
+    pos += tk->len;
+  }
+  buf[pos++] = '\0';
+
+  return buf;
+}
+
+char *search_include_paths(char *filename, struct token *tk) {
+  for (char **p = include_paths; *p; p++) {
+    char *path = join_path(*p, filename);
+    if (exist_file(path)) return path;
+  }
+
+  error_tok(tk, "'%s' file not found", filename);
+  return NULL;
+}
+
+char *read_include_path(struct token **ret, struct token *tk) {
+  // #include "..."
+  if (tk->kind == TK_STR) {
+    struct token *start = tk;
+    char *filename = strndup(tk->str + 1, tk->len - 2);
+
+    *ret = skip_line(tk->next);
+    if (exist_file(filename)) {
+      return filename;
+    }
+
+    return search_include_paths(filename, start);
+  }
+
+  // #include <...>
+  if (equal(tk, "<")) {
+
+    struct token *start = tk;
+
+    for (; !equal(tk, ">"); tk = tk->next) {
+      if (tk->at_bol) {
+        error_tok(start, "expected '>'");
+      }
+    }
+    char *filename = join_tokens(start->next, tk);
+    *ret = skip_line(tk->next);
+    return search_include_paths(filename, start);
+  }
+
+  // #define HOGE_H <...> | "..."
+  // #include HOGE_H
+  if (tk->kind == TK_IDENT) {
+    struct token *tk2 = preprocess2(tk);
+    return read_include_path(ret, tk2);
+  }
+
+  error_tok(tk, "expected a \"filename\" or <filename>");
+  return NULL;
+}
 
 struct token *skip_cond2(struct token *tk) {
   while (tk->kind != TK_EOF) {
@@ -161,9 +306,9 @@ void validate_params(struct macro *m) {
         if (strncmp("__VA_ARGS__", tk->str, tk->len) == 0) match = true;
       }
     }
-    if (!match) {
-      error_tok(p->token, "Unused parameters");
-    }
+    // if (!match) {
+    //   error_tok(p->token, "Unused parameters");
+    // }
   }
 }
 
@@ -204,39 +349,6 @@ void undef_macro(struct token **ret, struct token *tk) {
     m->is_delete = true;
   }
   *ret = skip_line(tk->next);
-}
-
-struct macro *add_macro(char *name, bool is_objlike, struct token *tk) {
-  struct macro *m = calloc(1, sizeof(struct macro));
-  m->next = macros;
-  m->name = name;
-  m->is_objlike = is_objlike;
-  m->is_variadic = false;
-  m->expand = tk;
-  macros = m;
-  return m;
-}
-
-struct token *copy_token(struct token *tk) {
-  struct token *t = calloc(1, sizeof(struct token));
-  *t = *tk;
-  t->next = NULL;
-  return t;
-}
-
-struct token *new_eof() {
-  struct token *eof = calloc(1, sizeof(struct token));
-  eof->kind = TK_EOF;
-  eof->len = 0;
-  return eof;
-}
-
-struct token *new_comma() {
-  struct token *tk = calloc(1, sizeof(struct token));
-  tk->kind = TK_RESERVED;
-  tk->str = ",";
-  tk->len = 1;
-  return tk;
 }
 
 struct token *copy_line(struct token **ret, struct token *tk) {
@@ -517,6 +629,7 @@ struct token *read_expression(struct token **ret, struct token *tk) {
 long expression(struct token **ret, struct token *tk) {
 
   struct token *expr = read_expression(ret, tk);
+  expr = preprocess2(expr);
 
   struct token *tok = NULL;
   int val = const_expr(&tok, expr);
@@ -527,12 +640,12 @@ long expression(struct token **ret, struct token *tk) {
   return val;
 }
 
-struct token *preprocess(struct token *tk) {
-
+struct token *preprocess2(struct token *tk) {
   struct token head = {};
   struct token *cur = &head;
 
-  while (!at_eof(tk)) {
+  head.next = new_eof();
+  while (tk && !at_eof(tk)) {
 
     if (expand_macro(&tk, tk)) {
       continue;
@@ -546,6 +659,14 @@ struct token *preprocess(struct token *tk) {
 
     struct token *start = tk;
     tk = tk->next;
+
+    if (equal(tk, "include")) {
+      char *file = read_include_path(&tk, tk->next);
+      struct token *tk2 = tokenize_file(file);
+      tk = append_tokens(tk2, tk);
+      continue;
+    }
+
     if (equal(tk, "define")) {
       define_macro(&tk, tk->next);
       continue;
@@ -639,4 +760,29 @@ struct token *preprocess(struct token *tk) {
   }
 
   return head.next;
+}
+
+void def_macro(char *def, char *val) {
+  struct token *tk = tokenize("(pre-define)", val);
+  add_macro(def, true, tk);
+}
+
+void pre_defined_macro() {
+  def_macro("__STDC__", "1");
+  def_macro("__STDC_HOSTED__", "1");
+  def_macro("__STDC_VERSION__", "201112L");
+  def_macro("__STDC_NO_ATOMICS__", "1");
+  def_macro("__STDC_NO_COMPLEX__", "1");
+  def_macro("__STDC_NO_THREADS__", "1");
+  def_macro("__STDC_NO_VLA__", "1");
+
+  // def_macro("", "");
+}
+
+struct token *preprocess(struct token *tk) {
+  include_paths = include_paths;
+
+  pre_defined_macro();
+
+  return preprocess2(tk);
 }
