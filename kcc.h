@@ -5,13 +5,14 @@
 #include <stddef.h>
 #include <stdio.h>
 
-#define debug(fmt...)      \
-  do {                     \
-    fprintf(stderr, fmt);  \
-    fprintf(stderr, "\n"); \
+#define debug(fmt...)                                                          \
+  do {                                                                         \
+    fprintf(stderr, "%s:%d ", __FILE__, __LINE__);                             \
+    fprintf(stderr, fmt);                                                      \
+    fprintf(stderr, "\n");                                                     \
   } while (0)
 
-#define find_cond(name, token) \
+#define find_cond(name, token)                                                 \
   (strlen(name) == token->len && strncmp(name, token->str, token->len) == 0)
 
 enum token_kind {
@@ -31,7 +32,7 @@ struct token {
   char *str;
   char *loc;
   int len;
-  char *file;
+  char *filename;
   char *input;
 
   // string-literal
@@ -79,6 +80,7 @@ enum node_kind {
   ND_BITNOT,
   ND_MEMBER,
   ND_COMMA,
+  ND_NOT,
 };
 
 enum type_kind {
@@ -210,9 +212,11 @@ struct program {
   struct function *functions;
   struct var *globals;
 };
-
+void verror_at(char *, char *, char *, int, char *, va_list);
 void error(char *, ...);
 void error_at(char *, char *, ...);
+void warn_tok(struct token *, char *, ...);
+void error_tok(struct token *, char *, ...);
 
 struct token *tokenize(char *, char *);
 struct token *preprocess(struct token *);
@@ -224,6 +228,9 @@ bool consume(struct token **, struct token *, char *);
 struct token *consume_ident(struct token **, struct token *);
 bool equal(struct token *, char *);
 bool at_eof(struct token *);
+int get_number(struct token *);
+long const_expr(struct token **, struct token *);
+
 void print_tokens(struct token *);
 void print_ast(struct program *, char *);
 void print_function(struct program *);
@@ -251,4 +258,6 @@ extern struct type *ty_enum;
 extern struct type *ty_struct;
 
 extern int verbose;
+extern char *current_user_input;
+extern char *current_filename;
 #endif

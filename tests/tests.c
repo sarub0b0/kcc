@@ -85,6 +85,16 @@ struct {
 
 #define p(...) printf(__VA_ARGS__)
 
+#if 0
+#else
+
+#define def
+#ifdef def
+#else
+#endif
+
+#endif
+
 int assert(int expected, int actual, char *code) {
   p("% 4d: ", number++);
   if (expected == actual) {
