@@ -103,6 +103,8 @@ void gen_addr(struct node *n) {
       gen_addr(n->lhs);
       printf("  add %s, %d\n", reg64[inc - 1], n->member->offset);
       return;
+    default:
+      return;
   }
 }
 
@@ -317,6 +319,13 @@ int gen_expr(struct node *node) {
       gen_expr(node->lhs);
       load(node->type);
       return 0;
+    case ND_NOT:
+      gen_expr(node->lhs);
+      printf("  cmp %s, 0\n", reg(node->lhs->type, --inc));
+      printf("  sete %s\n", reg8[inc]);
+      printf("  movzb %s, %s\n", reg64[inc], reg8[inc]);
+      inc++;
+      return 0;
     case ND_BITNOT:
       gen_expr(node->lhs);
       printf("  not %s\n", reg(node->lhs->type, inc - 1));
@@ -408,6 +417,8 @@ int gen_expr(struct node *node) {
       }
       inc++;
       return 0;
+    default:
+      break;
   }
 
   gen_expr(node->lhs);
@@ -474,8 +485,7 @@ int gen_expr(struct node *node) {
       printf("  and %s, %s\n", rd, rs);
       break;
     default:
-      error_at(
-          node->token->loc, "Don't assembly calculation (%d)", node->kind);
+      error_tok(node->token, "Don't assembly calculation (%d)", node->kind);
       break;
   }
 
@@ -505,7 +515,7 @@ void gen_stmt(struct node *node) {
       inc--;
       return;
     default:
-      error_at(node->token->loc, "Don't assembly statement (%d)", node->kind);
+      error_tok(node->token, "Don't assembly statement (%d)", node->kind);
       return;
   }
 }

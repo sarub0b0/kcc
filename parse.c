@@ -93,7 +93,7 @@ void print_tok(struct token *tk, char end_str) {
   char *loc = tk->loc;
   char *line = tk->loc;
   char *input = tk->input;
-  char *file = tk->file;
+  char *file = tk->filename;
   while (input < line && line[-1] != '\n') line--;
 
   char *end = line;
@@ -114,7 +114,7 @@ void print_tok_pos(struct token *tk) {
   char *loc = tk->loc;
   char *line = tk->loc;
   char *input = tk->input;
-  char *file = tk->file;
+  char *file = tk->filename;
   while (input < line && line[-1] != '\n') line--;
 
   char *end = line;
@@ -176,6 +176,8 @@ void print_globals(bool has_function) {
           if (v->type->ptr_to->kind == CHAR) {
             printf(": %s\n", (char *) v->data);
           }
+          break;
+        default:
           break;
       }
     } else
@@ -598,7 +600,7 @@ void leave_scope() {
 
 void skip(struct token **ret, struct token *tk, char *op) {
   if (!equal(tk, op)) {
-    error_at(tk->loc, "expected '%s', but op is '%s'", op, tk->str);
+    error_tok(tk, "expected '%s', but op is '%s'", op, tk->str);
   }
 
   *ret = tk->next;
@@ -621,14 +623,14 @@ bool consume_end(struct token **ret, struct token *tk) {
 
 void expect(struct token **ret, struct token *tk, char *op) {
   if (tk->kind != TK_RESERVED || !equal(tk, op)) {
-    error_at(tk->loc, "'%s'ではありません", op);
+    error_tok(tk, "'%s'ではありません", op);
   }
   *ret = tk->next;
 }
 
 int expect_number(struct token **ret, struct token *tk) {
   if (tk->kind != TK_NUM) {
-    error_at(tk->loc, "数ではありません");
+    error_tok(tk, "数ではありません");
   }
   *ret = tk->next;
   return tk->val;
@@ -636,14 +638,14 @@ int expect_number(struct token **ret, struct token *tk) {
 
 int get_number(struct token *tok) {
   if (tok->kind != TK_NUM) {
-    error_at(tok->loc, "expected an number");
+    error_tok(tok, "expected an number");
   }
   return tok->val;
 }
 
 char *get_ident(struct token *tok) {
   if (tok->kind != TK_IDENT) {
-    error_at(tok->loc, "expected an identifier");
+    error_tok(tok, "expected an identifier");
   }
 
   return strndup(tok->str, tok->len);
@@ -823,8 +825,12 @@ int eval(struct node *node, struct var **var) {
   switch (node->kind) {
     case ND_ADD:
       return eval(node->lhs, var) + eval(node->rhs, NULL);
+    case ND_SUB:
+      return eval(node->lhs, var) - eval(node->rhs, NULL);
     case ND_MUL:
       return eval(node->lhs, NULL) * eval(node->rhs, NULL);
+    case ND_DIV:
+      return eval(node->lhs, NULL) / eval(node->rhs, NULL);
     case ND_NUM:
       return node->val;
     case ND_VAR:
@@ -833,6 +839,33 @@ int eval(struct node *node, struct var **var) {
     case ND_ADDR:
       *var = node->lhs->var;
       return 0;
+    case ND_LOGOR:
+      return eval(node->lhs, NULL) || eval(node->rhs, NULL);
+    case ND_LOGAND:
+      return eval(node->lhs, NULL) && eval(node->rhs, NULL);
+    case ND_BITOR:
+      return eval(node->lhs, NULL) | eval(node->rhs, NULL);
+    case ND_BITXOR:
+      return eval(node->lhs, NULL) ^ eval(node->rhs, NULL);
+    case ND_BITAND:
+      return eval(node->lhs, NULL) & eval(node->rhs, NULL);
+    case ND_EQ:
+      return eval(node->lhs, NULL) == eval(node->rhs, NULL);
+    case ND_NE:
+      return eval(node->lhs, NULL) != eval(node->rhs, NULL);
+    case ND_LT:
+      return eval(node->lhs, NULL) < eval(node->rhs, NULL);
+    case ND_LE:
+      return eval(node->lhs, NULL) <= eval(node->rhs, NULL);
+    case ND_GT:
+      return eval(node->lhs, NULL) > eval(node->rhs, NULL);
+    case ND_GE:
+      return eval(node->lhs, NULL) >= eval(node->rhs, NULL);
+    case ND_COND:
+      return eval(node->cond, NULL) ? eval(node->then, NULL)
+                                    : eval(node->els, NULL);
+    case ND_NOT:
+      return !eval(node->lhs, NULL);
     case ND_CAST: {
       long val = eval(node->lhs, var);
       if (!is_integer(node->type) || size_of(node->type) == 8) {
@@ -845,13 +878,15 @@ int eval(struct node *node, struct var **var) {
           return (short) val;
         default:
           if ((size_of(node->type)) != 4) {
-            error_at(node->token->loc, "invalid size");
+            error_tok(node->token, "invalid size");
           }
           return (int) val;
       }
     }
+    default:
+      break;
   }
-  error_at(node->token->loc, "not a constant expression");
+  error_tok(node->token, "not a constant expression");
   return 0;
 }
 
@@ -911,7 +946,7 @@ struct node *new_sub(struct node *lhs, struct node *rhs, struct token *tk) {
     return n;
   }
 
-  error_at(tk->loc, "invalid operands");
+  error_tok(tk, "invalid operands");
   return NULL;
 }
 
@@ -980,6 +1015,11 @@ struct type *pointers(struct token **ret, struct token *tk, struct type *ty) {
   }
   *ret = tk;
   return ty;
+}
+
+long const_expr(struct token **ret, struct token *tk) {
+  struct node *cond = conditional(ret, tk);
+  return eval(cond, NULL);
 }
 
 struct type *typespec(struct token **ret, struct token *tk) {
@@ -1127,10 +1167,10 @@ struct type *enum_declarator(struct token **ret, struct token *tk) {
     *ret = tk;
     struct tag_scope *ts = find_tag(tk);
     if (!ts) {
-      error_at(tk->loc, "unknown enum");
+      error_tok(tk, "unknown enum");
     }
     if (ts->type->kind != ENUM) {
-      error_at(tk->loc, "not an enum tag");
+      error_tok(tk, "not an enum tag");
     }
     return ts->type;
   }
@@ -1213,7 +1253,7 @@ struct function *funcdef(struct token **ret,
   for (struct type *ty = type->params; ty; ty = ty->next) cnt1++;
 
   if (0 < cnt0 && cnt0 != cnt1) {
-    error_at(tk->loc, "different number of parameters");
+    error_tok(tk, "different number of parameters");
   }
 
   struct type *ty = type->params;
@@ -1240,7 +1280,7 @@ struct type *declarator(struct token **ret,
   type = pointers(&tk, tk, type);
   // ident
   // if (tk->kind != TK_IDENT) {
-  //   error_at(tk->loc, "expected a variable name");
+  //   error_tok(tk->loc, "expected a variable name");
   // }
 
   char *type_name = "";
@@ -1348,9 +1388,7 @@ struct node *assign(struct token **ret, struct token *tk) {
   if (consume(&tk, tk, "=")) {
     n = new_node_assign(n, assign(&tk, tk), start);
     if (is_void_assign_element(n->rhs))
-      // error_at(start->loc, "Assigning to type from incompatible type
-      // 'void'");
-      error_at(start->loc, "Can't Assign to void function");
+      error_tok(start, "Can't Assign to void function");
   }
 
   if (consume(&tk, tk, "+=")) {
@@ -1521,9 +1559,9 @@ struct node *stmt(struct token **ret, struct token *tk) {
       n->lhs = expr(&tk, tk->next);
     } else {
       if (!equal(tk->next, ";"))
-        error_at(tk->loc,
-                 "Void function '%s' should not return a value",
-                 current_fn->name);
+        error_tok(tk,
+                  "Void function '%s' should not return a value",
+                  current_fn->name);
       tk = tk->next;
     }
     skip(&tk, tk, ";");
@@ -1714,6 +1752,11 @@ struct node *unary(struct token **ret, struct token *tk) {
     struct node *n = new_node_unary(ND_BITNOT, cast(ret, tk), start);
     return n;
   }
+  if (consume(&tk, tk, "!")) {
+    struct node *n = new_node_unary(ND_NOT, cast(ret, tk), start);
+    return n;
+  }
+
   // ++a
   // assign a = a + 1
   if (consume(&tk, tk, "++")) {
@@ -1798,7 +1841,7 @@ struct node *primary(struct token **ret, struct token *tk) {
       if (vs->enum_ty) return new_node_num(vs->enum_val, ident);
     }
 
-    error_at(ident->loc, "変数%sは定義されていません", ident->str);
+    error_tok(ident, "変数%sは定義されていません", ident->str);
   }
 
   if (tk->kind == TK_SIZEOF) {

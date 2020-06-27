@@ -78,12 +78,9 @@ struct token *new_token(enum token_kind kind,
   t->str = strndup(loc, len);
   t->loc = loc;
   t->input = current_user_input;
-  t->file = current_filename;
+  t->filename = current_filename;
   cur->next = t;
   return t;
-}
-
-char escaped_char(char **new_pos, char *c) {
 }
 
 struct token *string_literal_token(struct token *cur, char *start) {

@@ -150,6 +150,7 @@ void add_type(struct node *n) {
     case ND_NUM:
     case ND_LOGOR:
     case ND_LOGAND:
+    case ND_NOT:
       n->type = ty_int;
       return;
     case ND_ADDR:
