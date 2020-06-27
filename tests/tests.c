@@ -95,6 +95,8 @@ struct {
 
 #endif
 
+#undef def
+
 int assert(int expected, int actual, char *code) {
   p("% 4d: ", number++);
   if (expected == actual) {

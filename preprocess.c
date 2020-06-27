@@ -174,17 +174,6 @@ struct token *end_token(struct token *tok) {
   return end;
 }
 
-struct macro *add_macro(char *name, bool is_objlike, struct token *tk) {
-  struct macro *m = calloc(1, sizeof(struct macro));
-  m->next = macros;
-  m->name = name;
-  m->is_objlike = is_objlike;
-  m->is_variadic = false;
-  m->expand = tk;
-  macros = m;
-  return m;
-}
-
 struct macro *find_macro(struct token *tk) {
 
   if (tk->kind != TK_IDENT) {
@@ -201,6 +190,27 @@ struct macro *find_macro(struct token *tk) {
   }
 
   return NULL;
+}
+void undef_macro(struct token **ret, struct token *tk) {
+  if (tk->kind != TK_IDENT) {
+    error_tok(tk, "macro name must be an identifier");
+  }
+  struct macro *m = find_macro(tk);
+  if (m) {
+    m->name = "";
+  }
+  *ret = skip_line(tk->next);
+}
+
+struct macro *add_macro(char *name, bool is_objlike, struct token *tk) {
+  struct macro *m = calloc(1, sizeof(struct macro));
+  m->next = macros;
+  m->name = name;
+  m->is_objlike = is_objlike;
+  m->is_variadic = false;
+  m->expand = tk;
+  macros = m;
+  return m;
 }
 
 struct token *copy_token(struct token *tk) {
@@ -534,7 +544,11 @@ struct token *preprocess(struct token *tk) {
     tk = tk->next;
     if (equal(tk, "define")) {
       define_macro(&tk, tk->next);
+      continue;
+    }
 
+    if (equal(tk, "undef")) {
+      undef_macro(&tk, tk->next);
       continue;
     }
 
