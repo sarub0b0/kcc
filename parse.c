@@ -679,17 +679,21 @@ struct type *find_typedef(struct token *tk) {
 }
 
 bool is_typename(struct token *tok) {
-  char *keyword[] = {"int",
-                     "void",
-                     "char",
-                     "short",
-                     "long",
-                     "bool",
-                     "struct",
-                     "enum",
-                     "typedef",
-                     "static",
-                     "extern"};
+  char *keyword[] = {
+      "void",
+      "bool",
+      "char",
+      "short",
+      "int",
+      "long",
+      "struct",
+      "enum",
+      "typedef",
+      "static",
+      "extern",
+      "signed",
+      "unsigned",
+  };
 
   for (int i = 0; i < sizeof(keyword) / sizeof(*keyword); i++) {
     if (equal(tok, keyword[i])) {
@@ -863,8 +867,14 @@ int eval(struct node *node, struct var **var) {
     case ND_NE:
       return eval(node->lhs, NULL) != eval(node->rhs, NULL);
     case ND_LT:
+      if (node->type->is_unsigned) {
+        return (unsigned long) eval(node->lhs, NULL) < eval(node->rhs, NULL);
+      }
       return eval(node->lhs, NULL) < eval(node->rhs, NULL);
     case ND_LE:
+      if (node->type->is_unsigned) {
+        return (unsigned long) eval(node->lhs, NULL) <= eval(node->rhs, NULL);
+      }
       return eval(node->lhs, NULL) <= eval(node->rhs, NULL);
     case ND_GT:
       return eval(node->lhs, NULL) > eval(node->rhs, NULL);
@@ -882,13 +892,16 @@ int eval(struct node *node, struct var **var) {
       }
       switch (size_of(node->type)) {
         case 1:
+          if (node->type->is_unsigned) return (unsigned char) val;
           return (char) val;
         case 2:
+          if (node->type->is_unsigned) return (unsigned short) val;
           return (short) val;
         default:
           if ((size_of(node->type)) != 4) {
             error_tok(node->token, "invalid size");
           }
+          if (node->type->is_unsigned) return (unsigned int) val;
           return (int) val;
       }
     }
@@ -1071,6 +1084,18 @@ struct type *typespec(struct token **ret,
     }
   }
 
+  bool is_unsigned = false;
+  if (equal(tk, "signed") || equal(tk, "unsigned")) {
+
+    if (equal(tk, "signed")) {
+      is_unsigned = false;
+    } else if (equal(tk, "unsigned")) {
+      is_unsigned = true;
+    }
+
+    tk = tk->next;
+  }
+
   if (consume(&tk, tk, "short")) {
     ty = copy_type(ty_short);
     goto out;
@@ -1123,6 +1148,7 @@ struct type *typespec(struct token **ret,
     error_tok(tk, "not found typedef %s", tk->str);
   }
 out:
+  ty->is_unsigned = is_unsigned;
   *ret = tk;
   return ty;
 }
