@@ -1192,6 +1192,50 @@ int main() {
          }),
          "({ unsigned short a=65535; a; })");
 
+  assert(1, ({ sizeof(char); }), "({ sizeof(char); })");
+  assert(1, ({ sizeof(signed char); }), "({ sizeof(signed char); })");
+  assert(1, ({ sizeof(unsigned char); }), "({ sizeof(unsigned char); })");
+
+  assert(2, ({ sizeof(short); }), "({ sizeof(short); })");
+  assert(2, ({ sizeof(short int); }), "({ sizeof(short int); })");
+  assert(2, ({ sizeof(signed short); }), "({ sizeof(signed short); })");
+  assert(
+      2, ({ sizeof(signed short int); }), "({ sizeof(signed short int); })");
+  assert(2, ({ sizeof(unsigned short); }), "({ sizeof(unsigned short); })");
+  assert(2,
+         ({ sizeof(unsigned short int); }),
+         "({ sizeof(unsigned short int); })");
+
+  assert(4, ({ sizeof(int); }), "({ sizeof(int); })");
+  assert(4, ({ sizeof(signed); }), "({ sizeof(signed); })");
+  assert(4, ({ sizeof(unsigned); }), "({ sizeof(unsigned); })");
+  assert(4, ({ sizeof(signed int); }), "({ sizeof(signed int); })");
+  assert(4, ({ sizeof(unsigned int); }), "({ sizeof(unsigned int); })");
+
+  assert(8, ({ sizeof(long); }), "({ sizeof(long); })");
+  assert(8, ({ sizeof(long int); }), "({ sizeof(long int); })");
+  assert(8, ({ sizeof(long long); }), "({ sizeof(long long); })");
+  assert(8, ({ sizeof(long long int); }), "({ sizeof(long long int); })");
+
+  assert(8, ({ sizeof(signed long); }), "({ sizeof(signed long); })");
+  assert(8, ({ sizeof(signed long int); }), "({ sizeof(signed long int); })");
+  assert(
+      8, ({ sizeof(signed long long); }), "({ sizeof(signed long long); })");
+  assert(8,
+         ({ sizeof(signed long long int); }),
+         "({ sizeof(signed long long int); })");
+
+  assert(8, ({ sizeof(unsigned long); }), "({ sizeof(unsigned long); })");
+  assert(8,
+         ({ sizeof(unsigned long int); }),
+         "({ sizeof(unsigned long int); })");
+  assert(8,
+         ({ sizeof(unsigned long long); }),
+         "({ sizeof(unsigned long long); })");
+  assert(8,
+         ({ sizeof(unsigned long long int); }),
+         "({ sizeof(unsigned long long int); })");
+
   if (success == number)
     printf("result: \x1b[32mOK\x1b[0m, ");
   else

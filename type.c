@@ -70,10 +70,10 @@ bool is_integer(struct type *type) {
 
 int size_of(struct type *ty) {
   if (ty->kind == VOID) {
-    error_at(ty->token->loc, "void type");
+    error_tok(ty->token, "void type");
   }
   if (ty->is_incomplete) {
-    error_at(ty->token->loc, "incomplete type");
+    error_tok(ty->token, "incomplete type");
   }
 
   return ty->size;

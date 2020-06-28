@@ -776,7 +776,14 @@ struct node *new_node_num(int val, struct token *token) {
   n->token = token;
   return n;
 }
-
+struct node *new_node_ulong(int val, struct token *token) {
+  struct node *n = calloc(1, sizeof(struct node));
+  n->kind = ND_NUM;
+  n->val = val;
+  n->type = copy_type(ty_ulong);
+  n->token = token;
+  return n;
+}
 struct node *new_node_var(struct var *var, struct token *token) {
   struct node *n = calloc(1, sizeof(struct node));
   n->kind = ND_VAR;
@@ -1061,96 +1068,137 @@ struct type *typespec(struct token **ret,
                       struct token *tk,
                       struct var_attr *attr) {
 
+  enum {
+    VOID = 1 << 0,
+    BOOL = 1 << 2,
+    CHAR = 1 << 4,
+    SHORT = 1 << 6,
+    INT = 1 << 8,
+    LONG = 1 << 10,
+    SIGNED = 1 << 12,
+    UNSIGNED = 1 << 14,
+  };
+
   struct type *ty = ty_int;
-  if (equal(tk, "typedef") || equal(tk, "extern") || equal(tk, "static")) {
-    if (!attr) {
-      error_tok(tk, "");
-    }
+  int type = 0;
+  while (is_typename(tk)) {
 
-    if (equal(tk, "typedef")) {
-      attr->is_typedef = true;
-    }
-    if (equal(tk, "extern")) {
-      attr->is_extern = true;
+    if (equal(tk, "typedef") || equal(tk, "extern") || equal(tk, "static")) {
+      if (!attr) {
+        error_tok(tk, "");
+      }
+
+      if (equal(tk, "typedef")) {
+        attr->is_typedef = true;
+        ty = typedef_declarator(&tk, tk->next);
+      }
+      if (equal(tk, "extern")) {
+        attr->is_extern = true;
+      }
+      if (equal(tk, "static")) {
+        attr->is_static = true;
+      }
+
+      if (attr->is_extern + attr->is_static + attr->is_typedef > 1) {
+        error_tok(tk, "extern, static and typedef may not be used together");
+      }
       tk = tk->next;
+      continue;
     }
-    if (equal(tk, "static")) {
-      attr->is_static = true;
+
+    if (equal(tk, "struct")) {
+      ty = struct_declarator(&tk, tk->next);
+      continue;
+    }
+
+    if (equal(tk, "enum")) {
+      ty = enum_declarator(&tk, tk->next);
+      continue;
+    }
+
+    struct type *ty2 = find_typedef(tk);
+    if (ty2) {
+      ty = copy_type(ty2);
       tk = tk->next;
+      continue;
     }
 
-    if (attr->is_extern + attr->is_static + attr->is_typedef > 1) {
-      error_tok(tk, "extern, static and typedef may not be used together");
-    }
-  }
-
-  bool is_unsigned = false;
-  if (equal(tk, "signed") || equal(tk, "unsigned")) {
-
-    if (equal(tk, "signed")) {
-      is_unsigned = false;
+    if (equal(tk, "void")) {
+      type += VOID;
+    } else if (equal(tk, "bool")) {
+      type += BOOL;
+    } else if (equal(tk, "char")) {
+      type += CHAR;
+    } else if (equal(tk, "short")) {
+      type += SHORT;
+    } else if (equal(tk, "int")) {
+      type += INT;
+    } else if (equal(tk, "long")) {
+      type += LONG;
+    } else if (equal(tk, "signed")) {
+      type |= SIGNED;
     } else if (equal(tk, "unsigned")) {
-      is_unsigned = true;
+      type |= UNSIGNED;
+    } else {
+      error_tok(tk, "internal error");
     }
 
+    switch (type) {
+      case VOID:
+        ty = ty_void;
+        break;
+      case BOOL:
+        ty = ty_bool;
+        break;
+      case CHAR:
+      case SIGNED + CHAR:
+        ty = ty_char;
+        break;
+      case UNSIGNED + CHAR:
+        ty = copy_type(ty_uchar);
+        break;
+      case SHORT:
+      case SHORT + INT:
+      case SIGNED + SHORT:
+      case SIGNED + SHORT + INT:
+        ty = ty_short;
+        break;
+      case UNSIGNED + SHORT:
+      case UNSIGNED + SHORT + INT:
+        ty = ty_ushort;
+        break;
+      case INT:
+      case SIGNED:
+      case SIGNED + INT:
+        ty = ty_int;
+        break;
+      case UNSIGNED:
+      case UNSIGNED + INT:
+        ty = ty_uint;
+        break;
+      case LONG:
+      case LONG + INT:
+      case LONG + LONG:
+      case LONG + LONG + INT:
+      case SIGNED + LONG:
+      case SIGNED + LONG + INT:
+      case SIGNED + LONG + LONG:
+      case SIGNED + LONG + LONG + INT:
+        ty = ty_long;
+        break;
+      case UNSIGNED + LONG:
+      case UNSIGNED + LONG + INT:
+      case UNSIGNED + LONG + LONG:
+      case UNSIGNED + LONG + LONG + INT:
+        ty = ty_ulong;
+        break;
+      default:
+        error_tok(tk, "invalid type");
+    }
     tk = tk->next;
   }
-
-  if (consume(&tk, tk, "short")) {
-    ty = copy_type(ty_short);
-    goto out;
-  }
-
-  if (consume(&tk, tk, "long")) {
-    ty = copy_type(ty_long);
-    goto out;
-  }
-
-  if (consume(&tk, tk, "int")) {
-    ty = copy_type(ty_int);
-    goto out;
-  }
-
-  if (consume(&tk, tk, "char")) {
-    ty = copy_type(ty_char);
-    goto out;
-  }
-
-  if (consume(&tk, tk, "void")) {
-    ty = copy_type(ty_void);
-    goto out;
-  }
-  if (consume(&tk, tk, "bool")) {
-    ty = copy_type(ty_bool);
-    goto out;
-  }
-
-  if (consume(&tk, tk, "struct")) {
-    ty = struct_declarator(&tk, tk);
-    goto out;
-  }
-
-  if (consume(&tk, tk, "enum")) {
-    ty = enum_declarator(&tk, tk);
-    goto out;
-  }
-
-  if (consume(&tk, tk, "typedef")) {
-    ty = typedef_declarator(&tk, tk);
-    goto out;
-  }
-
-  struct type *ty2 = find_typedef(tk);
-  if (ty2) {
-    ty = copy_type(ty2);
-    tk = tk->next;
-  } else {
-    error_tok(tk, "not found typedef %s", tk->str);
-  }
-out:
-  ty->is_unsigned = is_unsigned;
   *ret = tk;
-  return ty;
+  return copy_type(ty);
 }
 
 struct member *struct_members(struct token **ret, struct token *tk) {
@@ -1312,7 +1360,6 @@ struct type *typedef_declarator(struct token **ret, struct token *tk) {
 }
 
 struct type *typename(struct token **ret, struct token *tk) {
-
   struct type *ty = typespec(&tk, tk, NULL);
   *ret = tk;
   return pointers(ret, tk, ty);
@@ -1957,7 +2004,16 @@ struct node *primary(struct token **ret, struct token *tk) {
     error_tok(ident, "変数%sは定義されていません", ident->str);
   }
 
-  if (tk->kind == TK_SIZEOF) {
+  if (equal(tk, "sizeof") && equal(tk->next, "(") &&
+      is_typename(tk->next->next)) {
+    struct token *start = tk->next->next;
+    struct type *ty = typename(&tk, tk->next->next);
+    ty->token = start;
+    skip(ret, tk, ")");
+    return new_node_ulong(size_of(ty), start);
+  }
+
+  if (equal(tk, "sizeof")) {
     skip(&tk, tk, "sizeof");
     struct node *node = unary(&tk, tk);
     add_type(node);
