@@ -20,7 +20,7 @@ char **include_paths;
 char *standard_include_path[STANDARD_INCLUDE_PATH] = {
     "/usr/include",
     "/usr/include/x86_64-linux-gnu",
-    "/usr/include/x86_64-linux-gnu/9",
+    "/usr/include/x86_64-linux-gnu/9/include",
     "/usr/local/include",
     "/usr/include/linux",
 };
