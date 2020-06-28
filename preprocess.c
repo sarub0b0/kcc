@@ -630,8 +630,9 @@ bool expand_macro(struct token **ret, struct token *tk) {
 
   // #define macro num | string
   if (m->is_objlike) {
-    *ret = copy_token(m->expand);
-    (*ret)->next = tk->next;
+    // *ret = copy_token(m->expand);
+    // (*ret)->next = tk->next;
+    *ret = append_tokens(m->expand, tk->next);
     return true;
   }
   // #define macro(var) expression
@@ -642,7 +643,7 @@ bool expand_macro(struct token **ret, struct token *tk) {
 
   struct token *tk2 = replace_token(m->expand, args);
 
-  *ret = append_tokens(tk2, tk);
+  *ret = append_tokens(tk2, tk->next);
 
   return true;
 }
@@ -723,6 +724,7 @@ long expression(struct token **ret, struct token *tk) {
   struct token *tok = NULL;
   int val = const_expr(&tok, expr);
   if (tok->kind != TK_EOF) {
+    print_tokens(expr);
     error_tok(tok, "Not EOF");
   }
 
@@ -875,5 +877,7 @@ struct token *preprocess(struct token *tk) {
 
   pre_defined_macro();
 
-  return preprocess2(tk);
+  struct token *token = preprocess2(tk);
+
+  return token;
 }

@@ -5,19 +5,19 @@
 
 int extern_a = 11;
 
-// #ifdef __cplusplus
-// #define __BEGIN_DECLS extern "C" {
-// #define __END_DECLS }
-// #else
-// #define __BEGIN_DECLS
-// #define __END_DECLS
-// #endif
+#ifdef __cplusplus
+#define __BEGIN_DECLS extern "C" {
+#define __END_DECLS }
+#else
+#define __BEGIN_DECLS
+#define __END_DECLS
+#endif
 
-// // // extern "C" {
+// // extern "C" {
 
-// __BEGIN_DECLS
-// int foo();
-// __END_DECLS
+__BEGIN_DECLS
+int foo();
+__END_DECLS
 // }
 
 #endif
