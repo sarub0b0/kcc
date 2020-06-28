@@ -1,5 +1,5 @@
 CC := clang
-CFLAGS := -g -O0 -static -Wno-switch -std=c11
+CFLAGS := -g -O0 -static -std=c11
 SRCS := $(filter-out tmp.c, $(wildcard *.c))
 OBJS := $(SRCS:.c=.o)
 

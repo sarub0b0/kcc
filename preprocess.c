@@ -724,7 +724,6 @@ long expression(struct token **ret, struct token *tk) {
   struct token *tok = NULL;
   int val = const_expr(&tok, expr);
   if (tok->kind != TK_EOF) {
-    print_tokens(expr);
     error_tok(tok, "Not EOF");
   }
 
@@ -811,7 +810,7 @@ struct token *preprocess2(struct token *tk) {
       if (!conds->is_include && expression(&tk, tk->next)) {
         conds->is_include = true;
       } else {
-        tk = skip_line(tk);
+        tk = skip_cond(tk);
       }
       continue;
     }
@@ -824,7 +823,7 @@ struct token *preprocess2(struct token *tk) {
       conds->is_else = true;
       tk = skip_line(tk->next);
       if (conds->is_include) {
-        tk = skip_cond(tk->next);
+        tk = skip_cond(tk);
       }
       continue;
     }
