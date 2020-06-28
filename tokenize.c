@@ -224,7 +224,7 @@ struct token *tokenize(char *filename, char *input) {
         starts_with(p, "+=") || starts_with(p, "-=") ||
         starts_with(p, "*=") || starts_with(p, "/=") ||
         starts_with(p, "&&") || starts_with(p, "||") ||
-        starts_with(p, "->")) {
+        starts_with(p, "->") || starts_with(p, "##")) {
       cur = new_token(TK_RESERVED, cur, p, 2);
       p += 2;
       continue;
@@ -252,11 +252,16 @@ struct token *tokenize(char *filename, char *input) {
 
     if (isdigit(*p)) {
       char *prev = p;
+
       cur = new_token(TK_NUM, cur, p, 1);
 
       cur->val = strtol(p, &p, 10);
       cur->len = p - prev;
       cur->str = strndup(prev, cur->len);
+
+      if (*p == 'L' || *p == 'l') {
+        p++;
+      }
 
       continue;
     }

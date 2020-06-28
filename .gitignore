@@ -9,4 +9,4 @@ core
 .zcompdump
 .zshrc
 .clang-format
-
+.viminfo
