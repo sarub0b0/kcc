@@ -34,6 +34,12 @@ struct init_data {
   struct init_data **child;
 };
 
+struct var_attr {
+  bool is_static;
+  bool is_extern;
+  bool is_typedef;
+};
+
 static struct function *functions;
 // static struct function *current_fn;
 static struct var *current_fn;
@@ -43,7 +49,10 @@ static struct tag_scope *tags;
 static struct var_scope *vars;
 static int scope_depth;
 
-struct function *funcdef(struct token **, struct token *, struct type *);
+struct function *funcdef(struct token **,
+                         struct token *,
+                         struct type *,
+                         struct var_attr *);
 struct type *declarator(struct token **, struct token *, struct type *);
 struct type *struct_declarator(struct token **, struct token *);
 struct type *enum_declarator(struct token **, struct token *);
@@ -72,11 +81,7 @@ struct node *primary(struct token **, struct token *);
 struct node *funcall(struct token **, struct token *, struct token *);
 
 struct node *lvar_initializer(struct token **, struct token *, struct var *);
-
-void gvar_initializer(struct token **,
-                      struct token *,
-                      struct var *,
-                      struct type *);
+void gvar_initializer(struct token **, struct token *, struct var *);
 
 struct init_data *initializer(struct token **, struct token *, struct type *);
 
@@ -681,7 +686,10 @@ bool is_typename(struct token *tok) {
                      "bool",
                      "struct",
                      "enum",
-                     "typedef"};
+                     "typedef",
+                     "static",
+                     "extern"};
+
   for (int i = 0; i < sizeof(keyword) / sizeof(*keyword); i++) {
     if (equal(tok, keyword[i])) {
       return true;
@@ -980,10 +988,14 @@ struct var *new_lvar(char *name, struct type *type) {
   return v;
 }
 
-struct var *new_gvar(char *name, struct type *type, bool emit) {
+struct var *new_gvar(char *name,
+                     struct type *type,
+                     bool is_static,
+                     bool emit) {
   struct var *v = calloc(1, sizeof(struct var));
   v->name = name;
   v->type = copy_type(type);
+  v->is_static = is_static;
   v->is_local = false;
   if (emit) {
     v->next = globals;
@@ -998,11 +1010,20 @@ char *gvar_name() {
   snprintf(buf, 24, ".LC%d", inc++);
   return buf;
 }
+
+char *static_lvar_name(char *lname) {
+  int size = strlen(lname) + 4;
+  char *buf = malloc(size);
+  static int inc = 0;
+  snprintf(buf, size, "%s.%d", lname, inc++);
+  return buf;
+}
+
 struct var *new_string_literal(char *data, int len) {
   struct type *type = array_to(ty_char, len);
   type->is_string = true;
   char *name = gvar_name();
-  struct var *v = new_gvar(name, type, true);
+  struct var *v = new_gvar(name, type, true, true);
   v->name = name;
   v->data = data;
   return v;
@@ -1022,50 +1043,85 @@ long const_expr(struct token **ret, struct token *tk) {
   return eval(cond, NULL);
 }
 
-struct type *typespec(struct token **ret, struct token *tk) {
+struct type *typespec(struct token **ret,
+                      struct token *tk,
+                      struct var_attr *attr) {
 
   struct type *ty = ty_int;
+  if (equal(tk, "typedef") || equal(tk, "extern") || equal(tk, "static")) {
+    if (!attr) {
+      error_tok(tk, "");
+    }
+
+    if (equal(tk, "typedef")) {
+      attr->is_typedef = true;
+    }
+    if (equal(tk, "extern")) {
+      attr->is_extern = true;
+      tk = tk->next;
+    }
+    if (equal(tk, "static")) {
+      attr->is_static = true;
+      tk = tk->next;
+    }
+
+    if (attr->is_extern + attr->is_static + attr->is_typedef > 1) {
+      error_tok(tk, "extern, static and typedef may not be used together");
+    }
+  }
+
   if (consume(&tk, tk, "short")) {
     ty = copy_type(ty_short);
+    goto out;
   }
 
   if (consume(&tk, tk, "long")) {
     ty = copy_type(ty_long);
+    goto out;
   }
 
   if (consume(&tk, tk, "int")) {
     ty = copy_type(ty_int);
+    goto out;
   }
 
   if (consume(&tk, tk, "char")) {
     ty = copy_type(ty_char);
+    goto out;
   }
 
   if (consume(&tk, tk, "void")) {
     ty = copy_type(ty_void);
+    goto out;
   }
   if (consume(&tk, tk, "bool")) {
     ty = copy_type(ty_bool);
+    goto out;
   }
 
   if (consume(&tk, tk, "struct")) {
     ty = struct_declarator(&tk, tk);
+    goto out;
   }
 
   if (consume(&tk, tk, "enum")) {
     ty = enum_declarator(&tk, tk);
+    goto out;
   }
 
   if (consume(&tk, tk, "typedef")) {
     ty = typedef_declarator(&tk, tk);
+    goto out;
   }
 
   struct type *ty2 = find_typedef(tk);
   if (ty2) {
     ty = copy_type(ty2);
     tk = tk->next;
+  } else {
+    error_tok(tk, "not found typedef %s", tk->str);
   }
-
+out:
   *ret = tk;
   return ty;
 }
@@ -1080,9 +1136,10 @@ struct member *struct_members(struct token **ret, struct token *tk) {
   // struct-member = (typespec declarator ( "," declarator )* ";" )*
   skip(&tk, tk, "{");
   while (!equal(tk, "}")) {
+    struct var_attr attr = {};
     struct member *m = calloc(1, sizeof(struct member));
 
-    struct type *base_type = typespec(&tk, tk);
+    struct type *base_type = typespec(&tk, tk, &attr);
     m->type = declarator(&tk, tk, base_type);
     m->name = m->type->name;
     m->align = m->type->align;
@@ -1212,7 +1269,8 @@ struct type *enum_declarator(struct token **ret, struct token *tk) {
 }
 
 struct type *typedef_declarator(struct token **ret, struct token *tk) {
-  struct type *src = typespec(&tk, tk);
+  struct var_attr attr = {};
+  struct type *src = typespec(&tk, tk, &attr);
 
   struct type *ty = copy_type(src);
 
@@ -1228,14 +1286,15 @@ struct type *typedef_declarator(struct token **ret, struct token *tk) {
 
 struct type *typename(struct token **ret, struct token *tk) {
 
-  struct type *ty = typespec(&tk, tk);
+  struct type *ty = typespec(&tk, tk, NULL);
   *ret = tk;
   return pointers(ret, tk, ty);
 }
 
 struct function *funcdef(struct token **ret,
                          struct token *tk,
-                         struct type *type) {
+                         struct type *type,
+                         struct var_attr *attr) {
   locals = NULL;
   struct function *fn = calloc(1, sizeof(struct function));
 
@@ -1243,6 +1302,7 @@ struct function *funcdef(struct token **ret,
   fn->type = type->return_type;
   fn->token = tk;
   fn->is_variadic = false;
+  fn->is_static = attr->is_static;
 
   enter_scope();
 
@@ -1337,7 +1397,7 @@ struct type *funcdef_args(struct token **ret,
       skip(&tk, tk, ",");
     }
     struct type *ty;
-    ty = typespec(&tk, tk);
+    ty = typespec(&tk, tk, NULL);
     ty = declarator(&tk, tk, ty);
 
     cur = cur->next = copy_type(ty);
@@ -1354,8 +1414,9 @@ struct node *declaration(struct token **ret, struct token *tk) {
 
   struct node *node;
   struct var *var;
+  struct var_attr attr = {};
 
-  struct type *base = typespec(&tk, tk);
+  struct type *base = typespec(&tk, tk, &attr);
 
   struct node head = {};
   struct node *cur = &head;
@@ -1366,6 +1427,16 @@ struct node *declaration(struct token **ret, struct token *tk) {
     }
 
     struct type *type = declarator(&tk, tk, base);
+
+    if (attr.is_static) {
+
+      var = new_gvar(static_lvar_name(type->name), type, true, true);
+      new_varscope(var->type->name)->var = var;
+      if (consume(&tk, tk, "=")) {
+        gvar_initializer(&tk, tk, var);
+      }
+      continue;
+    }
 
     var = new_lvar(type->name, type);
 
@@ -2195,7 +2266,7 @@ struct value *create_gvar_data(struct value *cur,
   return cur;
 }
 
-void gvar_initilizer(struct token **ret, struct token *tk, struct var *var) {
+void gvar_initializer(struct token **ret, struct token *tk, struct var *var) {
 
   struct init_data *init = initializer(ret, tk, var->type);
 
@@ -2296,8 +2367,9 @@ struct program *parse(struct token *tk) {
 
   functions = &head;
   while (!at_eof(tk)) {
+    struct var_attr attr = {};
 
-    type = typespec(&tk, tk);
+    type = typespec(&tk, tk, &attr);
     if (consume(&tk, tk, ";")) continue;
 
     type = declarator(&tk, tk, type);
@@ -2307,23 +2379,25 @@ struct program *parse(struct token *tk) {
       if (vs) {
         current_fn = vs->var;
       } else {
-        current_fn = new_gvar(type->name, type, false);
+        current_fn = new_gvar(type->name, type, attr.is_static, false);
       }
+
       if (!consume(&tk, tk, ";")) {
-        cur = cur->next = funcdef(&tk, tk, type);
+        cur = cur->next = funcdef(&tk, tk, type, &attr);
       }
       continue;
     }
 
-    struct var *gvar = new_gvar(type->name, type, true);
+    struct var *gvar =
+        new_gvar(type->name, type, attr.is_static, !attr.is_extern);
     if (!equal(tk, ";")) {
       while (!equal(tk, ";")) {
         if (consume(&tk, tk, "=")) {
-          gvar_initilizer(&tk, tk, gvar);
+          gvar_initializer(&tk, tk, gvar);
         }
         if (consume(&tk, tk, ",")) {
           type = declarator(&tk, tk, type);
-          gvar = new_gvar(type->name, type, true);
+          gvar = new_gvar(type->name, type, attr.is_static, !attr.is_extern);
         }
       }
     }

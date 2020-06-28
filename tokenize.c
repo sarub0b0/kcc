@@ -23,8 +23,14 @@ const char *token_kind_str[TK_KIND_NUM] = {
 
 void print_tokens(struct token *token) {
 
-  for (struct token *t = token; t->kind != TK_EOF; t = t->next) {
-    fprintf(stderr, "%*s %s\n", 12, token_kind_str[t->kind], t->str);
+  for (struct token *t = token; t; t = t->next) {
+    fprintf(stderr,
+            "%s:%d %*s %s\n",
+            t->filename,
+            t->line_num,
+            12,
+            token_kind_str[t->kind],
+            t->str);
   }
 }
 
@@ -122,21 +128,25 @@ int is_alnum(char c) {
 }
 
 bool is_keyword(struct token *tok) {
-  char *keyword[] = {"return",
-                     "if",
-                     "else",
-                     "for",
-                     "while",
-                     "sizeof",
-                     "int",
-                     "void",
-                     "char",
-                     "short",
-                     "long",
-                     "bool",
-                     "struct",
-                     "enum",
-                     "typedef"};
+  char *keyword[] = {
+      "return",
+      "if",
+      "else",
+      "for",
+      "while",
+      "sizeof",
+      "int",
+      "void",
+      "char",
+      "short",
+      "long",
+      "bool",
+      "struct",
+      "enum",
+      "typedef",
+      "static",
+      "extern",
+  };
 
   for (int i = 0; i < sizeof(keyword) / sizeof(*keyword); i++) {
     if (equal(tok, keyword[i])) {
@@ -272,6 +282,7 @@ struct token *tokenize(char *filename, char *input) {
   new_token(TK_EOF, cur, p, 0);
   convert_ident_to_reserved(head.next);
   add_line_info(head.next);
+
   return head.next;
 }
 
@@ -330,5 +341,6 @@ struct token *tokenize_file(char *file) {
 
   remove_backslash(input);
 
-  return tokenize(file, input);
+  struct token *token = tokenize(file, input);
+  return token;
 }

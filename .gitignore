@@ -10,3 +10,11 @@ core
 .zshrc
 .clang-format
 .viminfo
+tests/*
+!tests/tests.c
+!tests/include.h
+!tests/include1.h
+!tests/include2.h
+!tests/include3.h
+!tests/extern.h
+

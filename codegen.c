@@ -17,6 +17,7 @@ int inc = 0;
 struct function *current_fn;
 
 int label_seq = 0;
+int func_seq = 0;
 
 int gen_expr(struct node *);
 void gen_stmt(struct node *);
@@ -91,9 +92,9 @@ void gen_addr(struct node *n) {
   switch (n->kind) {
     case ND_VAR:
       if (n->var->is_local) {
-        printf("  lea %s, [rbp-%d]\n", reg64[inc++], n->var->offset);
+        printf("    lea %s, [rbp-%d]\n", reg64[inc++], n->var->offset);
       } else {
-        printf("  mov %s, offset %s\n", reg64[inc++], n->var->name);
+        printf("    mov %s, offset %s\n", reg64[inc++], n->var->name);
       }
       return;
     case ND_DEREF:
@@ -101,7 +102,7 @@ void gen_addr(struct node *n) {
       return;
     case ND_MEMBER:
       gen_addr(n->lhs);
-      printf("  add %s, %d\n", reg64[inc - 1], n->member->offset);
+      printf("    add %s, %d\n", reg64[inc - 1], n->member->offset);
       return;
     default:
       return;
@@ -131,15 +132,15 @@ void gen_if(struct node *node) {
   // .LendXXX
 
   gen_expr(node->cond);
-  printf("  cmp %s, 0\n", reg64[inc - 1]);
+  printf("    cmp %s, 0\n", reg64[inc - 1]);
   inc--;
 
   if (node->els) {
-    printf("  je  .L.else.%03d\n", label_seq);
+    printf("    je  .L.else.%03d\n", label_seq);
 
     gen_stmt(node->then);
 
-    printf("  jmp  .L.end.%03d\n", label_seq);
+    printf("    jmp  .L.end.%03d\n", label_seq);
     printf(".L.else.%03d:\n", label_seq);
 
     gen_stmt(node->els);
@@ -147,7 +148,7 @@ void gen_if(struct node *node) {
     printf(".L.end.%03d:\n", label_seq);
   } else {
 
-    printf("  je  .L.end.%03d\n", label_seq);
+    printf("    je  .L.end.%03d\n", label_seq);
 
     gen_stmt(node->then);
 
@@ -179,8 +180,8 @@ void gen_for(struct node *node) {
   if (node->cond) {
     gen_expr(node->cond);
     inc--;
-    printf("  cmp %s, 0\n", reg64[inc]);
-    printf("  je  .L.end.%03d\n", label_seq);
+    printf("    cmp %s, 0\n", reg64[inc]);
+    printf("    je  .L.end.%03d\n", label_seq);
   }
 
   if (node->then) {
@@ -190,7 +191,7 @@ void gen_for(struct node *node) {
   if (node->inc) {
     gen_stmt(node->inc);
   }
-  printf("  jmp .L.begin.%03d\n", label_seq);
+  printf("    jmp .L.begin.%03d\n", label_seq);
   printf(".L.end.%03d:\n", label_seq);
 
   label_seq++;
@@ -221,30 +222,30 @@ void gen_func(struct node *node) {
 
     switch (size) {
       case 1:
-        printf("  movsx %s, BYTE PTR [rbp-%d]\n", argreg32[i], arg->offset);
+        printf("    movsx %s, BYTE PTR [rbp-%d]\n", argreg32[i], arg->offset);
         break;
       case 2:
-        printf("  movsx %s, WORD PTR [rbp-%d]\n", argreg32[i], arg->offset);
+        printf("    movsx %s, WORD PTR [rbp-%d]\n", argreg32[i], arg->offset);
         break;
       case 4:
-        printf("  mov %s, DWORD PTR [rbp-%d]\n", argreg32[i], arg->offset);
+        printf("    mov %s, DWORD PTR [rbp-%d]\n", argreg32[i], arg->offset);
         break;
       case 8:
-        printf("  mov %s, [rbp-%d]\n", argreg64[i], arg->offset);
+        printf("    mov %s, [rbp-%d]\n", argreg64[i], arg->offset);
         break;
     }
   }
 
-  printf("  push r10\n");
-  printf("  push r11\n");
-  printf("  mov rax, 0\n");
-  printf("  call %s\n", node->token->str);
+  printf("    push r10\n");
+  printf("    push r11\n");
+  printf("    mov rax, 0\n");
+  printf("    call %s\n", node->token->str);
 
-  printf("  pop r11\n");
-  printf("  pop r10\n");
+  printf("    pop r11\n");
+  printf("    pop r10\n");
 
   if (fn_ty->kind != VOID)
-    printf("  mov %s, %s\n", reg(fn_ty, inc++), areg(fn_ty));
+    printf("    mov %s, %s\n", reg(fn_ty, inc++), areg(fn_ty));
   else
     inc++;
 
@@ -258,11 +259,11 @@ void load(struct type *type) {
   const char *r = reg(type, inc - 1);
   const char *s = size_name(type);
 
-  printf("  mov %s, %s PTR [%s]\n", r, s, reg64[inc - 1]);
+  printf("    mov %s, %s PTR [%s]\n", r, s, reg64[inc - 1]);
   switch (size_of(type)) {
     case 1:
     case 2:
-      printf("  movsx %s, %s\n", reg32[inc - 1], r);
+      printf("    movsx %s, %s\n", reg32[inc - 1], r);
       break;
   }
 }
@@ -271,11 +272,11 @@ void store(struct type *type) {
   if (type->kind == STRUCT) {
 
     for (int i = 0; i < size_of(type); i++) {
-      printf("  mov al, [%s+%d]\n", reg64[inc - 2], i);
-      printf("  mov [%s+%d], al\n", reg64[inc - 1], i);
+      printf("    mov al, [%s+%d]\n", reg64[inc - 2], i);
+      printf("    mov [%s+%d], al\n", reg64[inc - 1], i);
     }
   } else {
-    printf("  mov [%s], %s\n", reg64[inc - 1], reg(type, inc - 2));
+    printf("    mov [%s], %s\n", reg64[inc - 1], reg(type, inc - 2));
   }
   inc--;
 }
@@ -288,7 +289,7 @@ int gen_expr(struct node *node) {
   struct type *ty = node->type;
   switch (node->kind) {
     case ND_NUM:
-      printf("  mov %s, %d\n", reg(ty, inc++), node->val);
+      printf("    mov %s, %d\n", reg(ty, inc++), node->val);
       return 0;
     case ND_VAR:
       gen_addr(node);
@@ -321,30 +322,30 @@ int gen_expr(struct node *node) {
       return 0;
     case ND_NOT:
       gen_expr(node->lhs);
-      printf("  cmp %s, 0\n", reg(node->lhs->type, --inc));
-      printf("  sete %s\n", reg8[inc]);
-      printf("  movzb %s, %s\n", reg64[inc], reg8[inc]);
+      printf("    cmp %s, 0\n", reg(node->lhs->type, --inc));
+      printf("    sete %s\n", reg8[inc]);
+      printf("    movzb %s, %s\n", reg64[inc], reg8[inc]);
       inc++;
       return 0;
     case ND_BITNOT:
       gen_expr(node->lhs);
-      printf("  not %s\n", reg(node->lhs->type, inc - 1));
+      printf("    not %s\n", reg(node->lhs->type, inc - 1));
       return 0;
     case ND_LOGOR:
       // lhs || rhs
       // lhs == 0 ?
       gen_expr(node->lhs);
-      printf("  cmp %s, 0\n", reg(node->lhs->type, --inc));
-      printf("  jne .L.true.%03d\n", label_seq);
+      printf("    cmp %s, 0\n", reg(node->lhs->type, --inc));
+      printf("    jne .L.true.%03d\n", label_seq);
 
       // rhs == 0 ?
       gen_expr(node->rhs);
-      printf("  cmp %s, 0\n", reg(node->rhs->type, --inc));
-      printf("  jne .L.true.%03d\n", label_seq);
-      printf("  mov %s, 0\n", reg64[inc - 1]);
-      printf("  jmp .L.end.%03d\n", label_seq);
+      printf("    cmp %s, 0\n", reg(node->rhs->type, --inc));
+      printf("    jne .L.true.%03d\n", label_seq);
+      printf("    mov %s, 0\n", reg64[inc - 1]);
+      printf("    jmp .L.end.%03d\n", label_seq);
       printf(".L.true.%03d:\n", label_seq);
-      printf("  mov %s, 1\n", reg64[inc++]);
+      printf("    mov %s, 1\n", reg64[inc++]);
       printf(".L.end.%03d:\n", label_seq);
       label_seq++;
       return 0;
@@ -352,17 +353,17 @@ int gen_expr(struct node *node) {
       // lhs && rhs
       // lhs == 0 ?
       gen_expr(node->lhs);
-      printf("  cmp %s, 0\n", reg(node->lhs->type, --inc));
-      printf("  je .L.false.%03d\n", label_seq);
+      printf("    cmp %s, 0\n", reg(node->lhs->type, --inc));
+      printf("    je .L.false.%03d\n", label_seq);
 
       // rhs == 0 ?
       gen_expr(node->rhs);
-      printf("  cmp %s, 0\n", reg(node->rhs->type, --inc));
-      printf("  je .L.false.%03d\n", label_seq);
-      printf("  mov %s, 1\n", reg64[inc - 1]);
-      printf("  jmp .L.end.%03d\n", label_seq);
+      printf("    cmp %s, 0\n", reg(node->rhs->type, --inc));
+      printf("    je .L.false.%03d\n", label_seq);
+      printf("    mov %s, 1\n", reg64[inc - 1]);
+      printf("    jmp .L.end.%03d\n", label_seq);
       printf(".L.false.%03d:\n", label_seq);
-      printf("  mov %s, 0\n", reg64[inc++]);
+      printf("    mov %s, 0\n", reg64[inc++]);
       printf(".L.end.%03d:\n", label_seq);
       label_seq++;
       return 0;
@@ -380,28 +381,28 @@ int gen_expr(struct node *node) {
 
       int to_size = size_of(to);
       if (to_size == 1) {
-        printf("  movsx %s, %s\n", reg32[inc - 1], reg8[inc - 1]);
+        printf("    movsx %s, %s\n", reg32[inc - 1], reg8[inc - 1]);
       } else if (to_size == 2) {
-        printf("  movsx %s, %s\n", reg32[inc - 1], reg16[inc - 1]);
+        printf("    movsx %s, %s\n", reg32[inc - 1], reg16[inc - 1]);
       } else if (to_size == 4) {
-        printf("  mov %s, %s\n", reg32[inc - 1], reg32[inc - 1]);
+        printf("    mov %s, %s\n", reg32[inc - 1], reg32[inc - 1]);
       } else if (is_integer(from) && size_of(from) < 8) {
-        printf("  movsx %s, %s\n", reg64[inc - 1], reg(from, inc - 1));
+        printf("    movsx %s, %s\n", reg64[inc - 1], reg(from, inc - 1));
       }
 
       return 0;
     }
     case ND_COND:
       gen_expr(node->cond);
-      printf("  cmp %s, 0\n", reg64[inc - 1]);
+      printf("    cmp %s, 0\n", reg64[inc - 1]);
       inc--;
 
-      printf("  je  .L.else.%03d\n", label_seq);
+      printf("    je  .L.else.%03d\n", label_seq);
 
       gen_expr(node->then);
       inc--;
 
-      printf("  jmp  .L.end.%03d\n", label_seq);
+      printf("    jmp  .L.end.%03d\n", label_seq);
       printf(".L.else.%03d:\n", label_seq);
 
       gen_expr(node->els);
@@ -431,58 +432,58 @@ int gen_expr(struct node *node) {
 
   switch (node->kind) {
     case ND_ADD:
-      printf("  add %s, %s\n", rd, rs);
+      printf("    add %s, %s\n", rd, rs);
       break;
     case ND_SUB:
-      printf("  sub %s, %s\n", rd, rs);
+      printf("    sub %s, %s\n", rd, rs);
       break;
     case ND_MUL:
-      printf("  imul %s, %s\n", rd, rs);
+      printf("    imul %s, %s\n", rd, rs);
       break;
     case ND_DIV:
-      printf("  mov %s, %s\n", ra, rd);
-      printf("  cqo\n");
-      printf("  idiv %s\n", rs);
-      printf("  mov %s, %s\n", rd, ra);
+      printf("    mov %s, %s\n", ra, rd);
+      printf("    cqo\n");
+      printf("    idiv %s\n", rs);
+      printf("    mov %s, %s\n", rd, ra);
       break;
     case ND_EQ:
-      printf("  cmp %s, %s\n", rd, rs);
-      printf("  sete al\n");
-      printf("  movzb %s, al\n", rd);
+      printf("    cmp %s, %s\n", rd, rs);
+      printf("    sete al\n");
+      printf("    movzb %s, al\n", rd);
       break;
     case ND_NE:
-      printf("  cmp %s, %s\n", rd, rs);
-      printf("  setne al\n");
-      printf("  movzb %s, al\n", rd);
+      printf("    cmp %s, %s\n", rd, rs);
+      printf("    setne al\n");
+      printf("    movzb %s, al\n", rd);
       break;
     case ND_LE:
-      printf("  cmp %s, %s\n", rd, rs);
-      printf("  setle al\n");
-      printf("  movzb %s, al\n", rd);
+      printf("    cmp %s, %s\n", rd, rs);
+      printf("    setle al\n");
+      printf("    movzb %s, al\n", rd);
       break;
     case ND_LT:
-      printf("  cmp %s, %s\n", rd, rs);
-      printf("  setl al\n");
-      printf("  movzb %s, al\n", rd);
+      printf("    cmp %s, %s\n", rd, rs);
+      printf("    setl al\n");
+      printf("    movzb %s, al\n", rd);
       break;
     case ND_GE:
-      printf("  cmp %s, %s\n", rd, rs);
-      printf("  setge al\n");
-      printf("  movzb %s, al\n", rd);
+      printf("    cmp %s, %s\n", rd, rs);
+      printf("    setge al\n");
+      printf("    movzb %s, al\n", rd);
       break;
     case ND_GT:
-      printf("  cmp %s, %s\n", rd, rs);
-      printf("  setg al\n");
-      printf("  movzb %s, al\n", rd);
+      printf("    cmp %s, %s\n", rd, rs);
+      printf("    setg al\n");
+      printf("    movzb %s, al\n", rd);
       break;
     case ND_BITOR:
-      printf("  or %s, %s\n", rd, rs);
+      printf("    or %s, %s\n", rd, rs);
       break;
     case ND_BITXOR:
-      printf("  xor %s, %s\n", rd, rs);
+      printf("    xor %s, %s\n", rd, rs);
       break;
     case ND_BITAND:
-      printf("  and %s, %s\n", rd, rs);
+      printf("    and %s, %s\n", rd, rs);
       break;
     default:
       error_tok(node->token, "Don't assembly calculation (%d)", node->kind);
@@ -497,9 +498,9 @@ void gen_stmt(struct node *node) {
     case ND_RETURN:
       gen_expr(node->lhs);
       if (node->lhs) {
-        printf("  mov rax, %s\n", reg64[--inc]);
+        printf("    mov rax, %s\n", reg64[--inc]);
       }
-      printf("  jmp .L.return.%s\n", current_fn->name);
+      printf("    jmp .L.return.%s\n", current_fn->name);
       return;
     case ND_IF:
       gen_if(node);
@@ -521,7 +522,7 @@ void gen_stmt(struct node *node) {
 }
 
 void header() {
-  printf(".intel_syntax noprefix\n");
+  printf("    .intel_syntax noprefix\n");
 }
 
 char *data_symbol(int size) {
@@ -554,14 +555,14 @@ void emit_value(int *pos,
 
   struct value *val = *value;
   if (val && val->offset == *pos) {
-    printf("  .quad %s%+ld\n", val->label, val->addend);
+    printf("    .quad %s%+ld\n", val->label, val->addend);
     *value = val->next;
     *pos += 8;
     return;
   }
 
   if (type->is_string) {
-    printf("  .string \"%s\"\n", var->data);
+    printf("    .string \"%s\"\n", var->data);
     *pos += var->type->size;
     return;
   }
@@ -589,37 +590,39 @@ void emit_value(int *pos,
 
   switch (size) {
     case 1:
-      printf("  .byte %d\n", (char) var->data[*pos]);
+      printf("    .byte %d\n", (char) var->data[*pos]);
       *pos += 1;
       return;
     case 2:
-      printf("  .short %d\n", (short) var->data[*pos]);
+      printf("    .short %d\n", (short) var->data[*pos]);
       *pos += 2;
       return;
     case 4:
-      printf("  .long %d\n", (int) var->data[*pos]);
+      printf("    .long %d\n", (int) var->data[*pos]);
       *pos += 4;
       return;
     case 8:
-      printf("  .quad %ld\n", (long) var->data[*pos]);
+      printf("    .quad %ld\n", (long) var->data[*pos]);
       *pos += 8;
   }
 }
 
 void emit_data_info(struct var *v) {
-  printf(".align %lu\n", align(v->type));
+  if (!v->is_static) {
+    printf("    .globl %s\n", v->name);
+  }
+  printf("    .align %lu\n", align(v->type));
 
   printf("%s: // %s", v->name, type_to_name(v->type->kind));
 
   if (v->type->ptr_to) {
     printf(" -> %s", type_to_name(v->type->ptr_to->kind));
   }
-
   printf("\n");
 }
 
 void data_section(struct program *prog) {
-  printf(".data\n");
+  printf("    .data\n");
 
   for (struct var *v = prog->globals; v; v = v->next) {
     if (!v->data) continue;
@@ -636,25 +639,25 @@ void data_section(struct program *prog) {
   }
 }
 void bss_section(struct program *prog) {
-  printf(".bss\n");
+  printf("    .bss\n");
 
   for (struct var *v = prog->globals; v; v = v->next) {
     if (v->data) continue;
 
     emit_data_info(v);
-    printf("  .zero %d\n", size_of(v->type));
+    printf("    .zero %d\n", size_of(v->type));
   }
 }
 void prologue(int stack_size) {
-  printf("  push rbp\n");
-  printf("  mov rbp, rsp\n");
-  printf("  sub rsp, %d\n", stack_size);
+  printf("    push rbp\n");
+  printf("    mov rbp, rsp\n");
+  printf("    sub rsp, %d\n", stack_size);
 }
 
 void epilogue() {
-  printf("  mov rsp, rbp\n");
-  printf("  pop rbp\n");
-  printf("  ret\n");
+  printf("    mov rsp, rbp\n");
+  printf("    pop rbp\n");
+  printf("    ret\n");
 }
 
 int stack_size(int offset) {
@@ -680,29 +683,33 @@ int nargs(struct var *v) {
 }
 
 void text_section(struct program *prog) {
-  printf(".text\n");
+  printf("    .text\n");
 
   for (struct function *fn = prog->functions; fn; fn = fn->next) {
     current_fn = fn;
 
-    printf(".global %s\n", fn->name);
+    if (!fn->is_static) {
+      printf("    .globl %s\n", fn->name);
+    }
 
     printf("%s:\n", fn->name);
+
+    printf(".LFB%d:\n", func_seq);
 
     set_offset_and_stack_size(fn);
 
     prologue(fn->stack_size);
 
-    printf("  mov [rbp-8], r12\n");
-    printf("  mov [rbp-16], r13\n");
-    printf("  mov [rbp-24], r14\n");
-    printf("  mov [rbp-32], r15\n");
+    printf("    mov [rbp-8], r12\n");
+    printf("    mov [rbp-16], r13\n");
+    printf("    mov [rbp-24], r14\n");
+    printf("    mov [rbp-32], r15\n");
 
     int params_num = nargs(fn->params);
 
     for (struct var *v = fn->params; v; v = v->next) {
       printf(
-          "  mov [rbp-%d], %s\n", v->offset, argreg(v->type, --params_num));
+          "    mov [rbp-%d], %s\n", v->offset, argreg(v->type, --params_num));
     }
     for (struct node *n = fn->stmt; n; n = n->next) {
       gen_stmt(n);
@@ -711,16 +718,19 @@ void text_section(struct program *prog) {
 
     printf(".L.return.%s:\n", fn->name);
 
-    printf("  mov r12, [rbp-8] \n");
-    printf("  mov r13, [rbp-16]\n");
-    printf("  mov r14, [rbp-24]\n");
-    printf("  mov r15, [rbp-32]\n");
+    printf("    mov r12, [rbp-8] \n");
+    printf("    mov r13, [rbp-16]\n");
+    printf("    mov r14, [rbp-24]\n");
+    printf("    mov r15, [rbp-32]\n");
 
     epilogue();
+
+    printf(".LFE%d:\n", func_seq++);
   }
 }
 
 void gen_code(struct program *prog) {
+  printf("    .file \"%s\"\n", prog->filename);
 
   header();
 
