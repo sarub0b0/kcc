@@ -220,12 +220,16 @@ void gen_func(struct node *node) {
 
     if (arg_ty->kind == ARRAY) size = 8;
 
+    char *insn = arg_ty->is_unsigned ? "movzx" : "movsx";
+
     switch (size) {
       case 1:
-        printf("    movsx %s, BYTE PTR [rbp-%d]\n", argreg32[i], arg->offset);
+        printf(
+            "    %s %s, BYTE PTR [rbp-%d]\n", insn, argreg32[i], arg->offset);
         break;
       case 2:
-        printf("    movsx %s, WORD PTR [rbp-%d]\n", argreg32[i], arg->offset);
+        printf(
+            "    %s %s, WORD PTR [rbp-%d]\n", insn, argreg32[i], arg->offset);
         break;
       case 4:
         printf("    mov %s, DWORD PTR [rbp-%d]\n", argreg32[i], arg->offset);
@@ -259,11 +263,12 @@ void load(struct type *type) {
   const char *r = reg(type, inc - 1);
   const char *s = size_name(type);
 
+  char *insn = type->is_unsigned ? "movzx" : "movsx";
   printf("    mov %s, %s PTR [%s]\n", r, s, reg64[inc - 1]);
   switch (size_of(type)) {
     case 1:
     case 2:
-      printf("    movsx %s, %s\n", reg32[inc - 1], r);
+      printf("    %s %s, %s\n", insn, reg32[inc - 1], r);
       break;
   }
 }
@@ -379,11 +384,12 @@ int gen_expr(struct node *node) {
       struct type *from = node->lhs->type;
       struct type *to = node->type;
 
+      char *insn = to->is_unsigned ? "movzx" : "movsx";
       int to_size = size_of(to);
       if (to_size == 1) {
-        printf("    movsx %s, %s\n", reg32[inc - 1], reg8[inc - 1]);
+        printf("    %s %s, %s\n", insn, reg32[inc - 1], reg8[inc - 1]);
       } else if (to_size == 2) {
-        printf("    movsx %s, %s\n", reg32[inc - 1], reg16[inc - 1]);
+        printf("    %s %s, %s\n", insn, reg32[inc - 1], reg16[inc - 1]);
       } else if (to_size == 4) {
         printf("    mov %s, %s\n", reg32[inc - 1], reg32[inc - 1]);
       } else if (is_integer(from) && size_of(from) < 8) {
@@ -458,12 +464,20 @@ int gen_expr(struct node *node) {
       break;
     case ND_LE:
       printf("    cmp %s, %s\n", rd, rs);
-      printf("    setle al\n");
+      if (node->lhs->type->is_unsigned) {
+        printf("    setbe al\n");
+      } else {
+        printf("    setle al\n");
+      }
       printf("    movzb %s, al\n", rd);
       break;
     case ND_LT:
       printf("    cmp %s, %s\n", rd, rs);
-      printf("    setl al\n");
+      if (node->lhs->type->is_unsigned) {
+        printf("    setb al\n");
+      } else {
+        printf("    setl al\n");
+      }
       printf("    movzb %s, al\n", rd);
       break;
     case ND_GE:
@@ -491,7 +505,11 @@ int gen_expr(struct node *node) {
       break;
     case ND_SHR:
       printf("    mov rcx, %s\n", reg64[inc]);
-      printf("    shr %s, cl\n", rd);
+      if (node->lhs->type->is_unsigned) {
+        printf("    shr %s, cl\n", rd);
+      } else {
+        printf("    sar %s, cl\n", rd);
+      }
       break;
     default:
       error_tok(node->token, "Don't assembly calculation (%d)", node->kind);

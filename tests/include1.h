@@ -1,1 +1,2 @@
 #define one
+#undef one

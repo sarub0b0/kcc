@@ -104,6 +104,8 @@ struct type {
   size_t size;
   size_t align;
   char *name;
+  bool is_unsigned;
+
   struct type *ptr_to;
   size_t array_size;
 
@@ -256,11 +258,23 @@ struct type *array_to(struct type *, size_t);
 char *type_to_name(enum type_kind);
 
 extern struct type *ty_void;
+extern struct type *ty_bool;
+
+extern struct type *ty_char;
 extern struct type *ty_short;
 extern struct type *ty_int;
 extern struct type *ty_long;
-extern struct type *ty_char;
-extern struct type *ty_bool;
+
+extern struct type *ty_schar;
+extern struct type *ty_sshort;
+extern struct type *ty_sint;
+extern struct type *ty_slong;
+
+extern struct type *ty_uchar;
+extern struct type *ty_ushort;
+extern struct type *ty_uint;
+extern struct type *ty_ulong;
+
 extern struct type *ty_enum;
 extern struct type *ty_struct;
 

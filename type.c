@@ -4,13 +4,23 @@
 
 #include "kcc.h"
 
+struct type *ty_void = &(struct type){VOID, 1, 1, ""};
+struct type *ty_bool = &(struct type){BOOL, 1, 1, ""};
+struct type *ty_char = &(struct type){CHAR, 1, 1, ""};
 struct type *ty_short = &(struct type){SHORT, 2, 2, ""};
 struct type *ty_int = &(struct type){INT, 4, 4, ""};
 struct type *ty_long = &(struct type){LONG, 8, 8, ""};
-struct type *ty_bool = &(struct type){BOOL, 1, 1, ""};
 
-struct type *ty_char = &(struct type){CHAR, 1, 1, ""};
-struct type *ty_void = &(struct type){VOID, 1, 1, ""};
+struct type *ty_schar = &(struct type){CHAR, 1, 1, ""};
+struct type *ty_sshort = &(struct type){SHORT, 2, 2, ""};
+struct type *ty_sint = &(struct type){INT, 4, 4, ""};
+struct type *ty_slong = &(struct type){LONG, 8, 8, ""};
+
+struct type *ty_uchar = &(struct type){CHAR, 1, 1, "", true};
+struct type *ty_ushort = &(struct type){SHORT, 2, 2, "", true};
+struct type *ty_uint = &(struct type){INT, 4, 4, "", true};
+struct type *ty_ulong = &(struct type){LONG, 8, 8, "", true};
+
 struct type *ty_enum = &(struct type){ENUM, 4, 4, ""};
 struct type *ty_struct = &(struct type){STRUCT, 0, 1, ""};
 
@@ -43,6 +53,8 @@ char *type_to_name(enum type_kind kind) {
       return "long";
     case STRUCT:
       return "struct";
+    default:
+      break;
   }
 
   debug("None(%d)", kind);
@@ -96,6 +108,23 @@ bool is_scalar(struct type *ty) {
   return is_integer(ty) || ty->ptr_to;
 }
 
+void type_convert(struct node **lhs, struct node **rhs) {
+  struct type *ty1 = (*lhs)->type;
+  struct type *ty2 = (*rhs)->type;
+  struct type *ty = NULL;
+  if (ty1->ptr_to)
+    ty = pointer_to(ty1->ptr_to);
+  else if (ty1->size != ty2->size) {
+    ty = ty1->size > ty2->size ? ty1 : ty2;
+  } else if (ty2->is_unsigned) {
+    ty = ty2;
+  } else {
+    ty = ty1;
+  }
+  *lhs = new_node_cast(*lhs, ty);
+  *rhs = new_node_cast(*rhs, ty);
+}
+
 void add_type(struct node *n) {
   if (!n || n->type) return;
 
@@ -119,21 +148,12 @@ void add_type(struct node *n) {
     case ND_MUL:
     case ND_BITOR:
     case ND_BITXOR:
-    case ND_BITAND: {
-      struct type *ty1 = n->lhs->type;
-      struct type *ty2 = n->rhs->type;
-      struct type *ty = NULL;
-      if (ty1->ptr_to)
-        ty = pointer_to(ty1->ptr_to);
-      else
-        ty = ty1->size > ty2->size ? ty1 : ty2;
-
-      n->rhs = new_node_cast(n->rhs, ty);
-      n->lhs = new_node_cast(n->lhs, ty);
-      n->type = ty;
+    case ND_BITAND:
+      type_convert(&n->lhs, &n->rhs);
+      n->type = n->lhs->type;
       return;
-    }
     case ND_COND:
+      type_convert(&n->then, &n->els);
       n->type = n->then->type;
       return;
     case ND_ASSIGN:
@@ -151,11 +171,14 @@ void add_type(struct node *n) {
     case ND_LE:
     case ND_GT:
     case ND_GE:
+      type_convert(&n->lhs, &n->rhs);
+      n->type = copy_type(ty_int);
+      return;
     case ND_NUM:
     case ND_LOGOR:
     case ND_LOGAND:
     case ND_NOT:
-      n->type = ty_int;
+      n->type = copy_type(ty_int);
       return;
     case ND_ADDR:
       if (n->lhs->type->kind == ARRAY) {

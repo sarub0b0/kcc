@@ -1154,6 +1154,44 @@ int main() {
          }),
          "({ int a=8; a>>3; })");
 
+  assert(-1,
+         ({
+           char a = 255;
+           a;
+         }),
+         "({ char a=255; a; })");
+  assert(-1,
+         ({
+           signed char a = 255;
+           a;
+         }),
+         "({ signed char a=255; a; })");
+  assert(255,
+         ({
+           unsigned char a = 255;
+           a;
+         }),
+         "({ unsigned char a=255; a; })");
+
+  assert(-1,
+         ({
+           short a = 65535;
+           a;
+         }),
+         "({ short a=65535; a; })");
+  assert(-1,
+         ({
+           signed short a = 65535;
+           a;
+         }),
+         "({ signed short a=65535; a; })");
+  assert(65535,
+         ({
+           unsigned short a = 65535;
+           a;
+         }),
+         "({ unsigned short a=65535; a; })");
+
   if (success == number)
     printf("result: \x1b[32mOK\x1b[0m, ");
   else
