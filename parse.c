@@ -842,6 +842,7 @@ struct init_data *new_init(struct type *type,
 }
 
 int eval(struct node *node, struct var **var) {
+  add_type(node);
   switch (node->kind) {
     case ND_ADD:
       return eval(node->lhs, var) + eval(node->rhs, NULL);
