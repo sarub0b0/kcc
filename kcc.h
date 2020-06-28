@@ -81,6 +81,8 @@ enum node_kind {
   ND_MEMBER,
   ND_COMMA,
   ND_NOT,
+  ND_SHL,
+  ND_SHR,
 };
 
 enum type_kind {

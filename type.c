@@ -141,6 +141,10 @@ void add_type(struct node *n) {
         n->rhs = new_node_cast(n->rhs, n->lhs->type);
       n->type = n->lhs->type;
       return;
+    case ND_SHL:
+    case ND_SHR:
+      n->type = n->lhs->type;
+      return;
     case ND_EQ:
     case ND_NE:
     case ND_LT:

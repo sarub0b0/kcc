@@ -1141,6 +1141,19 @@ int main() {
 
   assert(11, ({ extern_a; }), "({ extern_a; })");
 
+  assert(8,
+         ({
+           int a = 1;
+           a << 3;
+         }),
+         "({ int a=1; a<<3; })");
+  assert(1,
+         ({
+           int a = 8;
+           a >> 3;
+         }),
+         "({ int a=8; a>>3; })");
+
   if (success == number)
     printf("result: \x1b[32mOK\x1b[0m, ");
   else

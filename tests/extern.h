@@ -16,7 +16,9 @@ int extern_a = 11;
 // // extern "C" {
 
 __BEGIN_DECLS
+
 int foo();
+
 __END_DECLS
 // }
 
