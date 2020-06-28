@@ -504,6 +504,122 @@ void define_macro(struct token **ret, struct token *tk) {
 
   return;
 }
+struct token *find_arg(struct token *tk, struct macro_arg *args) {
+  for (struct macro_arg *a = args; a; a = a->next) {
+    if (strlen(a->name) == tk->len &&
+        strncmp(a->name, tk->str, tk->len) == 0) {
+      return a->token;
+    }
+  }
+  return NULL;
+}
+
+struct token *paste(struct token *lhs, struct token *rhs) {
+  int size = lhs->len + rhs->len + 1;
+  char *buf = malloc(size);
+
+  snprintf(buf, size, "%.*s%.*s", lhs->len, lhs->str, rhs->len, rhs->str);
+
+  struct token *tk = tokenize(lhs->filename, buf);
+
+  if (tk->next->kind != TK_EOF) {
+    error_tok(lhs, "pasting formde '%s%s', an invalid preprocessing token");
+  }
+
+  return tk;
+}
+
+char *add_quotes(char *str) {
+  int size = 3; // \" ... \"\0
+  for (int i = 0; str[i]; i++) {
+    if (str[i] == '\\' || str[i] == '"') size++;
+    size++;
+  }
+
+  char *buf = malloc(size);
+  int pos = 0;
+  buf[pos++] = '"';
+
+  for (int i = 0; str[i]; i++) {
+    if (str[i] == '\\' || str[i] == '"') buf[pos++] = '\\';
+
+    buf[pos++] = str[i];
+  }
+
+  buf[pos++] = '"';
+  buf[pos++] = '\0';
+
+  debug("%s", buf);
+  return buf;
+}
+
+struct token *new_string_token(char *str, struct token *tk) {
+  char *new_str = add_quotes(str);
+
+  return tokenize(tk->filename, new_str);
+}
+
+struct token *stringize(struct token *arg, struct token *tk) {
+  char *buf = join_tokens(arg, NULL);
+  return new_string_token(buf, tk);
+}
+
+struct token *replace_token(struct token *tk, struct macro_arg *args) {
+  struct token head = {};
+  struct token *cur = &head;
+
+  while (tk->kind != TK_EOF) {
+    struct token *arg = find_arg(tk, args);
+
+    if (equal(tk, "__VA_ARGS__")) {
+      for (struct token *a = join_args(args); a->kind != TK_EOF;
+           a = a->next) {
+        cur = cur->next = copy_token(a);
+      }
+
+      tk = tk->next;
+      continue;
+    }
+
+    if (arg) {
+
+      for (struct token *a = arg; a->kind != TK_EOF; a = a->next) {
+        cur = cur->next = copy_token(a);
+      }
+
+      tk = tk->next;
+      continue;
+    }
+
+    if (equal(tk, "##")) {
+      tk = tk->next;
+      struct token *rhs = find_arg(tk, args);
+
+      *cur = *paste(cur, rhs);
+
+      for (struct token *t = rhs->next; t->kind != TK_EOF; t = t->next) {
+        cur = cur->next = copy_token(t);
+      }
+      tk = tk->next;
+      continue;
+    }
+
+    if (equal(tk, "#")) {
+      struct token *arg = find_arg(tk->next, args);
+
+      if (arg) {
+        cur = cur->next = stringize(arg, tk);
+        tk = tk->next->next;
+      }
+      continue;
+    }
+
+    cur = cur->next = copy_token(tk);
+    tk = tk->next;
+  }
+
+  return head.next;
+}
 
 bool expand_macro(struct token **ret, struct token *tk) {
 
@@ -524,45 +640,9 @@ bool expand_macro(struct token **ret, struct token *tk) {
   struct macro_param *params = m->params;
   struct macro_arg *args = macro_args(&tk, tk, params, m->is_variadic);
 
-  struct token head = {};
-  struct token *cur = &head;
-  for (struct token *t = m->expand; t->kind != TK_EOF; t = t->next) {
-    cur = cur->next = copy_token(t);
-  }
-  cur->next = new_eof();
+  struct token *tk2 = replace_token(m->expand, args);
 
-  for (struct macro_arg *a = args; a; a = a->next) {
-    bool found = false;
-    for (struct token *t = head.next; t->kind != TK_EOF; t = t->next) {
-      if (equal(t, "__VA_ARGS__")) {
-        struct token *next = t->next;
-        struct token *end;
-
-        *t = *join_args(args);
-
-        t = end = end_token(t);
-        end->next = next;
-        break;
-      }
-      if (strlen(a->name) == t->len &&
-          strncmp(a->name, t->str, t->len) == 0) {
-        struct token *next = t->next;
-        struct token *end;
-
-        *t = *a->token;
-        t = end = end_token(t);
-        end->next = next;
-
-        found = true;
-      }
-    }
-    if (!found && !m->is_variadic) {
-      error_tok(a->token, "Too many parameter");
-    }
-  }
-
-  *ret = head.next;
-  end_token(head.next)->next = tk;
+  *ret = append_tokens(tk2, tk);
 
   return true;
 }
@@ -583,8 +663,8 @@ void pop_cond() {
 
 struct token *new_num_token(int val, struct token *tk) {
   struct token *ret = copy_token(tk);
-  char *buf = calloc(10, sizeof(char));
-  snprintf(buf, 10, "%d", val);
+  char *buf = calloc(20, sizeof(char));
+  snprintf(buf, 20, "%d", val);
 
   ret->val = val;
   ret->str = buf;
@@ -629,7 +709,16 @@ struct token *read_expression(struct token **ret, struct token *tk) {
 long expression(struct token **ret, struct token *tk) {
 
   struct token *expr = read_expression(ret, tk);
+
   expr = preprocess2(expr);
+
+  for (struct token *tok = expr; tok->kind != TK_EOF; tok = tok->next) {
+    if (tok->kind == TK_IDENT) {
+      struct token *next = tok->next;
+      *tok = *new_num_token(0, tok);
+      tok->next = next;
+    }
+  }
 
   struct token *tok = NULL;
   int val = const_expr(&tok, expr);
@@ -776,6 +865,8 @@ void pre_defined_macro() {
   def_macro("__STDC_NO_THREADS__", "1");
   def_macro("__STDC_NO_VLA__", "1");
 
+  def_macro("__x86_64__", "1");
+  def_macro("__LP64__", "1");
   // def_macro("", "");
 }
 
