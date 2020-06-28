@@ -643,7 +643,7 @@ bool expand_macro(struct token **ret, struct token *tk) {
 
   struct token *tk2 = replace_token(m->expand, args);
 
-  *ret = append_tokens(tk2, tk->next);
+  *ret = append_tokens(tk2, tk);
 
   return true;
 }
