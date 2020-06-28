@@ -11,7 +11,7 @@
 #include "kcc.h"
 
 #define MAX_LEN 256
-#define STANDARD_INCLUDE_PATH 3
+#define STANDARD_INCLUDE_PATH 5
 
 struct token *tk;
 int verbose;
@@ -20,7 +20,9 @@ char **include_paths;
 char *standard_include_path[STANDARD_INCLUDE_PATH] = {
     "/usr/include",
     "/usr/include/x86_64-linux-gnu",
+    "/usr/include/x86_64-linux-gnu/9",
     "/usr/local/include",
+    "/usr/include/linux",
 };
 
 struct config {
@@ -121,6 +123,7 @@ int main(int argc, char *argv[]) {
   }
 
   struct program *pr = parse(tk);
+  pr->filename = cfg.filename;
 
   if (cfg.is_ast_dump) {
     print_ast(pr, cfg.funcname);

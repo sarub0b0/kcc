@@ -141,6 +141,8 @@ struct var {
 
   bool is_local;
 
+  bool is_static;
+
   char *data;
   int addend;
   struct value *values;
@@ -201,6 +203,7 @@ struct function {
   struct var *params;
 
   bool is_variadic;
+  bool is_static;
 
   struct node *stmt;
 
@@ -211,6 +214,7 @@ struct function {
 struct program {
   struct function *functions;
   struct var *globals;
+  char *filename;
 };
 void verror_at(char *, char *, char *, int, char *, va_list);
 void error(char *, ...);

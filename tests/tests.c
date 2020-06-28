@@ -7,6 +7,7 @@
  */
 
 #include "include.h"
+#include "extern.h"
 
 typedef int Int32;
 
@@ -67,6 +68,8 @@ struct {
   char a;
   int b;
 } g15[2] = {{1, 2}, {3, 4}};
+
+extern int extern_a;
 
 #define TRUE 1
 #define FALSE 0
@@ -1135,6 +1138,8 @@ int main() {
 
   assert(3, ({ g14.a + g14.b; }), "({ g14.a+g14.b; })");
   assert(5, ({ g15[0].a + g15[1].b; }), "({ g15[0].a+g15[1].b; })");
+
+  assert(11, ({ extern_a; }), "({ extern_a; })");
 
   if (success == number)
     printf("result: \x1b[32mOK\x1b[0m, ");
