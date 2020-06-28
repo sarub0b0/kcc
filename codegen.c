@@ -485,6 +485,14 @@ int gen_expr(struct node *node) {
     case ND_BITAND:
       printf("    and %s, %s\n", rd, rs);
       break;
+    case ND_SHL:
+      printf("    mov rcx, %s\n", reg64[inc]);
+      printf("    shl %s, cl\n", rd);
+      break;
+    case ND_SHR:
+      printf("    mov rcx, %s\n", reg64[inc]);
+      printf("    shr %s, cl\n", rd);
+      break;
     default:
       error_tok(node->token, "Don't assembly calculation (%d)", node->kind);
       break;

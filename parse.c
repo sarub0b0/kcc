@@ -71,6 +71,7 @@ struct node *stmt(struct token **, struct token *);
 struct node *expr(struct token **, struct token *);
 struct node *equality(struct token **, struct token *);
 struct node *relational(struct token **, struct token *);
+struct node *shift(struct token **, struct token *);
 struct node *add(struct token **, struct token *);
 struct node *mul(struct token **, struct token *);
 struct node *cast(struct token **, struct token *);
@@ -1736,19 +1737,19 @@ struct node *equality(struct token **ret, struct token *tk) {
 }
 
 struct node *relational(struct token **ret, struct token *tk) {
-  struct node *n = add(&tk, tk);
+  struct node *n = shift(&tk, tk);
 
   while (true) {
 
     struct token *start = tk;
     if (consume(&tk, tk, "<")) {
-      n = new_node_binary(ND_LT, n, add(&tk, tk), start);
+      n = new_node_binary(ND_LT, n, shift(&tk, tk), start);
     } else if (consume(&tk, tk, "<=")) {
-      n = new_node_binary(ND_LE, n, add(&tk, tk), start);
+      n = new_node_binary(ND_LE, n, shift(&tk, tk), start);
     } else if (consume(&tk, tk, ">")) {
-      n = new_node_binary(ND_GT, n, add(&tk, tk), start);
+      n = new_node_binary(ND_GT, n, shift(&tk, tk), start);
     } else if (consume(&tk, tk, ">=")) {
-      n = new_node_binary(ND_GE, n, add(&tk, tk), start);
+      n = new_node_binary(ND_GE, n, shift(&tk, tk), start);
     } else {
       *ret = tk;
       return n;
@@ -1756,6 +1757,21 @@ struct node *relational(struct token **ret, struct token *tk) {
   }
 }
 
+struct node *shift(struct token **ret, struct token *tk) {
+  struct node *n = add(&tk, tk);
+
+  while (true) {
+    struct token *start = tk;
+    if (consume(&tk, tk, "<<")) {
+      n = new_node_binary(ND_SHL, n, add(&tk, tk), start);
+    } else if (consume(&tk, tk, ">>")) {
+      n = new_node_binary(ND_SHR, n, add(&tk, tk), start);
+    } else {
+      *ret = tk;
+      return n;
+    }
+  }
+}
 struct node *add(struct token **ret, struct token *tk) {
   struct node *n = mul(&tk, tk);
   while (true) {
@@ -2338,7 +2354,9 @@ void gvar_initializer(struct token **ret, struct token *tk, struct var *var) {
 //
 // equality = relational ( "==" relational | "!=" relational )*
 //
-// relational = add ( "<" add | "<=" add | ">" add | ">=" add )*
+// relational = shift ( "<" shift | "<=" shift | ">" shift | ">=" shift )*
+//
+// shift = add ( "<<" add | ">>" add )*
 //
 // add = mul ( "+" mul | "-" mul )*
 // mul = cast ( "*" cast | "/" cast )*
