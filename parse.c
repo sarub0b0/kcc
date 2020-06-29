@@ -1482,6 +1482,24 @@ struct type *declarator(struct token **ret,
   return type;
 }
 
+struct type *array_size(struct token **ret,
+                        struct token *tk,
+                        struct type *type) {
+  int size = 0;
+  bool is_incomplete = true;
+  if (!equal(tk, "]")) {
+    size = const_expr(&tk, tk);
+    is_incomplete = false;
+  }
+  skip(&tk, tk, "]");
+  type = type_suffix(&tk, tk, type);
+  type = array_to(type, size);
+  type->is_incomplete = is_incomplete;
+
+  *ret = tk;
+  return type;
+}
+
 struct type *type_suffix(struct token **ret,
                          struct token *tk,
                          struct type *type) {
@@ -1490,17 +1508,7 @@ struct type *type_suffix(struct token **ret,
   }
 
   if (consume(&tk, tk, "[")) {
-    int size = 0;
-    bool is_incomplete = true;
-    if (!equal(tk, "]")) {
-      size = get_number(tk);
-      tk = tk->next;
-      is_incomplete = false;
-    }
-    skip(&tk, tk, "]");
-    type = type_suffix(&tk, tk, type);
-    type = array_to(type, size);
-    type->is_incomplete = is_incomplete;
+    return array_size(ret, tk, type);
   }
 
   *ret = tk;
