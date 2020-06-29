@@ -54,8 +54,13 @@ struct function *funcdef(struct token **,
                          struct type *,
                          struct var_attr *);
 struct type *declarator(struct token **, struct token *, struct type *);
-struct type *struct_declarator(struct token **, struct token *);
+struct type *struct_declarator(struct token **,
+                               struct token *,
+                               enum type_kind);
 struct type *enum_declarator(struct token **, struct token *);
+struct type *union_declarator(struct token **,
+                              struct token *,
+                              enum type_kind);
 struct type *typedef_declarator(struct token **, struct token *);
 struct type *funcdef_args(struct token **, struct token *, struct type *);
 struct type *type_suffix(struct token **, struct token *, struct type *);
@@ -168,18 +173,20 @@ void print_globals(bool has_function) {
     if (!has_function) prefix = "`-";
 
     printf("%s%s ", prefix, type);
-    if (v->type->kind == STRUCT) {
+    if (v->type->kind == TY_STRUCT) {
       printf("struct %s %s", v->type->tag, v->name);
+    } else if (v->type->kind == TY_UNION) {
+      printf("union %s %s", v->type->tag, v->name);
     } else {
       printf("%s %s", type_to_name(v->type->kind), v->name);
     }
     if (v->data) {
       switch (v->type->kind) {
-        case INT:
+        case TY_INT:
           printf(": %d\n", *(int *) v->data);
           break;
-        case ARRAY:
-          if (v->type->ptr_to->kind == CHAR) {
+        case TY_ARRAY:
+          if (v->type->ptr_to->kind == TY_CHAR) {
             printf(": %s\n", (char *) v->data);
           }
           break;
@@ -688,6 +695,7 @@ bool is_typename(struct token *tok) {
       "long",
       "struct",
       "enum",
+      "union",
       "typedef",
       "static",
       "extern",
@@ -739,7 +747,7 @@ bool is_void_assign_element(struct node *node) {
   }
   if (node->kind == ND_FUNCALL) {
     struct function *f = find_func(node->token->str);
-    if (f->type->kind == VOID)
+    if (f->type->kind == TY_VOID)
       return true;
     else
       return false;
@@ -961,7 +969,7 @@ struct node *new_sub(struct node *lhs, struct node *rhs, struct token *tk) {
   }
 
   // ptr - num
-  if (lhs->type->ptr_to && rhs->type->kind == INT) {
+  if (lhs->type->ptr_to && rhs->type->kind == TY_INT) {
     rhs = new_node_binary(
         ND_MUL, rhs, new_node_num(size_of(lhs->type->ptr_to), tk), tk);
     n = new_node_binary(ND_SUB, lhs, rhs, tk);
@@ -1108,7 +1116,12 @@ struct type *typespec(struct token **ret,
     }
 
     if (equal(tk, "struct")) {
-      ty = struct_declarator(&tk, tk->next);
+      ty = struct_declarator(&tk, tk->next, TY_STRUCT);
+      continue;
+    }
+
+    if (equal(tk, "union")) {
+      ty = union_declarator(&tk, tk->next, TY_UNION);
       continue;
     }
 
@@ -1229,14 +1242,16 @@ struct member *struct_members(struct token **ret, struct token *tk) {
   return head.next;
 }
 
-struct type *struct_declarator(struct token **ret, struct token *tk) {
-
+struct type *struct_union_declarator(struct token **ret,
+                                     struct token *tk,
+                                     enum type_kind kind) {
   struct token *tag = NULL;
   if (tk->kind == TK_IDENT) {
     tag = tk;
     tk = tk->next;
   }
 
+  struct type *ty = copy_type(ty_struct);
   if (tag && !equal(tk, "{")) {
 
     *ret = tk;
@@ -1245,14 +1260,16 @@ struct type *struct_declarator(struct token **ret, struct token *tk) {
       return t->type;
     }
 
-    struct type *ty = copy_type(ty_struct);
+    if (kind == TY_UNION) ty = copy_type(ty_union);
+    ty->token = tk;
     ty->is_incomplete = true;
     new_tagscope(ty);
 
     return ty;
   }
 
-  struct type *ty = copy_type(ty_struct);
+  if (kind == TY_UNION) ty = copy_type(ty_union);
+  ty->token = tk;
   ty->members = struct_members(&tk, tk);
 
   if (tag) {
@@ -1263,6 +1280,17 @@ struct type *struct_declarator(struct token **ret, struct token *tk) {
     ty->name = "";
   }
 
+  *ret = tk;
+  return ty;
+}
+
+struct type *struct_declarator(struct token **ret,
+                               struct token *tk,
+                               enum type_kind kind) {
+
+  struct type *ty = struct_union_declarator(ret, tk, kind);
+
+  if (ty->is_incomplete) return ty;
   // align and offset calculation
   // アライメント
   // 各メンバーのアドレスは型のアライメントの倍数になる
@@ -1288,7 +1316,23 @@ struct type *struct_declarator(struct token **ret, struct token *tk) {
     ty->size = offset + (ty->align - (offset % ty->align));
   }
 
-  *ret = tk;
+  return ty;
+}
+
+struct type *union_declarator(struct token **ret,
+                              struct token *tk,
+                              enum type_kind kind) {
+  struct type *ty = struct_union_declarator(ret, tk, kind);
+
+  if (ty->is_incomplete) return ty;
+  // align and offset calculation
+  // アライメント
+  // 各メンバーのオフセットを0にする
+  int max_align = 0;
+  for (struct member *m = ty->members; m; m = m->next) {
+    if (ty->align < m->align) ty->align = m->align;
+    if (ty->size < size_of(m->type)) ty->size = size_of(m->type);
+  }
   return ty;
 }
 
@@ -1302,7 +1346,7 @@ struct type *enum_declarator(struct token **ret, struct token *tk) {
     if (!ts) {
       error_tok(tk, "unknown enum");
     }
-    if (ts->type->kind != ENUM) {
+    if (ts->type->kind != TY_ENUM) {
       error_tok(tk, "not an enum tag");
     }
     return ts->type;
@@ -1701,7 +1745,7 @@ struct node *stmt(struct token **ret, struct token *tk) {
   if (equal(tk, "return")) {
     n = new_node(ND_RETURN, tk);
 
-    if (current_fn->type->kind != VOID) {
+    if (current_fn->type->kind != TY_VOID) {
       n->lhs = expr(&tk, tk->next);
     } else {
       if (!equal(tk->next, ";"))
@@ -2181,7 +2225,7 @@ struct init_data *struct_initializer(struct token **ret,
     struct token *tk0 = tk;
     struct node *n = assign(&tk0, tk0);
 
-    if (n->type->kind == STRUCT) {
+    if (n->type->kind == TY_STRUCT || n->type->kind == TY_UNION) {
       struct init_data *init = new_init(type, 0, n, tk);
       *ret = tk0;
       return init;
@@ -2211,15 +2255,15 @@ struct init_data *initializer(struct token **ret,
                               struct token *tk,
                               struct type *type) {
 
-  if (type->kind == ARRAY && type->ptr_to->kind == CHAR &&
+  if (type->kind == TY_ARRAY && type->ptr_to->kind == TY_CHAR &&
       tk->kind == TK_STR) {
     return string_initializer(ret, tk, type);
   }
-  if (type->kind == ARRAY) {
+  if (type->kind == TY_ARRAY) {
     return array_initializer(ret, tk, type);
   }
 
-  if (type->kind == STRUCT) {
+  if (type->kind == TY_STRUCT || type->kind == TY_UNION) {
     return struct_initializer(ret, tk, type);
   }
 
@@ -2241,7 +2285,7 @@ struct node *create_lvar_init(struct init_data *init,
                               struct type *type,
                               struct token *tk) {
 
-  if (type->kind == ARRAY) {
+  if (type->kind == TY_ARRAY) {
 
     struct node head = {};
     struct node *cur = &head;
@@ -2260,7 +2304,8 @@ struct node *create_lvar_init(struct init_data *init,
     return n;
   }
 
-  if (type->kind == STRUCT && (!init || init->len)) {
+  if ((type->kind == TY_STRUCT || type->kind == TY_UNION) &&
+      (!init || init->len)) {
 
     struct node head = {};
     struct node *cur = &head;
@@ -2327,7 +2372,7 @@ struct value *create_gvar_data(struct value *cur,
                                struct type *type,
                                int offset) {
 
-  if (type->kind == ARRAY) {
+  if (type->kind == TY_ARRAY) {
     int size = size_of(type->ptr_to);
     for (int i = 0; i < type->array_size; i++) {
       struct init_data *child = init->child[i];
@@ -2338,7 +2383,7 @@ struct value *create_gvar_data(struct value *cur,
     return cur;
   }
 
-  if (type->kind == STRUCT) {
+  if (type->kind == TY_STRUCT || type->kind == TY_UNION) {
     int i = 0;
     for (struct member *m = type->members; m; m = m->next, i++) {
       struct init_data *child = init->child[i];
