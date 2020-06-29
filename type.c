@@ -73,9 +73,6 @@ bool is_integer(struct type *type) {
 }
 
 int size_of(struct type *ty) {
-  if (ty->kind == TY_VOID) {
-    error_tok(ty->token, "void type");
-  }
   if (ty->is_incomplete) {
     error_tok(ty->token, "incomplete type");
   }
