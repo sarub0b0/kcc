@@ -23,7 +23,7 @@ int gen_expr(struct node *);
 void gen_stmt(struct node *);
 
 size_t type_size(struct type *ty) {
-  if (ty->kind == ARRAY) return type_size(ty->ptr_to);
+  if (ty->kind == TY_ARRAY) return type_size(ty->ptr_to);
 
   return ty->size;
 }
@@ -31,7 +31,7 @@ size_t type_size(struct type *ty) {
 const char *areg(struct type *ty) {
   const char *r[] = {"al", "ax", "eax", "rax"};
 
-  if (ty->kind == ARRAY) return areg(ty->ptr_to);
+  if (ty->kind == TY_ARRAY) return areg(ty->ptr_to);
 
   switch (size_of(ty)) {
     case 1:
@@ -46,7 +46,7 @@ const char *areg(struct type *ty) {
 }
 
 const char *argreg(struct type *ty, int i) {
-  if (ty->kind == ARRAY) return argreg(ty->ptr_to, i);
+  if (ty->kind == TY_ARRAY) return argreg(ty->ptr_to, i);
 
   switch (size_of(ty)) {
     case 1:
@@ -61,7 +61,7 @@ const char *argreg(struct type *ty, int i) {
 }
 
 const char *reg(struct type *ty, int i) {
-  if (ty->kind == ARRAY) return reg(ty->ptr_to, i);
+  if (ty->kind == TY_ARRAY) return reg(ty->ptr_to, i);
 
   switch (size_of(ty)) {
     case 1:
@@ -218,7 +218,7 @@ void gen_func(struct node *node) {
     int size = size_of(arg->type);
     struct type *arg_ty = arg->type;
 
-    if (arg_ty->kind == ARRAY) size = 8;
+    if (arg_ty->kind == TY_ARRAY) size = 8;
 
     char *insn = arg_ty->is_unsigned ? "movzx" : "movsx";
 
@@ -248,7 +248,7 @@ void gen_func(struct node *node) {
   printf("    pop r11\n");
   printf("    pop r10\n");
 
-  if (fn_ty->kind != VOID)
+  if (fn_ty->kind != TY_VOID)
     printf("    mov %s, %s\n", reg(fn_ty, inc++), areg(fn_ty));
   else
     inc++;
@@ -257,7 +257,8 @@ void gen_func(struct node *node) {
 }
 
 void load(struct type *type) {
-  if (type->kind == ARRAY || type->kind == STRUCT) {
+  if (type->kind == TY_ARRAY || type->kind == TY_STRUCT ||
+      type->kind == TY_UNION) {
     return;
   }
   const char *r = reg(type, inc - 1);
@@ -274,7 +275,7 @@ void load(struct type *type) {
 }
 
 void store(struct type *type) {
-  if (type->kind == STRUCT) {
+  if (type->kind == TY_STRUCT || type->kind == TY_UNION) {
 
     for (int i = 0; i < size_of(type); i++) {
       printf("    mov al, [%s+%d]\n", reg64[inc - 2], i);
@@ -566,9 +567,9 @@ char *data_symbol(int size) {
 }
 
 size_t align(struct type *ty) {
-  if (ty->kind == ARRAY) return align(ty->ptr_to);
+  if (ty->kind == TY_ARRAY) return align(ty->ptr_to);
 
-  if (ty->kind == STRUCT) return ty->align;
+  if (ty->kind == TY_STRUCT || ty->kind == TY_UNION) return ty->align;
 
   return ty->size;
 }
@@ -593,14 +594,14 @@ void emit_value(int *pos,
     return;
   }
 
-  if (type->kind == ARRAY) {
+  if (type->kind == TY_ARRAY) {
     for (int i = 0; i < type->array_size; i++) {
       emit_value(pos, size_of(type->ptr_to), var, type->ptr_to, value);
     }
     return;
   }
 
-  if (type->kind == STRUCT) {
+  if (type->kind == TY_STRUCT || type->kind == TY_UNION) {
     for (struct member *m = type->members; m; m = m->next) {
       int sz = 0;
       if (m->next) {

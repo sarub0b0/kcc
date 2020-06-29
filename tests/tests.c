@@ -69,6 +69,18 @@ struct {
   int b;
 } g15[2] = {{1, 2}, {3, 4}};
 
+union {
+  char a;
+  int b;
+  long c;
+  union {
+    int a;
+    long b;
+  } d;
+
+  char e[3];
+} g16;
+
 extern int extern_a;
 
 #define TRUE 1
@@ -1236,6 +1248,18 @@ int main() {
          ({ sizeof(unsigned long long int); }),
          "({ sizeof(unsigned long long int); })");
 
+  assert(1,
+         ({
+           g16.a = 1;
+           g16.a;
+         }),
+         "{ g16.a=1; g16.a; }");
+  assert(1,
+         ({
+           g16.d.a = 1;
+           g16.d.a;
+         }),
+         "{ g16.d.a=1; g16.d.a; }");
   if (success == number)
     printf("result: \x1b[32mOK\x1b[0m, ");
   else

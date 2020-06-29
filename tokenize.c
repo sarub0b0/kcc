@@ -131,7 +131,7 @@ bool is_keyword(struct token *tok) {
   char *keyword[] = {
       "return", "if",   "else",    "for",    "while",  "sizeof", "int",
       "void",   "char", "short",   "long",   "bool",   "signed", "unsigned",
-      "struct", "enum", "typedef", "static", "extern",
+      "struct", "enum", "typedef", "static", "extern", "union",
   };
 
   for (int i = 0; i < sizeof(keyword) / sizeof(*keyword); i++) {

@@ -4,25 +4,26 @@
 
 #include "kcc.h"
 
-struct type *ty_void = &(struct type){VOID, 1, 1, ""};
-struct type *ty_bool = &(struct type){BOOL, 1, 1, ""};
-struct type *ty_char = &(struct type){CHAR, 1, 1, ""};
-struct type *ty_short = &(struct type){SHORT, 2, 2, ""};
-struct type *ty_int = &(struct type){INT, 4, 4, ""};
-struct type *ty_long = &(struct type){LONG, 8, 8, ""};
+struct type *ty_void = &(struct type){TY_VOID, 1, 1, ""};
+struct type *ty_bool = &(struct type){TY_BOOL, 1, 1, ""};
+struct type *ty_char = &(struct type){TY_CHAR, 1, 1, ""};
+struct type *ty_short = &(struct type){TY_SHORT, 2, 2, ""};
+struct type *ty_int = &(struct type){TY_INT, 4, 4, ""};
+struct type *ty_long = &(struct type){TY_LONG, 8, 8, ""};
 
-struct type *ty_schar = &(struct type){CHAR, 1, 1, ""};
-struct type *ty_sshort = &(struct type){SHORT, 2, 2, ""};
-struct type *ty_sint = &(struct type){INT, 4, 4, ""};
-struct type *ty_slong = &(struct type){LONG, 8, 8, ""};
+struct type *ty_schar = &(struct type){TY_CHAR, 1, 1, ""};
+struct type *ty_sshort = &(struct type){TY_SHORT, 2, 2, ""};
+struct type *ty_sint = &(struct type){TY_INT, 4, 4, ""};
+struct type *ty_slong = &(struct type){TY_LONG, 8, 8, ""};
 
-struct type *ty_uchar = &(struct type){CHAR, 1, 1, "", true};
-struct type *ty_ushort = &(struct type){SHORT, 2, 2, "", true};
-struct type *ty_uint = &(struct type){INT, 4, 4, "", true};
-struct type *ty_ulong = &(struct type){LONG, 8, 8, "", true};
+struct type *ty_uchar = &(struct type){TY_CHAR, 1, 1, "", true};
+struct type *ty_ushort = &(struct type){TY_SHORT, 2, 2, "", true};
+struct type *ty_uint = &(struct type){TY_INT, 4, 4, "", true};
+struct type *ty_ulong = &(struct type){TY_LONG, 8, 8, "", true};
 
-struct type *ty_enum = &(struct type){ENUM, 4, 4, ""};
-struct type *ty_struct = &(struct type){STRUCT, 0, 1, ""};
+struct type *ty_enum = &(struct type){TY_ENUM, 4, 4, ""};
+struct type *ty_struct = &(struct type){TY_STRUCT, 0, 1, ""};
+struct type *ty_union = &(struct type){TY_UNION, 0, 1, ""};
 
 void print_type(struct type *ty) {
   if (!ty) return;
@@ -37,22 +38,24 @@ void print_type(struct type *ty) {
 
 char *type_to_name(enum type_kind kind) {
   switch (kind) {
-    case INT:
+    case TY_INT:
       return "int";
-    case CHAR:
+    case TY_CHAR:
       return "char";
-    case PTR:
+    case TY_PTR:
       return "ptr";
-    case ARRAY:
+    case TY_ARRAY:
       return "array";
-    case VOID:
+    case TY_VOID:
       return "void";
-    case SHORT:
+    case TY_SHORT:
       return "short";
-    case LONG:
+    case TY_LONG:
       return "long";
-    case STRUCT:
+    case TY_STRUCT:
       return "struct";
+    case TY_UNION:
+      return "union";
     default:
       break;
   }
@@ -61,15 +64,16 @@ char *type_to_name(enum type_kind kind) {
   return "None";
 }
 bool is_integer(struct type *type) {
-  if (type->kind == INT || type->kind == CHAR || type->kind == SHORT ||
-      type->kind == LONG || type->kind == BOOL) {
+  if (type->kind == TY_INT || type->kind == TY_CHAR ||
+      type->kind == TY_SHORT || type->kind == TY_LONG ||
+      type->kind == TY_BOOL) {
     return true;
   }
   return false;
 }
 
 int size_of(struct type *ty) {
-  if (ty->kind == VOID) {
+  if (ty->kind == TY_VOID) {
     error_tok(ty->token, "void type");
   }
   if (ty->is_incomplete) {
@@ -88,7 +92,7 @@ struct type *copy_type(struct type *ty) {
 struct type *pointer_to(struct type *base) {
   struct type *ty = calloc(1, sizeof(struct type));
   ty->ptr_to = base;
-  ty->kind = PTR;
+  ty->kind = TY_PTR;
   ty->size = 8;
   ty->align = 8;
   return ty;
@@ -96,7 +100,7 @@ struct type *pointer_to(struct type *base) {
 
 struct type *array_to(struct type *base, size_t len) {
   struct type *type = calloc(1, sizeof(struct type));
-  type->kind = ARRAY;
+  type->kind = TY_ARRAY;
   type->size = len * base->size;
   type->array_size = len;
   type->ptr_to = base;
@@ -181,7 +185,7 @@ void add_type(struct node *n) {
       n->type = copy_type(ty_int);
       return;
     case ND_ADDR:
-      if (n->lhs->type->kind == ARRAY) {
+      if (n->lhs->type->kind == TY_ARRAY) {
         n->type = pointer_to(n->lhs->type->ptr_to);
       } else {
         n->type = pointer_to(n->lhs->type);

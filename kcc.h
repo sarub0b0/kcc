@@ -86,17 +86,18 @@ enum node_kind {
 };
 
 enum type_kind {
-  INT,
-  PTR,
-  ARRAY,
-  CHAR,
-  VOID,
-  SHORT,
-  LONG,
-  BOOL,
-  STRUCT,
-  ENUM,
-  TY_KIND_NUM,
+  TY_INT,
+  TY_PTR,
+  TY_ARRAY,
+  TY_CHAR,
+  TY_VOID,
+  TY_SHORT,
+  TY_LONG,
+  TY_BOOL,
+  TY_STRUCT,
+  TY_UNION,
+  TY_ENUM,
+  TY_TY_KIND_NUM,
 };
 
 struct type {
@@ -277,6 +278,7 @@ extern struct type *ty_ulong;
 
 extern struct type *ty_enum;
 extern struct type *ty_struct;
+extern struct type *ty_union;
 
 extern int verbose;
 extern char *current_userinput;
