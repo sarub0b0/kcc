@@ -61,7 +61,9 @@ struct type *enum_declarator(struct token **, struct token *);
 struct type *union_declarator(struct token **,
                               struct token *,
                               enum type_kind);
-struct type *typedef_declarator(struct token **, struct token *);
+struct type *typedef_declarator(struct token **,
+                                struct token *,
+                                struct type *);
 struct type *funcdef_args(struct token **, struct token *, struct type *);
 struct type *type_suffix(struct token **, struct token *, struct type *);
 struct node *compound_stmt(struct token **, struct token *);
@@ -1099,7 +1101,6 @@ struct type *typespec(struct token **ret,
 
       if (equal(tk, "typedef")) {
         attr->is_typedef = true;
-        ty = typedef_declarator(&tk, tk->next);
       }
       if (equal(tk, "extern")) {
         attr->is_extern = true;
@@ -1388,25 +1389,27 @@ struct type *enum_declarator(struct token **ret, struct token *tk) {
   return ty;
 }
 
-struct type *typedef_declarator(struct token **ret, struct token *tk) {
+struct type *typedef_declarator(struct token **ret,
+                                struct token *tk,
+                                struct type *type) {
   struct var_attr attr = {};
-  struct type *src = typespec(&tk, tk, &attr);
 
-  struct type *ty = copy_type(src);
+  struct type *ty = copy_type(type);
 
-  do {
+  while (true) {
 
-    struct var_scope *vs = new_varscope(tk->str);
-    vs->type_def = src;
+    new_varscope(ty->name)->type_def = ty;
 
-  } while (consume(&tk, tk->next, ","));
+    if (consume(&tk, tk, ";")) break;
+
+    ty = declarator(&tk, tk, type);
+  }
   *ret = tk;
   return ty;
 }
 
 struct type *typename(struct token **ret, struct token *tk) {
   struct type *ty = typespec(&tk, tk, NULL);
-  *ret = tk;
   return pointers(ret, tk, ty);
 }
 
@@ -1482,7 +1485,6 @@ struct type *declarator(struct token **ret,
 struct type *type_suffix(struct token **ret,
                          struct token *tk,
                          struct type *type) {
-
   if (consume(&tk, tk, "(")) {
     return funcdef_args(ret, tk, type);
   }
@@ -2519,6 +2521,11 @@ struct program *parse(struct token *tk) {
     if (consume(&tk, tk, ";")) continue;
 
     type = declarator(&tk, tk, type);
+
+    if (attr.is_typedef) {
+      type = typedef_declarator(&tk, tk, type);
+      continue;
+    }
 
     if (type->return_type) {
       struct var_scope *vs = find_var(type->token);
