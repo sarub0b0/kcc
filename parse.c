@@ -6,6 +6,11 @@
 
 #include "kcc.h"
 
+#define pos(x)                                            \
+  do {                                                    \
+    fprintf(stderr, "%s:%d\n", x->filename, x->line_num); \
+  } while (0)
+
 struct tag_scope {
   struct tag_scope *next;
   struct type *type;
@@ -1449,6 +1454,7 @@ struct function *funcdef(struct token **ret,
   fn->type = type->return_type;
   fn->token = tk;
   fn->is_static = attr->is_static;
+  fn->is_variadic = type->is_variadic;
 
   enter_scope();
 
@@ -1545,9 +1551,15 @@ struct type *funcdef_args(struct token **ret,
 
   struct type head = {};
   struct type *cur = &head;
+  bool is_variadic = false;
   while (!equal(tk, ")")) {
     if (cur != &head) {
       skip(&tk, tk, ",");
+    }
+
+    if (consume(&tk, tk, "...")) {
+      is_variadic = true;
+      break;
     }
 
     struct type *ty;
@@ -1560,6 +1572,7 @@ struct type *funcdef_args(struct token **ret,
 
   type->return_type = type;
   type->params = head.next;
+  type->is_variadic = is_variadic;
   *ret = tk;
   return type;
 }
