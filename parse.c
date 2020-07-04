@@ -1870,6 +1870,19 @@ struct node *stmt(struct token **ret, struct token *tk) {
     return n;
   }
 
+  if (equal(tk, "do")) {
+    n = new_node(ND_DO, tk);
+    n->then = stmt(&tk, tk->next);
+
+    skip(&tk, tk, "while");
+    skip(&tk, tk, "(");
+    n->cond = expr(&tk, tk);
+    skip(&tk, tk, ")");
+    skip(&tk, tk, ";");
+    *ret = tk;
+    return n;
+  }
+
   if (equal(tk, ";")) {
     n = new_node(ND_BLOCK, tk);
     *ret = tk->next;
@@ -2512,6 +2525,7 @@ void gvar_initializer(struct token **ret, struct token *tk, struct var *var) {
 //      | "if" "(" expr ")" stmt ( "else" stmt )?
 //      | "while" "(" expr ")" stmt
 //      | "for" "(" ( declaration | expr )? ";" expr? ";" expr? ")" stmt
+//      | "do" stmt "while" "(" expr ")" ";"
 //      | "return" expr ";"
 //
 // expr = assign
