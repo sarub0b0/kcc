@@ -6,6 +6,8 @@
  *
  */
 
+#include <stdbool.h>
+
 #include "include.h"
 #include "extern.h"
 
