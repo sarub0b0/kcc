@@ -61,6 +61,7 @@ enum node_kind {
   ND_RETURN,
   ND_IF,
   ND_FOR,
+  ND_DO,
   ND_LABEL,
   ND_BLOCK,
   ND_FUNCALL,

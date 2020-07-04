@@ -128,12 +128,11 @@ int is_alnum(char c) {
 }
 
 bool is_keyword(struct token *tok) {
-  char *keyword[] = {
-      "return", "if",       "else",   "for",      "while",   "sizeof",
-      "int",    "void",     "char",   "short",    "long",    "_Bool",
-      "signed", "unsigned", "struct", "enum",     "typedef", "static",
-      "extern", "union",    "const",  "restrict",
-  };
+  char *keyword[] = {"return", "if",       "else",   "for",      "while",
+                     "sizeof", "int",      "void",   "char",     "short",
+                     "long",   "_Bool",    "signed", "unsigned", "struct",
+                     "enum",   "typedef",  "static", "extern",   "union",
+                     "const",  "restrict", "do"};
 
   for (int i = 0; i < sizeof(keyword) / sizeof(*keyword); i++) {
     if (equal(tok, keyword[i])) {

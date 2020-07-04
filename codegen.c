@@ -197,6 +197,39 @@ void gen_for(struct node *node) {
   label_seq++;
 }
 
+void gen_do(struct node *node) {
+  // while (A) B -> for (;B;) D
+  // for (A; B; C) D
+  // do STMT while (EXPR)
+  //
+  // .L.begin.XXX:
+  //   Bをコンパイル
+  //   pop rax
+  //   cmp rax, 0
+  //   je  .L.end.XXX
+  //   Dをコンパイル
+  //   jmp .L.begin.XXX
+  // .L.end.XXX
+
+  printf(".L.begin.%03d:\n", label_seq);
+
+  if (node->cond) {
+    gen_expr(node->cond);
+    inc--;
+    printf("    cmp %s, 0\n", reg64[inc]);
+    printf("    je  .L.end.%03d\n", label_seq);
+  }
+
+  if (node->then) {
+    gen_stmt(node->then);
+  }
+
+  printf("    jmp .L.begin.%03d\n", label_seq);
+  printf(".L.end.%03d:\n", label_seq);
+
+  label_seq++;
+}
+
 void gen_block(struct node *node) {
   for (struct node *n = node->body; n; n = n->next) gen_stmt(n);
 }
@@ -568,6 +601,9 @@ void gen_stmt(struct node *node) {
       return;
     case ND_FOR:
       gen_for(node);
+      return;
+    case ND_DO:
+      gen_do(node);
       return;
     case ND_BLOCK:
       gen_block(node);

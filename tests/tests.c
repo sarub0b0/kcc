@@ -276,6 +276,17 @@ int main() {
            a;
          }),
          "({ int a; int i=0; while(i<=3){ i=i+1; a=i; } a; })");
+
+  assert(5,
+         ({
+           int i = 0;
+           do {
+             i++;
+           } while (i < 5);
+           i;
+         }),
+         "({ int i=0; do{ i++; }while(i<5); i; })");
+
   assert(3,
          ({
            int x;
