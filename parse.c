@@ -1075,7 +1075,8 @@ struct type *pointers(struct token **ret, struct token *tk, struct type *ty) {
 
   while (consume(&tk, tk, "*")) {
     ty = pointer_to(ty);
-    while (equal(tk, "const") || equal(tk, "restrict")) {
+    while (equal(tk, "const") || equal(tk, "restrict") ||
+           equal(tk, "volatile")) {
       if (equal(tk, "const")) {
         ty->is_const = true;
       }
