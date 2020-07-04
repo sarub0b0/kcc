@@ -87,14 +87,16 @@ enum node_kind {
 };
 
 enum type_kind {
-  TY_INT,
   TY_PTR,
   TY_ARRAY,
-  TY_CHAR,
   TY_VOID,
-  TY_SHORT,
-  TY_LONG,
   TY_BOOL,
+  TY_CHAR,
+  TY_SHORT,
+  TY_INT,
+  TY_LONG,
+  TY_FLOAT,
+  TY_DOUBLE,
   TY_STRUCT,
   TY_UNION,
   TY_ENUM,
@@ -280,6 +282,9 @@ extern struct type *ty_uchar;
 extern struct type *ty_ushort;
 extern struct type *ty_uint;
 extern struct type *ty_ulong;
+
+extern struct type *ty_float;
+extern struct type *ty_double;
 
 extern struct type *ty_enum;
 extern struct type *ty_struct;

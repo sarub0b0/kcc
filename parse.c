@@ -700,6 +700,8 @@ bool is_typename(struct token *tok) {
       "short",
       "int",
       "long",
+      "float",
+      "double",
       "struct",
       "enum",
       "union",
@@ -1103,8 +1105,10 @@ struct type *typespec(struct token **ret,
     SHORT = 1 << 6,
     INT = 1 << 8,
     LONG = 1 << 10,
-    SIGNED = 1 << 12,
-    UNSIGNED = 1 << 14,
+    FLOAT = 1 << 12,
+    DOUBLE = 1 << 14,
+    SIGNED = 1 << 16,
+    UNSIGNED = 1 << 18,
   };
 
   struct type *ty = ty_int;
@@ -1175,6 +1179,10 @@ struct type *typespec(struct token **ret,
       type += INT;
     } else if (equal(tk, "long")) {
       type += LONG;
+    } else if (equal(tk, "float")) {
+      type += FLOAT;
+    } else if (equal(tk, "double")) {
+      type += DOUBLE;
     } else if (equal(tk, "signed")) {
       type |= SIGNED;
     } else if (equal(tk, "unsigned")) {
@@ -1231,6 +1239,15 @@ struct type *typespec(struct token **ret,
       case UNSIGNED + LONG + LONG:
       case UNSIGNED + LONG + LONG + INT:
         ty = ty_ulong;
+        break;
+      case FLOAT:
+        // ty = ty_float;
+        ty = ty_int;
+        break;
+      case DOUBLE:
+      case LONG + DOUBLE:
+        // ty = ty_double;
+        ty = ty_long;
         break;
       default:
         error_tok(tk, "invalid type");
