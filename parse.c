@@ -695,7 +695,7 @@ struct type *find_typedef(struct token *tk) {
 bool is_typename(struct token *tok) {
   char *keyword[] = {
       "void",
-      "bool",
+      "_Bool",
       "char",
       "short",
       "int",
@@ -1164,7 +1164,7 @@ struct type *typespec(struct token **ret,
 
     if (equal(tk, "void")) {
       type += VOID;
-    } else if (equal(tk, "bool")) {
+    } else if (equal(tk, "_Bool")) {
       type += BOOL;
     } else if (equal(tk, "char")) {
       type += CHAR;
