@@ -305,11 +305,45 @@ int gen_expr(struct node *node) {
       gen_addr(node);
       load(node->type);
       return 0;
-    case ND_ASSIGN:
+    case ND_ASSIGN: {
+      // case 1
+      //    const int  a = 0;
+      //    a = 1;
+      // case 2
+      //    int b, c;
+      //    const int *a = &b;
+      //    int const *a = &b;
+      //    a = &c; // OK
+      //    *a = c; // Err
+      //
+      // case 3
+      //    int b, c;
+      //    int *const a = &b;
+      //    a = &c; // Err
+      //    *b = c; // OK
+      //
+      // case 4
+      //    int b, c;
+      //    const int *const a = &b;
+      //    a = &c; // Err
+      //    *b = c; // Err
+
+      // case 2 only
+      enum node_kind kind = node->lhs->kind;
+      struct type *ty1 = node->lhs->type;
+      struct type *ty2 = kind == ND_MEMBER ? node->lhs->lhs->type : NULL;
+
+      if ((ty1->is_const && node->is_init == false) |
+          (kind == ND_MEMBER && ty2->is_const)) {
+
+        error_tok(node->token, "cannot assign to a const variable");
+      }
+
       gen_expr(node->rhs);
       gen_addr(node->lhs);
       store(node->type);
       return 0;
+    }
     case ND_FUNCALL:
       gen_expr(node->lhs);
       gen_func(node);
@@ -634,9 +668,12 @@ void emit_value(int *pos,
   }
 }
 
-void emit_data_info(struct var *v) {
+void emit_data_info(struct var *v, bool is_rodata) {
   if (!v->is_static) {
     printf("    .globl %s\n", v->name);
+  }
+
+  if (is_rodata) {
   }
   printf("    .align %lu\n", align(v->type));
 
@@ -654,7 +691,7 @@ void data_section(struct program *prog) {
   for (struct var *v = prog->globals; v; v = v->next) {
     if (!v->data) continue;
 
-    emit_data_info(v);
+    emit_data_info(v, false);
 
     struct value **value = &v->values;
 
@@ -671,7 +708,7 @@ void bss_section(struct program *prog) {
   for (struct var *v = prog->globals; v; v = v->next) {
     if (v->data) continue;
 
-    emit_data_info(v);
+    emit_data_info(v, false);
     printf("    .zero %d\n", size_of(v->type));
   }
 }

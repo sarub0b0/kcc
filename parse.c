@@ -703,6 +703,7 @@ bool is_typename(struct token *tok) {
       "extern",
       "signed",
       "unsigned",
+      "const",
   };
 
   for (int i = 0; i < sizeof(keyword) / sizeof(*keyword); i++) {
@@ -820,7 +821,11 @@ struct node *new_node_expr(struct token **ret, struct token *tk) {
 struct node *new_node_assign(struct node *lhs,
                              struct node *rhs,
                              struct token *token) {
+  add_type(lhs);
+  add_type(rhs);
+
   struct node *n = new_node_binary(ND_ASSIGN, lhs, rhs, token);
+
   return n;
 }
 
@@ -1065,6 +1070,9 @@ struct type *pointers(struct token **ret, struct token *tk, struct type *ty) {
 
   while (consume(&tk, tk, "*")) {
     ty = pointer_to(ty);
+    if (consume(&tk, tk, "const")) {
+      ty->is_const = true;
+    }
   }
   *ret = tk;
   return ty;
@@ -1092,7 +1100,15 @@ struct type *typespec(struct token **ret,
 
   struct type *ty = ty_int;
   int type = 0;
+
+  bool is_const = false;
+
   while (is_typename(tk)) {
+
+    if (consume(&tk, tk, "const")) {
+      is_const = true;
+      continue;
+    }
 
     if (equal(tk, "typedef") || equal(tk, "extern") || equal(tk, "static")) {
       if (!attr) {
@@ -1170,7 +1186,7 @@ struct type *typespec(struct token **ret,
         ty = ty_char;
         break;
       case UNSIGNED + CHAR:
-        ty = copy_type(ty_uchar);
+        ty = ty_uchar;
         break;
       case SHORT:
       case SHORT + INT:
@@ -1212,8 +1228,14 @@ struct type *typespec(struct token **ret,
     }
     tk = tk->next;
   }
+
+  ty = copy_type(ty);
+  if (is_const) {
+    ty->is_const = is_const;
+  }
+
   *ret = tk;
-  return copy_type(ty);
+  return ty;
 }
 
 struct member *struct_members(struct token **ret, struct token *tk) {
@@ -2337,7 +2359,7 @@ struct node *create_lvar_init(struct init_data *init,
 
   struct node *expr = init ? init->expr : new_node_num(0, tk);
   struct node *node = new_node_assign(lvar, expr, tk);
-
+  node->is_init = true;
   return node;
 }
 

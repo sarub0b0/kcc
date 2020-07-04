@@ -1260,6 +1260,37 @@ int main() {
            g16.d.a;
          }),
          "{ g16.d.a=1; g16.d.a; }");
+
+  assert(3,
+         ({
+           const int a = 3;
+           a;
+         }),
+         "({ const int a=3; a; })");
+
+  assert(3,
+         ({
+           int a = 3;
+           const int *p = &a;
+           *p;
+         }),
+         "({ int a=3; const int *p=&a; *p; })");
+  assert(3,
+         ({
+           int a = 3;
+           int const *p = &a;
+           *p;
+         }),
+         "({ int a=3; int const *p=&a; *p; })");
+
+  assert(3,
+         ({
+           int a = 3;
+           const int *const p = &a;
+           *p;
+         }),
+         "({ int a=3; const int *const p=&a; *p; })");
+
   if (success == number)
     printf("result: \x1b[32mOK\x1b[0m, ");
   else

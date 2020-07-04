@@ -106,6 +106,7 @@ struct type {
   size_t align;
   char *name;
   bool is_unsigned;
+  bool is_const;
 
   struct type *ptr_to;
   size_t array_size;
@@ -198,6 +199,8 @@ struct node {
   struct var *var;
 
   int val;
+
+  bool is_init;
 };
 
 struct function {
