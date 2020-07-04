@@ -1070,8 +1070,11 @@ struct type *pointers(struct token **ret, struct token *tk, struct type *ty) {
 
   while (consume(&tk, tk, "*")) {
     ty = pointer_to(ty);
-    if (consume(&tk, tk, "const")) {
-      ty->is_const = true;
+    while (equal(tk, "const") || equal(tk, "restrict")) {
+      if (equal(tk, "const")) {
+        ty->is_const = true;
+      }
+      tk = tk->next;
     }
   }
   *ret = tk;
@@ -1445,7 +1448,6 @@ struct function *funcdef(struct token **ret,
   fn->name = type->name;
   fn->type = type->return_type;
   fn->token = tk;
-  fn->is_variadic = false;
   fn->is_static = attr->is_static;
 
   enter_scope();
@@ -1547,6 +1549,7 @@ struct type *funcdef_args(struct token **ret,
     if (cur != &head) {
       skip(&tk, tk, ",");
     }
+
     struct type *ty;
     ty = typespec(&tk, tk, NULL);
     ty = declarator(&tk, tk, ty);
@@ -2461,7 +2464,8 @@ void gvar_initializer(struct token **ret, struct token *tk, struct var *var) {
 //          | typedef-declarator
 //
 // typename = typespec pointers
-// pointers = ( "*" )*
+//
+// pointers = ( "*" ( "const" | "restrict" )* )*
 //
 //
 // struct-declarator = "struct" ident "{" sturct-member "}" ";"

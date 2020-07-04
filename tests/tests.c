@@ -1291,6 +1291,14 @@ int main() {
          }),
          "({ int a=3; const int *const p=&a; *p; })");
 
+  assert(3,
+         ({
+           int a = 3;
+           const int *const restrict x = &a;
+           *x;
+         }),
+         "({ int a=3; const int *const restrict x=&a; *x; })");
+
   if (success == number)
     printf("result: \x1b[32mOK\x1b[0m, ");
   else

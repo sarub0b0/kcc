@@ -868,6 +868,7 @@ void pre_defined_macro() {
 
   def_macro("__x86_64__", "1");
   def_macro("__LP64__", "1");
+  def_macro("__restrict", "restrict");
   // def_macro("", "");
 }
 
