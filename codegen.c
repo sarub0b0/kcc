@@ -213,15 +213,15 @@ void gen_do(struct node *node) {
 
   printf(".L.begin.%03d:\n", label_seq);
 
+  if (node->then) {
+    gen_stmt(node->then);
+  }
+
   if (node->cond) {
     gen_expr(node->cond);
     inc--;
     printf("    cmp %s, 0\n", reg64[inc]);
     printf("    je  .L.end.%03d\n", label_seq);
-  }
-
-  if (node->then) {
-    gen_stmt(node->then);
   }
 
   printf("    jmp .L.begin.%03d\n", label_seq);
