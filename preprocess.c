@@ -106,7 +106,7 @@ struct token *skip_line(struct token *tk) {
     return tk;
   }
   warn_tok(tk, "extra token");
-  while (!tk->at_bol) {
+  while (tk->at_bol) {
     tk = tk->next;
   }
   return tk;
@@ -735,7 +735,7 @@ struct token *preprocess2(struct token *tk) {
   struct token *cur = &head;
 
   head.next = new_eof();
-  while (tk && !at_eof(tk)) {
+  while (!at_eof(tk)) {
 
     if (expand_macro(&tk, tk)) {
       continue;
@@ -849,6 +849,7 @@ struct token *preprocess2(struct token *tk) {
     error_tok(tk, "Invalid preprocessing direvtive");
   }
 
+  cur->next = tk;
   return head.next;
 }
 
