@@ -103,6 +103,8 @@ extern int extern_a;
 #define addadd(x, y) (one(x) + one(y))
 
 #define p(...) printf(__VA_ARGS__)
+#define p1(x, ...) printf(x, __VA_ARGS__)
+#define p2(x...) printf(x)
 
 #if 0
 #else
@@ -119,14 +121,14 @@ extern int extern_a;
 int assert(int expected, int actual, char *code) {
   p("% 4d: ", number++);
   if (expected == actual) {
-    p("%s => %d ... " OK "\n", code, actual);
+    p1("%s => %d ... " OK "\n", code, actual);
     success++;
   } else {
-    p("%s => %d expected, but got %d ... %s\n",
-      code,
-      expected,
-      actual,
-      FAILED);
+    p1("%s => %d expected, but got %d ... %s\n",
+       code,
+       expected,
+       actual,
+       FAILED);
 
     failed++;
   }
@@ -1315,10 +1317,10 @@ int main() {
          "({ int a=3; const int *const restrict x=&a; *x; })");
 
   if (success == number)
-    printf("result: \x1b[32mOK\x1b[0m, ");
+    p2("result: \x1b[32mOK\x1b[0m, ");
   else
-    printf("result: \x1b[31mFAILED\x1b[0m, ");
+    p2("result: \x1b[31mFAILED\x1b[0m, ");
 
-  printf("%d success; %d failed; %d tests;\n", success, failed, number);
+  p2("%d success; %d failed; %d tests;\n", success, failed, number);
   return 0;
 }

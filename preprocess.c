@@ -22,6 +22,7 @@ struct macro_param {
   struct macro_param *next;
   char *name;
   struct token *token;
+  bool is_variadic;
 };
 
 struct macro {
@@ -30,7 +31,6 @@ struct macro {
   struct token *expand;
   struct macro_param *params;
   bool is_objlike;
-  bool is_variadic;
   bool is_delete;
 };
 
@@ -116,7 +116,6 @@ struct macro *add_macro(char *name, bool is_objlike, struct token *tk) {
   m->next = macros;
   m->name = name;
   m->is_objlike = is_objlike;
-  m->is_variadic = false;
   m->expand = tk;
   macros = m;
   return m;
@@ -302,7 +301,7 @@ void validate_params(struct macro *m) {
       if (strlen(p->name) == tk->len &&
           strncmp(p->name, tk->str, tk->len) == 0)
         match = true;
-      if (m->is_variadic) {
+      if (p->is_variadic) {
         if (strncmp("__VA_ARGS__", tk->str, tk->len) == 0) match = true;
       }
     }
@@ -402,8 +401,7 @@ struct macro_arg *arg(struct token **ret,
 
 struct macro_arg *macro_args(struct token **ret,
                              struct token *tk,
-                             struct macro_param *param,
-                             bool is_variadic) {
+                             struct macro_param *param) {
   struct macro_arg head = {};
   struct macro_arg *cur = &head;
   struct macro_param *p = param;
@@ -413,7 +411,7 @@ struct macro_arg *macro_args(struct token **ret,
       skip(&tk, tk, ",");
     }
 
-    cur = cur->next = arg(&tk, tk, is_variadic);
+    cur = cur->next = arg(&tk, tk, p->is_variadic);
     cur->name = p->name;
   }
 
@@ -427,9 +425,7 @@ struct macro_arg *macro_args(struct token **ret,
   return head.next;
 }
 
-struct macro_param *macro_params(struct token **ret,
-                                 struct token *tk,
-                                 bool *is_variadic) {
+struct macro_param *macro_params(struct token **ret, struct token *tk) {
 
   struct macro_param head = {};
   struct macro_param *cur = &head;
@@ -440,22 +436,27 @@ struct macro_param *macro_params(struct token **ret,
     }
 
     struct macro_param *p = calloc(1, sizeof(struct macro_param));
-
     p->name = tk->str;
     p->token = copy_token(tk);
-
     cur = cur->next = p;
 
-    if (equal(tk, "...")) {
-      *is_variadic = true;
-      tk = tk->next;
+    if (tk->kind == TK_IDENT && equal(tk->next, "...")) {
+      p->is_variadic = true;
+      tk = tk->next->next;
       if (!equal(tk, ")")) {
         error_tok(tk, "Missing \')\' in macro parameter list");
       }
-
       break;
     }
 
+    if (consume(&tk, tk, "...")) {
+      p->is_variadic = true;
+      p->name = "__VA_ARGS__";
+      if (!equal(tk, ")")) {
+        error_tok(tk, "Missing \')\' in macro parameter list");
+      }
+      break;
+    }
     tk = tk->next;
   }
 
@@ -490,11 +491,10 @@ void define_macro(struct token **ret, struct token *tk) {
 
   struct macro *m = NULL;
   if (!tok->has_space && equal(tok, "(")) {
-    bool is_variadic;
-    struct macro_param *params = macro_params(&tok, tok->next, &is_variadic);
+    bool is_variadic = false;
+    struct macro_param *params = macro_params(&tok, tok->next);
     m = add_macro(name, false, copy_line(ret, tok));
     m->params = params;
-    m->is_variadic = is_variadic;
 
     validate_params(m);
 
@@ -571,18 +571,7 @@ struct token *replace_token(struct token *tk, struct macro_arg *args) {
   while (tk->kind != TK_EOF) {
     struct token *arg = find_arg(tk, args);
 
-    if (equal(tk, "__VA_ARGS__")) {
-      for (struct token *a = join_args(args); a->kind != TK_EOF;
-           a = a->next) {
-        cur = cur->next = copy_token(a);
-      }
-
-      tk = tk->next;
-      continue;
-    }
-
     if (arg) {
-
       for (struct token *a = arg; a->kind != TK_EOF; a = a->next) {
         cur = cur->next = copy_token(a);
       }
@@ -630,8 +619,6 @@ bool expand_macro(struct token **ret, struct token *tk) {
 
   // #define macro num | string
   if (m->is_objlike) {
-    // *ret = copy_token(m->expand);
-    // (*ret)->next = tk->next;
     *ret = append_tokens(m->expand, tk->next);
     return true;
   }
@@ -639,7 +626,7 @@ bool expand_macro(struct token **ret, struct token *tk) {
   if (!consume(&tk, tk->next, "(")) return false;
 
   struct macro_param *params = m->params;
-  struct macro_arg *args = macro_args(&tk, tk, params, m->is_variadic);
+  struct macro_arg *args = macro_args(&tk, tk, params);
 
   struct token *tk2 = replace_token(m->expand, args);
 
