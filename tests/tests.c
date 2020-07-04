@@ -185,6 +185,8 @@ int mixed(int a, short b, long c, char d) {
 
   return x;
 }
+
+int variadic(int x, ...);
 int main() {
   assert(0, 0, "0");
   assert(42, 42, "42");

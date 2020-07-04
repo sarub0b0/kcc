@@ -107,6 +107,7 @@ struct type {
   char *name;
   bool is_unsigned;
   bool is_const;
+  bool is_variadic;
 
   struct type *ptr_to;
   size_t array_size;
