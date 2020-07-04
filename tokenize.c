@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 
 #include <ctype.h>
 
@@ -129,10 +130,11 @@ int is_alnum(char c) {
 
 bool is_keyword(struct token *tok) {
   char *keyword[] = {
-      "return",  "if",       "else",   "for",    "while",    "do",
-      "void",    "_Bool",    "char",   "short",  "int",      "long",
-      "signed",  "unsigned", "sizeof", "struct", "union",    "enum",
-      "typedef", "static",   "extern", "const",  "restrict", "volatile",
+      "return", "if",    "else",     "for",      "while",
+      "do",     "void",  "_Bool",    "char",     "short",
+      "int",    "long",  "signed",   "unsigned", "sizeof",
+      "struct", "union", "enum",     "typedef",  "static",
+      "extern", "const", "restrict", "volatile", "inline",
   };
 
   for (int i = 0; i < sizeof(keyword) / sizeof(*keyword); i++) {
@@ -249,18 +251,37 @@ struct token *tokenize(char *filename, char *input) {
     }
 
     if (isdigit(*p)) {
-      char *prev = p;
+      char *q = p;
 
-      cur = new_token(TK_NUM, cur, p, 1);
+      int base = 10;
+      if (p[1] == 'x') {
+        base = 16;
+      }
 
-      cur->val = strtol(p, &p, 10);
-      cur->len = p - prev;
-      cur->str = strndup(prev, cur->len);
+      unsigned long val = 0;
 
-      if (*p == 'L' || *p == 'l') {
+      val = strtol(p, &p, base);
+
+      if (starts_with(p, "llu") || starts_with(p, "llU") ||
+          starts_with(p, "LLu") || starts_with(p, "LLU") ||
+          starts_with(p, "ull") || starts_with(p, "uLL") ||
+          starts_with(p, "Ull") || starts_with(p, "ULL")) {
+        p += 3;
+      } else if (strncasecmp(p, "lu", 2) == 0 ||
+                 strncasecmp(p, "ul", 2) == 0) {
+        p += 2;
+      } else if (starts_with(p, "ll") || starts_with(p, "LL")) {
+        p += 2;
+      } else if (*p == 'L' || *p == 'l') {
+        p++;
+      } else if (*p == 'U' || *p == 'u') {
         p++;
       }
 
+      cur = new_token(TK_NUM, cur, q, p - q);
+      cur->val = val;
+      cur->len = p - q;
+      cur->str = strndup(q, cur->len);
       continue;
     }
 
