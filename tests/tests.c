@@ -1501,6 +1501,25 @@ int main() {
          "({ 0xffffffffffffffffLLU; })",
          true);
 
+  assert(5,
+         ({
+           float a = 5;
+           a;
+         }),
+         "({ float a=5; a; })");
+  assert(5,
+         ({
+           double a = 5;
+           a;
+         }),
+         "({ double a=5; a; })");
+  assert(5,
+         ({
+           long double a = 5;
+           a;
+         }),
+         "({ long double a=5; a; })");
+
   if (success == number)
     p2("result: \x1b[32mOK\x1b[0m, ");
   else

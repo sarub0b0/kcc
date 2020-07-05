@@ -21,6 +21,9 @@ struct type *ty_ushort = &(struct type){TY_SHORT, 2, 2, "", true};
 struct type *ty_uint = &(struct type){TY_INT, 4, 4, "", true};
 struct type *ty_ulong = &(struct type){TY_LONG, 8, 8, "", true};
 
+struct type *ty_float = &(struct type){TY_FLOAT, 4, 4, ""};
+struct type *ty_doble = &(struct type){TY_DOUBLE, 8, 8, ""};
+
 struct type *ty_enum = &(struct type){TY_ENUM, 4, 4, ""};
 struct type *ty_struct = &(struct type){TY_STRUCT, 0, 1, ""};
 struct type *ty_union = &(struct type){TY_UNION, 0, 1, ""};
@@ -106,6 +109,24 @@ struct type *array_to(struct type *base, size_t len) {
 
 bool is_scalar(struct type *ty) {
   return is_integer(ty) || ty->ptr_to;
+}
+
+struct type *get_type(struct type *ty1, struct type *ty2) {
+  struct type *ty = NULL;
+
+  if (ty1->kind == TY_DOUBLE || ty2->kind == TY_DOUBLE)
+    return ty1->kind == TY_DOUBLE ? ty1 : ty2;
+
+  if (ty1->kind == TY_FLOAT || ty2->kind == TY_FLOAT)
+    return ty1->kind == TY_FLOAT ? ty1 : ty2;
+
+  if (ty1->ptr_to) return pointer_to(ty1->ptr_to);
+
+  if (ty1->size != ty2->size) return ty1->size > ty2->size ? ty1 : ty2;
+
+  if (ty2->is_unsigned) return ty2;
+
+  return ty;
 }
 
 void type_convert(struct node **lhs, struct node **rhs) {
