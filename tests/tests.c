@@ -133,6 +133,7 @@ int assert(unsigned long long expected,
 
     success++;
   } else {
+
     if (is_unsigned) {
       p1("%s => %llu expected, but got %llu ... %s\n",
          code,
@@ -163,15 +164,19 @@ int padd(int *a, int *b) {
 int sub(int x, int y) {
   return x - y;
 }
+int __fib(int (*__func)(int), int x) {
+  return __func(x);
+}
+
 int fib(int n) {
   if (n <= 1) return 1;
-  return fib(n - 1) + fib(n - 2);
+  return fib(n - 1) + __fib(fib, n - 2);
 }
-int foo() {
+int foo(void) {
   return 1;
 }
 
-int for3() {
+int for3(void) {
   int a;
   for (int i = 0; i < 3; ++i) {
     a = i;
@@ -190,13 +195,13 @@ void void1() {
   return;
 }
 
-int logand() {
+int logand(void) {
   if (1 && 0) return 0;
 
   if (1 && 1) return 5;
 }
 
-int logor() {
+int logor(void) {
   if (0 || 0) return 0;
 
   if (0 || 1) return 5;
@@ -208,7 +213,16 @@ int mixed(int a, short b, long c, char d) {
 }
 
 int variadic(int x, ...);
-int main() {
+
+int func1(int x) {
+  return x;
+}
+
+int func2(int x) {
+  return x + 1;
+}
+
+int main(void) {
   assert(0, 0, "0", false);
   assert(42, 42, "42", false);
   assert(21, 5 + 20 - 4, "5+20-4", false);
@@ -1506,19 +1520,39 @@ int main() {
            float a = 5;
            a;
          }),
-         "({ float a=5; a; })");
+         "({ float a=5; a; })",
+         false);
   assert(5,
          ({
            double a = 5;
            a;
          }),
-         "({ double a=5; a; })");
+         "({ double a=5; a; })",
+         false);
   assert(5,
          ({
            long double a = 5;
            a;
          }),
-         "({ long double a=5; a; })");
+         "({ long double a=5; a; })",
+         false);
+
+  assert(3,
+         ({
+           int (*__f)(int);
+           __f = func1;
+           __f(3);
+         }),
+         "({ int (*__f)(int); __f=func1; __f(3); })",
+         false);
+  assert(4,
+         ({
+           int (*__f)(int);
+           __f = func2;
+           __f(3);
+         }),
+         "({ int (*__f)(int); __f=func2; __f(3); })",
+         false);
 
   if (success == number)
     p2("result: \x1b[32mOK\x1b[0m, ");

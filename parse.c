@@ -91,7 +91,7 @@ struct node *unary(struct token **, struct token *);
 struct node *postfix(struct token **, struct token *);
 struct node *primary(struct token **, struct token *);
 
-struct node *funcall(struct token **, struct token *, struct token *);
+struct node *funcall(struct token **, struct token *, struct node *);
 
 struct node *lvar_initializer(struct token **, struct token *, struct var *);
 void gvar_initializer(struct token **, struct token *, struct var *);
@@ -694,25 +694,10 @@ struct type *find_typedef(struct token *tk) {
 
 bool is_typename(struct token *tok) {
   char *keyword[] = {
-      "void",
-      "_Bool",
-      "char",
-      "short",
-      "int",
-      "long",
-      "float",
-      "double",
-      "struct",
-      "enum",
-      "union",
-      "typedef",
-      "static",
-      "extern",
-      "signed",
-      "unsigned",
-      "const",
-      "volatile",
-      "inline",
+      "void",     "_Bool",   "char",     "short",  "int",
+      "long",     "float",   "double",   "struct", "enum",
+      "union",    "typedef", "static",   "extern", "signed",
+      "unsigned", "const",   "volatile", "inline",
   };
 
   for (int i = 0; i < sizeof(keyword) / sizeof(*keyword); i++) {
@@ -1516,10 +1501,16 @@ struct type *declarator(struct token **ret,
   struct type *type = base;
 
   type = pointers(&tk, tk, type);
-  // ident
-  // if (tk->kind != TK_IDENT) {
-  //   error_tok(tk->loc, "expected a variable name");
-  // }
+
+  // 関数ポインタ
+  if (equal(tk, "(")) {
+    struct type *func_ty = calloc(1, sizeof(struct type));
+    struct type *new_ty = declarator(&tk, tk->next, func_ty);
+    skip(&tk, tk, ")");
+    *func_ty = *type_suffix(&tk, tk, func_ty);
+    *ret = tk;
+    return new_ty;
+  }
 
   char *type_name = "";
   struct token *tk_name = tk;
@@ -1575,6 +1566,13 @@ struct type *funcdef_args(struct token **ret,
                           struct token *tk,
                           struct type *type) {
 
+  if (equal(tk, "void") && equal(tk->next, ")")) {
+    struct token *tk1 = type->token;
+    type = func_type(type);
+    *ret = tk->next->next;
+    return type;
+  }
+
   struct type head = {};
   struct type *cur = &head;
   bool is_variadic = false;
@@ -1596,7 +1594,7 @@ struct type *funcdef_args(struct token **ret,
   }
   skip(&tk, tk, ")");
 
-  type->return_type = type;
+  type = func_type(type);
   type->params = head.next;
   type->is_variadic = is_variadic;
   *ret = tk;
@@ -1819,11 +1817,16 @@ struct node *stmt(struct token **ret, struct token *tk) {
   if (equal(tk, "return")) {
     n = new_node(ND_RETURN, tk);
 
-    if (current_fn->type->kind != TY_VOID) {
+    if (current_fn->type->return_type->kind != TY_VOID) {
+      if (equal(tk->next, ";")) {
+        error_tok(tk,
+                  "Non-void function '%s' should return a value",
+                  current_fn->name);
+      }
       n->lhs = expr(&tk, tk->next);
     } else {
       if (!equal(tk->next, ";"))
-        error_tok(tk,
+        error_tok(tk->next,
                   "Void function '%s' should not return a value",
                   current_fn->name);
       tk = tk->next;
@@ -2070,6 +2073,10 @@ struct node *postfix(struct token **ret, struct token *tk) {
   struct node *n = primary(&tk, tk);
 
   while (true) {
+    if (equal(tk, "(")) {
+      return funcall(ret, tk, n);
+    }
+
     if (consume(&tk, tk, "[")) {
       struct token *tk1 = tk;
       struct node *index = expr(&tk, tk);
@@ -2120,20 +2127,22 @@ struct node *primary(struct token **ret, struct token *tk) {
     return n;
   }
 
-  struct token *ident = consume_ident(&tk, tk);
-  if (ident) {
-    if (equal(tk, "(")) {
-      return funcall(ret, tk, ident);
-    }
-
-    struct var_scope *vs = find_var(ident);
+  if (tk->kind == TK_IDENT) {
+    struct var_scope *vs = find_var(tk);
+    *ret = tk->next;
     if (vs) {
-      *ret = tk;
-      if (vs->var) return new_node_var(vs->var, ident);
-      if (vs->enum_ty) return new_node_num(vs->enum_val, ident);
+      if (vs->var) return new_node_var(vs->var, tk);
+      if (vs->enum_ty) return new_node_num(vs->enum_val, tk);
     }
 
-    error_tok(ident, "変数%sは定義されていません", ident->str);
+    if (equal(tk->next, "(")) {
+      warn_tok(tk, "implicit declaration of a function");
+      char *name = strndup(tk->str, tk->len);
+      struct var *v = new_gvar(name, func_type(ty_int), true, false);
+      return new_node_var(v, tk);
+    }
+
+    error_tok(tk, "変数%sは定義されていません", tk->str);
   }
 
   if (equal(tk, "sizeof") && equal(tk->next, "(") &&
@@ -2178,30 +2187,22 @@ struct node *primary(struct token **ret, struct token *tk) {
   return new_node_num(expect_number(ret, tk), tk);
 }
 
-struct node *funcall(struct token **ret,
-                     struct token *tk,
-                     struct token *ident) {
+struct node *funcall(struct token **ret, struct token *tk, struct node *fn) {
 
   skip(&tk, tk, "(");
+  add_type(fn);
+
+  if (fn->type->kind != TY_FUNC &&
+      (fn->type->kind != TY_PTR || fn->type->ptr_to->kind != TY_FUNC))
+    error_tok(fn->token, "not a function");
 
   struct node head = {};
   struct node *cur = &head;
 
-  struct node *funcall = new_node(ND_FUNCALL, ident);
+  struct node *funcall = new_node(ND_FUNCALL, fn->token);
 
-  struct var_scope *scope = find_var(ident);
-  // struct var *param = NULL;
-  struct type *param = NULL;
-  struct node *node = NULL;
-
-  if (scope) {
-    struct var *v = scope->var;
-    struct type *ty = v->type;
-    param = ty->params;
-    funcall->func_ty = ty->return_type;
-  } else {
-    funcall->func_ty = ty_void;
-  }
+  struct type *ty = fn->type->kind == TY_FUNC ? fn->type : fn->type->ptr_to;
+  struct type *param = ty->params;
 
   int nargs = 0;
 
@@ -2221,11 +2222,6 @@ struct node *funcall(struct token **ret,
                         ? new_lvar("", pointer_to(arg->type->ptr_to))
                         : new_lvar("", arg->type);
 
-    if (param) {
-      v->name = param->name;
-      v->type->name = param->name;
-    }
-
     funcall->args[nargs++] = v;
 
     cur = cur->next = new_node_assign(new_node_var(v, start), arg, start);
@@ -2234,9 +2230,11 @@ struct node *funcall(struct token **ret,
   skip(&tk, tk, ")");
 
   funcall->nargs = nargs;
-  funcall->token = ident;
+  funcall->token = fn->token;
   funcall->body = head.next;
-  funcall->type = funcall->func_ty;
+  funcall->func_ty = ty;
+  funcall->type = ty->return_type;
+  funcall->lhs = fn;
 
   *ret = tk;
   return funcall;
@@ -2526,12 +2524,12 @@ void gvar_initializer(struct token **ret, struct token *tk, struct var *var) {
 // enum-list = ident ( "=" num )? ( "," ident ( "=" num )? )* ","?
 //
 // funcdef = typespec declarator ( ";" | compound-stmt )
-// declarator = pointers ident type-suffix
+// declarator = pointers "(" ident | "(" declarator ")" ")" type-suffix
 //
 // type-suffix = ( "[" num "]" )*
 //              | "(" funcdef-args? ")"
 //
-// funcdef-args = param ( "," param )*
+// funcdef-args = "void" | param ( "," param )*
 // param = typespec declarator
 // declaration = typespec declarator
 //               ( "=" initializer )?
@@ -2580,13 +2578,16 @@ void gvar_initializer(struct token **ret, struct token *tk, struct var *var) {
 //         | ( "[" expr "]" )*
 //         | "." ident
 //         | "->" ident
+//         | funcall
+//
 // primary = "(" "{" compound-stmt "}" ")"
 //         | num
-//         | ident funcall-args?
+//         | ident
 //         | "(" expr ")"
 //         | sizeof unary
 //         | string-literal*
 // funcall = ident "(" funcall-args ")"
+//
 // funcall-args = assign ( "," assign )*
 
 struct program *parse(struct token *tk) {

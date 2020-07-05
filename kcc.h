@@ -105,7 +105,8 @@ enum type_kind {
   TY_STRUCT,
   TY_UNION,
   TY_ENUM,
-  TY_TY_KIND_NUM,
+  TY_FUNC,
+  TY_KIND_NUM,
 };
 
 struct type {
@@ -267,6 +268,7 @@ struct node *new_node_cast(struct node *, struct type *);
 struct type *copy_type(struct type *);
 struct type *pointer_to(struct type *);
 struct type *array_to(struct type *, size_t);
+struct type *func_type(struct type *);
 
 char *type_to_name(enum type_kind);
 

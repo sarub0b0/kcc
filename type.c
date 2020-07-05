@@ -82,6 +82,13 @@ int size_of(struct type *ty) {
   return ty->size;
 }
 
+struct type *func_type(struct type *return_ty) {
+  struct type *ret = calloc(1, sizeof(struct type));
+  ret->kind = TY_FUNC;
+  ret->return_type = return_ty;
+  return ret;
+}
+
 struct type *copy_type(struct type *ty) {
   struct type *ret = calloc(1, sizeof(struct type));
   *ret = *ty;

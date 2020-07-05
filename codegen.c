@@ -235,6 +235,7 @@ void gen_block(struct node *node) {
 void gen_func(struct node *node) {
   struct type *fn_ty = node->func_ty;
 
+  // gen_expr(node->lhs);
   for (struct node *n = node->body; n; n = n->next) {
     gen_expr(n);
     inc--;
@@ -273,8 +274,14 @@ void gen_func(struct node *node) {
 
   printf("    push r10\n");
   printf("    push r11\n");
+
   printf("    mov rax, 0\n");
-  printf("    call %s\n", node->token->str);
+  if (node->lhs->var->is_local) {
+    printf("    mov rax, [rbp-%d]\n", node->lhs->var->offset);
+    printf("    call rax\n");
+  } else {
+    printf("    call %s\n", node->token->str);
+  }
 
   printf("    pop r11\n");
   printf("    pop r10\n");
@@ -289,7 +296,7 @@ void gen_func(struct node *node) {
 
 void load(struct type *type) {
   if (type->kind == TY_ARRAY || type->kind == TY_STRUCT ||
-      type->kind == TY_UNION) {
+      type->kind == TY_UNION || type->kind == TY_FUNC) {
     return;
   }
   const char *r = reg(type, inc - 1);
@@ -376,7 +383,6 @@ int gen_expr(struct node *node) {
       return 0;
     }
     case ND_FUNCALL:
-      gen_expr(node->lhs);
       gen_func(node);
       return 0;
     case ND_COMMA:
