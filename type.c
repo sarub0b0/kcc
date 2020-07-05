@@ -63,7 +63,6 @@ char *type_to_name(enum type_kind kind) {
       break;
   }
 
-  debug("None(%d)", kind);
   return "None";
 }
 bool is_integer(struct type *type) {
@@ -137,13 +136,13 @@ void type_convert(struct node **lhs, struct node **rhs) {
 
   if (ty1->ptr_to)
     ty = pointer_to(ty1->ptr_to);
-  else if (ty1->size != ty2->size) {
+  else if (ty1->size != ty2->size)
     ty = ty1->size > ty2->size ? ty1 : ty2;
-  } else if (ty2->is_unsigned) {
+  else if (ty2->is_unsigned)
     ty = ty2;
-  } else {
+  else
     ty = ty1;
-  }
+
   *lhs = new_node_cast(*lhs, ty);
   *rhs = new_node_cast(*rhs, ty);
 }
@@ -184,6 +183,7 @@ void add_type(struct node *n) {
         n->rhs = new_node_cast(n->rhs, n->lhs->type);
       n->type = n->lhs->type;
       return;
+    case ND_BITNOT:
     case ND_SHL:
     case ND_SHR:
       n->type = n->lhs->type;
@@ -198,6 +198,10 @@ void add_type(struct node *n) {
       n->type = copy_type(ty_int);
       return;
     case ND_NUM:
+      if (n->token->type)
+        n->type = copy_type(n->token->type);
+      else
+        n->type = copy_type(ty_int);
     case ND_LOGOR:
     case ND_LOGAND:
     case ND_NOT:
@@ -231,5 +235,7 @@ void add_type(struct node *n) {
       n->type = stmt->lhs->type;
       return;
     }
+    default:
+      return;
   }
 }
