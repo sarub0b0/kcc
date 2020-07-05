@@ -326,7 +326,7 @@ int gen_expr(struct node *node) {
   struct type *ty = node->type;
   switch (node->kind) {
     case ND_NUM:
-      printf("    mov %s, %d\n", reg(ty, inc++), node->val);
+      printf("    mov %s, %llu\n", reg(ty, inc++), node->val);
       return 0;
     case ND_VAR:
       gen_addr(node);
@@ -460,7 +460,8 @@ int gen_expr(struct node *node) {
         printf("    %s %s, %s\n", insn, reg32[inc - 1], reg16[inc - 1]);
       } else if (to_size == 4) {
         printf("    mov %s, %s\n", reg32[inc - 1], reg32[inc - 1]);
-      } else if (is_integer(from) && size_of(from) < 8) {
+      } else if (is_integer(from) && size_of(from) < 8 &&
+                 !from->is_unsigned) {
         printf("    movsx %s, %s\n", reg64[inc - 1], reg(from, inc - 1));
       }
 

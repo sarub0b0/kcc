@@ -258,30 +258,78 @@ struct token *tokenize(char *filename, char *input) {
         base = 16;
       }
 
-      unsigned long val = 0;
+      enum {
+        LONG = 1 << 0,
+        UNSIGNED = 1 << 2,
+      };
 
-      val = strtol(p, &p, base);
+      unsigned long long val = strtoull(p, &p, base);
 
+      int type = 0;
+
+      bool long_ = false;
+      bool unsigned_ = false;
       if (starts_with(p, "llu") || starts_with(p, "llU") ||
           starts_with(p, "LLu") || starts_with(p, "LLU") ||
           starts_with(p, "ull") || starts_with(p, "uLL") ||
           starts_with(p, "Ull") || starts_with(p, "ULL")) {
+        type = UNSIGNED + LONG + LONG;
+        long_ = unsigned_ = true;
         p += 3;
       } else if (strncasecmp(p, "lu", 2) == 0 ||
                  strncasecmp(p, "ul", 2) == 0) {
+        type = UNSIGNED + LONG;
+        long_ = unsigned_ = true;
         p += 2;
       } else if (starts_with(p, "ll") || starts_with(p, "LL")) {
+        type = LONG + LONG;
+        long_ = true;
         p += 2;
       } else if (*p == 'L' || *p == 'l') {
+        type = LONG;
+        long_ = true;
         p++;
       } else if (*p == 'U' || *p == 'u') {
+        type = UNSIGNED;
+        unsigned_ = true;
         p++;
+      }
+
+      struct type *ty = ty_int;
+      if (base == 10) {
+        if (long_ && unsigned_) {
+          ty = ty_ulong;
+        } else if (long_) {
+          ty = ty_long;
+        } else if (unsigned_) {
+          ty = (val >> 32) ? ty_ulong : ty_uint;
+        } else {
+          ty = (val >> 31) ? ty_long : ty_int;
+        }
+      } else {
+        if (long_ && unsigned_) {
+          ty = ty_ulong;
+        } else if (long_) {
+          ty = (val >> 63) ? ty_ulong : ty_long;
+        } else if (unsigned_) {
+          ty = (val >> 32) ? ty_ulong : ty_uint;
+
+        } else if (val >> 63) {
+          ty = ty_ulong;
+        } else if (val >> 32) {
+          ty = ty_long;
+        } else if (val >> 31) {
+          ty = ty_uint;
+        } else {
+          ty = ty_int;
+        }
       }
 
       cur = new_token(TK_NUM, cur, q, p - q);
       cur->val = val;
       cur->len = p - q;
       cur->str = strndup(q, cur->len);
+      cur->type = ty;
       continue;
     }
 

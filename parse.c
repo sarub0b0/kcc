@@ -350,7 +350,7 @@ void print_stmt(struct node *n,
       print_stmt(n->rhs, is_next_stmt, false, scope_prefix);
       break;
     case ND_NUM:
-      printf("%s-Num '%d'\n", local_prefix, n->val);
+      printf("%s-Num '%llu'\n", local_prefix, n->val);
       break;
     case ND_VAR:
       printf("%s-Var '%s'\n", local_prefix, n->var->name);
@@ -648,7 +648,7 @@ void expect(struct token **ret, struct token *tk, char *op) {
   *ret = tk->next;
 }
 
-int expect_number(struct token **ret, struct token *tk) {
+unsigned long long expect_number(struct token **ret, struct token *tk) {
   if (tk->kind != TK_NUM) {
     error_tok(tk, "数ではありません");
   }
@@ -656,7 +656,7 @@ int expect_number(struct token **ret, struct token *tk) {
   return tk->val;
 }
 
-int get_number(struct token *tok) {
+unsigned long long get_number(struct token *tok) {
   if (tok->kind != TK_NUM) {
     error_tok(tok, "expected an number");
   }
@@ -784,15 +784,18 @@ struct node *new_node_binary(enum node_kind kind,
   return n;
 }
 
-struct node *new_node_num(int val, struct token *token) {
+struct node *new_node_num(unsigned long long val, struct token *token) {
   struct node *n = calloc(1, sizeof(struct node));
   n->kind = ND_NUM;
   n->val = val;
-  n->type = copy_type(ty_int);
   n->token = token;
+  if (token->type)
+    n->type = copy_type(token->type);
+  else
+    n->type = copy_type(ty_int);
   return n;
 }
-struct node *new_node_ulong(int val, struct token *token) {
+struct node *new_node_ulong(unsigned long long val, struct token *token) {
   struct node *n = calloc(1, sizeof(struct node));
   n->kind = ND_NUM;
   n->val = val;
@@ -861,7 +864,7 @@ struct init_data *new_init(struct type *type,
   return init;
 }
 
-int eval(struct node *node, struct var **var) {
+unsigned long long eval(struct node *node, struct var **var) {
   add_type(node);
   switch (node->kind) {
     case ND_ADD:
@@ -1393,7 +1396,7 @@ struct type *enum_declarator(struct token **ret, struct token *tk) {
   skip(&tk, tk, "{");
 
   int i = 0;
-  int val = 0;
+  unsigned long long val = 0;
   while (!consume_end(&tk, tk)) {
     if (0 < i++) {
       skip(&tk, tk, ",");
@@ -2165,21 +2168,15 @@ struct node *funcall(struct token **ret,
   struct node *funcall = new_node(ND_FUNCALL, ident);
 
   struct var_scope *scope = find_var(ident);
-  struct var *param = NULL;
+  // struct var *param = NULL;
+  struct type *param = NULL;
   struct node *node = NULL;
 
   if (scope) {
     struct var *v = scope->var;
     struct type *ty = v->type;
-    for (struct type *p = ty->params; p; p = p->next) {
-      struct var *v0 = calloc(1, sizeof(struct var));
-      v0->type = p;
-      v0->name = p->name;
-      v0->next = param;
-      param = v0;
-    }
+    param = ty->params;
     funcall->func_ty = ty->return_type;
-
   } else {
     funcall->func_ty = ty_void;
   }
@@ -2194,7 +2191,7 @@ struct node *funcall(struct token **ret,
     add_type(arg);
 
     if (param) {
-      arg = new_node_cast(arg, param->type);
+      arg = new_node_cast(arg, param);
       param = param->next;
     }
 
