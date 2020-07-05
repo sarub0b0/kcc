@@ -15,6 +15,8 @@
 #define find_cond(name, token) \
   (strlen(name) == token->len && strncmp(name, token->str, token->len) == 0)
 
+struct type;
+
 enum token_kind {
   TK_RESERVED,
   TK_IDENT,
@@ -28,7 +30,7 @@ enum token_kind {
 struct token {
   enum token_kind kind;
   struct token *next;
-  int val;
+  unsigned long long val;
   char *str;
   char *loc;
   int len;
@@ -43,6 +45,9 @@ struct token {
   bool at_bol;
   bool has_space;
   int line_num;
+
+  // type of numeric literals
+  struct type *type;
 };
 
 enum node_kind {
@@ -152,7 +157,7 @@ struct var {
   bool is_static;
 
   char *data;
-  int addend;
+  unsigned long long addend;
   struct value *values;
 };
 
@@ -200,7 +205,7 @@ struct node {
   // variable
   struct var *var;
 
-  int val;
+  unsigned long long val;
 
   bool is_init;
 };
@@ -243,7 +248,7 @@ bool consume(struct token **, struct token *, char *);
 struct token *consume_ident(struct token **, struct token *);
 bool equal(struct token *, char *);
 bool at_eof(struct token *);
-int get_number(struct token *);
+unsigned long long get_number(struct token *);
 long const_expr(struct token **, struct token *);
 
 void print_tokens(struct token *);

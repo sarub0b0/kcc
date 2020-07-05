@@ -131,30 +131,30 @@ void gen_if(struct node *node) {
   //   n->elsをコンパイル
   // .LendXXX
 
+  int seq = label_seq++;
   gen_expr(node->cond);
   printf("    cmp %s, 0\n", reg64[inc - 1]);
   inc--;
 
   if (node->els) {
-    printf("    je  .L.else.%03d\n", label_seq);
+    printf("    je  .L.else.%03d\n", seq);
 
     gen_stmt(node->then);
 
-    printf("    jmp  .L.end.%03d\n", label_seq);
-    printf(".L.else.%03d:\n", label_seq);
+    printf("    jmp  .L.end.%03d\n", seq);
+    printf(".L.else.%03d:\n", seq);
 
     gen_stmt(node->els);
 
-    printf(".L.end.%03d:\n", label_seq);
+    printf(".L.end.%03d:\n", seq);
   } else {
 
-    printf("    je  .L.end.%03d\n", label_seq);
+    printf("    je  .L.end.%03d\n", seq);
 
     gen_stmt(node->then);
 
-    printf(".L.end.%03d:\n", label_seq);
+    printf(".L.end.%03d:\n", seq);
   }
-  label_seq++;
 }
 
 void gen_for(struct node *node) {
@@ -172,16 +172,17 @@ void gen_for(struct node *node) {
   //   jmp .L.begin.XXX
   // .L.end.XXX
 
+  int seq = label_seq++;
   if (node->init) {
     gen_stmt(node->init);
   }
-  printf(".L.begin.%03d:\n", label_seq);
+  printf(".L.begin.%03d:\n", seq);
 
   if (node->cond) {
     gen_expr(node->cond);
     inc--;
     printf("    cmp %s, 0\n", reg64[inc]);
-    printf("    je  .L.end.%03d\n", label_seq);
+    printf("    je  .L.end.%03d\n", seq);
   }
 
   if (node->then) {
@@ -191,10 +192,8 @@ void gen_for(struct node *node) {
   if (node->inc) {
     gen_stmt(node->inc);
   }
-  printf("    jmp .L.begin.%03d\n", label_seq);
-  printf(".L.end.%03d:\n", label_seq);
-
-  label_seq++;
+  printf("    jmp .L.begin.%03d\n", seq);
+  printf(".L.end.%03d:\n", seq);
 }
 
 void gen_do(struct node *node) {
@@ -211,7 +210,8 @@ void gen_do(struct node *node) {
   //   jmp .L.begin.XXX
   // .L.end.XXX
 
-  printf(".L.begin.%03d:\n", label_seq);
+  int seq = label_seq++;
+  printf(".L.begin.%03d:\n", seq);
 
   if (node->then) {
     gen_stmt(node->then);
@@ -221,13 +221,11 @@ void gen_do(struct node *node) {
     gen_expr(node->cond);
     inc--;
     printf("    cmp %s, 0\n", reg64[inc]);
-    printf("    je  .L.end.%03d\n", label_seq);
+    printf("    je  .L.end.%03d\n", seq);
   }
 
-  printf("    jmp .L.begin.%03d\n", label_seq);
-  printf(".L.end.%03d:\n", label_seq);
-
-  label_seq++;
+  printf("    jmp .L.begin.%03d\n", seq);
+  printf(".L.end.%03d:\n", seq);
 }
 
 void gen_block(struct node *node) {
@@ -328,7 +326,7 @@ int gen_expr(struct node *node) {
   struct type *ty = node->type;
   switch (node->kind) {
     case ND_NUM:
-      printf("    mov %s, %d\n", reg(ty, inc++), node->val);
+      printf("    mov %s, %llu\n", reg(ty, inc++), node->val);
       return 0;
     case ND_VAR:
       gen_addr(node);
@@ -404,42 +402,44 @@ int gen_expr(struct node *node) {
       gen_expr(node->lhs);
       printf("    not %s\n", reg(node->lhs->type, inc - 1));
       return 0;
-    case ND_LOGOR:
+    case ND_LOGOR: {
       // lhs || rhs
       // lhs == 0 ?
+      int seq = label_seq++;
       gen_expr(node->lhs);
       printf("    cmp %s, 0\n", reg(node->lhs->type, --inc));
-      printf("    jne .L.true.%03d\n", label_seq);
+      printf("    jne .L.true.%03d\n", seq);
 
       // rhs == 0 ?
       gen_expr(node->rhs);
       printf("    cmp %s, 0\n", reg(node->rhs->type, --inc));
-      printf("    jne .L.true.%03d\n", label_seq);
+      printf("    jne .L.true.%03d\n", seq);
       printf("    mov %s, 0\n", reg64[inc - 1]);
-      printf("    jmp .L.end.%03d\n", label_seq);
-      printf(".L.true.%03d:\n", label_seq);
+      printf("    jmp .L.end.%03d\n", seq);
+      printf(".L.true.%03d:\n", seq);
       printf("    mov %s, 1\n", reg64[inc++]);
-      printf(".L.end.%03d:\n", label_seq);
-      label_seq++;
+      printf(".L.end.%03d:\n", seq);
       return 0;
-    case ND_LOGAND:
+    }
+    case ND_LOGAND: {
       // lhs && rhs
       // lhs == 0 ?
+      int seq = label_seq++;
       gen_expr(node->lhs);
       printf("    cmp %s, 0\n", reg(node->lhs->type, --inc));
-      printf("    je .L.false.%03d\n", label_seq);
+      printf("    je .L.false.%03d\n", seq);
 
       // rhs == 0 ?
       gen_expr(node->rhs);
       printf("    cmp %s, 0\n", reg(node->rhs->type, --inc));
-      printf("    je .L.false.%03d\n", label_seq);
+      printf("    je .L.false.%03d\n", seq);
       printf("    mov %s, 1\n", reg64[inc - 1]);
-      printf("    jmp .L.end.%03d\n", label_seq);
-      printf(".L.false.%03d:\n", label_seq);
+      printf("    jmp .L.end.%03d\n", seq);
+      printf(".L.false.%03d:\n", seq);
       printf("    mov %s, 0\n", reg64[inc++]);
-      printf(".L.end.%03d:\n", label_seq);
-      label_seq++;
+      printf(".L.end.%03d:\n", seq);
       return 0;
+    }
     case ND_STMT_EXPR:
       for (struct node *n = node->body; n; n = n->next) {
         gen_stmt(n);
@@ -460,31 +460,33 @@ int gen_expr(struct node *node) {
         printf("    %s %s, %s\n", insn, reg32[inc - 1], reg16[inc - 1]);
       } else if (to_size == 4) {
         printf("    mov %s, %s\n", reg32[inc - 1], reg32[inc - 1]);
-      } else if (is_integer(from) && size_of(from) < 8) {
+      } else if (is_integer(from) && size_of(from) < 8 &&
+                 !from->is_unsigned) {
         printf("    movsx %s, %s\n", reg64[inc - 1], reg(from, inc - 1));
       }
 
       return 0;
     }
-    case ND_COND:
+    case ND_COND: {
+      int seq = label_seq++;
       gen_expr(node->cond);
       printf("    cmp %s, 0\n", reg64[inc - 1]);
       inc--;
 
-      printf("    je  .L.else.%03d\n", label_seq);
+      printf("    je  .L.else.%03d\n", seq);
 
       gen_expr(node->then);
       inc--;
 
-      printf("    jmp  .L.end.%03d\n", label_seq);
-      printf(".L.else.%03d:\n", label_seq);
+      printf("    jmp  .L.end.%03d\n", seq);
+      printf(".L.else.%03d:\n", seq);
 
       gen_expr(node->els);
 
-      printf(".L.end.%03d:\n", label_seq);
-      label_seq++;
+      printf(".L.end.%03d:\n", seq);
 
       return 0;
+    }
     case ND_LIST_EXPR:
       for (struct node *n = node->body; n; n = n->next) {
         gen_expr(n);

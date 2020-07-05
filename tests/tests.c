@@ -118,17 +118,34 @@ extern int extern_a;
 
 #undef def
 
-int assert(int expected, int actual, char *code) {
+int assert(unsigned long long expected,
+           unsigned long long actual,
+           char *code,
+           bool is_unsigned) {
   p("% 4d: ", number++);
   if (expected == actual) {
-    p1("%s => %d ... " OK "\n", code, actual);
+
+    if (is_unsigned) {
+      p1("%s => %llu ... " OK "\n", code, actual);
+    } else {
+      p1("%s => %lld ... " OK "\n", code, actual);
+    }
+
     success++;
   } else {
-    p1("%s => %d expected, but got %d ... %s\n",
-       code,
-       expected,
-       actual,
-       FAILED);
+    if (is_unsigned) {
+      p1("%s => %llu expected, but got %llu ... %s\n",
+         code,
+         expected,
+         actual,
+         FAILED);
+    } else {
+      p1("%s => %lld expected, but got %lld ... %s\n",
+         code,
+         expected,
+         actual,
+         FAILED);
+    }
 
     failed++;
   }
@@ -192,29 +209,30 @@ int mixed(int a, short b, long c, char d) {
 
 int variadic(int x, ...);
 int main() {
-  assert(0, 0, "0");
-  assert(42, 42, "42");
-  assert(21, 5 + 20 - 4, "5+20-4");
-  assert(41, 12 + 34 - 5, "12+34-5");
-  assert(47, 5 + 6 * 7, "5+6*7");
-  assert(15, 5 * (9 - 6), "5*(9-6)");
-  assert(4, (3 + 5) / 2, "(3+5)/2");
-  assert(3, +3, "+3");
-  assert(8, -(-3 - 5), "-(-3-5)");
-  assert(15, -3 * (-5), "-3*(-5)");
-  assert(1, 1 == 1, "1==1");
-  assert(0, 1 != 1, "1!=1");
-  assert(1, 2 >= 1, "2>=1");
-  assert(1, 1 <= 2, "1<=2");
-  assert(1, 2 > 1, "2>1");
-  assert(1, 1 < 2, "1<2");
+  assert(0, 0, "0", false);
+  assert(42, 42, "42", false);
+  assert(21, 5 + 20 - 4, "5+20-4", false);
+  assert(41, 12 + 34 - 5, "12+34-5", false);
+  assert(47, 5 + 6 * 7, "5+6*7", false);
+  assert(15, 5 * (9 - 6), "5*(9-6)", false);
+  assert(4, (3 + 5) / 2, "(3+5)/2", false);
+  assert(3, +3, "+3", false);
+  assert(8, -(-3 - 5), "-(-3-5)", false);
+  assert(15, -3 * (-5), "-3*(-5)", false);
+  assert(1, 1 == 1, "1==1", false);
+  assert(0, 1 != 1, "1!=1", false);
+  assert(1, 2 >= 1, "2>=1", false);
+  assert(1, 1 <= 2, "1<=2", false);
+  assert(1, 2 > 1, "2>1", false);
+  assert(1, 1 < 2, "1<2", false);
   assert(5,
          ({
            int a;
            a = 3;
            a + 2;
          }),
-         "({ int a; a=3; a+2; })");
+         "({ int a; a=3; a+2; })",
+         false);
   assert(2,
          ({
            int a;
@@ -222,33 +240,38 @@ int main() {
            a = b = 2;
            a;
          }),
-         "({ int a; int b; a=b=2; a; })");
+         "({ int a; int b; a=b=2; a; })",
+         false);
   assert(15,
          ({
            int foo;
            foo = 3;
            foo + 12;
          }),
-         "({ int foo; foo=3; foo+12; })");
+         "({ int foo; foo=3; foo+12; })",
+         false);
 
   assert(3,
          ({
            int a = 3;
            a;
          }),
-         "({ int a=3; a; })");
+         "({ int a=3; a; })",
+         false);
 
-  assert(15, ({ add(5, 10); }), "({ add(5, 10); })");
+  assert(15, ({ add(5, 10); }), "({ add(5, 10); })", false);
   assert(15,
          ({
            int a = add(5, 10);
            a;
          }),
-         "({ int a=add(5, 10); a; })");
-  assert(3, ({ sub(5, 2); }), "({ sub(5, 2); })");
-  assert(2, ({ sub(5, 3); }), "({ sub(5, 3); })");
-  assert(1, ({ sub(5, 2) - sub(5, 3); }), "({ sub(5, 2)-sub(5, 3); })");
-  assert(55, ({ fib(9); }), "({ fib(9); })");
+         "({ int a=add(5, 10); a; })",
+         false);
+  assert(3, ({ sub(5, 2); }), "({ sub(5, 2); })", false);
+  assert(2, ({ sub(5, 3); }), "({ sub(5, 3); })", false);
+  assert(
+      1, ({ sub(5, 2) - sub(5, 3); }), "({ sub(5, 2)-sub(5, 3); })", false);
+  assert(55, ({ fib(9); }), "({ fib(9); })", false);
   assert(3,
          ({
            int i;
@@ -257,7 +280,8 @@ int main() {
            }
            i;
          }),
-         "({ int i; for(i=0; i<=3; i=i+1){ i=i; } i; })");
+         "({ int i; for(i=0; i<=3; i=i+1){ i=i; } i; })",
+         false);
   assert(3,
          ({
            int a;
@@ -266,7 +290,8 @@ int main() {
            }
            a;
          }),
-         "({ int a; for(int i=0; i<=3; i=i+1){ a=i; } a; })");
+         "({ int a; for(int i=0; i<=3; i=i+1){ a=i; } a; })",
+         false);
   assert(3,
          ({
            int a;
@@ -277,7 +302,8 @@ int main() {
            }
            a;
          }),
-         "({ int a; int i=0; while(i<=3){ i=i+1; a=i; } a; })");
+         "({ int a; int i=0; while(i<=3){ i=i+1; a=i; } a; })",
+         false);
 
   assert(5,
          ({
@@ -287,7 +313,8 @@ int main() {
            } while (i < 5);
            i;
          }),
-         "({ int i=0; do{ i++; }while(i<5); i; })");
+         "({ int i=0; do{ i++; }while(i<5); i; })",
+         false);
 
   assert(3,
          ({
@@ -296,7 +323,8 @@ int main() {
            *y = 3;
            x;
          }),
-         "({ int x; int *y; y=&x; *y=3; x; })");
+         "({ int x; int *y; y=&x; *y=3; x; })",
+         false);
   assert(3,
          ({
            int x;
@@ -304,7 +332,8 @@ int main() {
            *y = 3;
            x;
          }),
-         "({ int x; int *y=&x; *y=3; x; })");
+         "({ int x; int *y=&x; *y=3; x; })",
+         false);
   assert(8,
          ({
            int x;
@@ -313,60 +342,69 @@ int main() {
            y = 5;
            add(x, y);
          }),
-         "({ int x; int y; x=3; y=5; add(x, y); })");
+         "({ int x; int y; x=3; y=5; add(x, y); })",
+         false);
   assert(3,
          ({
            int x = 3;
            *&x;
          }),
-         "({ int x=3; *&x; })");
+         "({ int x=3; *&x; })",
+         false);
   assert(5,
          ({
            int x = 3;
            int y = 5;
            *(&x + 1);
          }),
-         "({ int x=3; int y=5; *(&x+1); })");
+         "({ int x=3; int y=5; *(&x+1); })",
+         false);
   assert(3,
          ({
            int x = 3;
            int y = 5;
            *(&y - 1);
          }),
-         "({ int x=3; int y=5; *(&y-1); })");
+         "({ int x=3; int y=5; *(&y-1); })",
+         false);
   assert(4,
          ({
            int x;
            sizeof(x);
          }),
-         "({ int x; sizeof(x); })");
+         "({ int x; sizeof(x); })",
+         false);
   assert(8,
          ({
            int *x;
            sizeof(x);
          }),
-         "({ int *x; sizeof(x); })");
+         "({ int *x; sizeof(x); })",
+         false);
   assert(4,
          ({
            int x;
            sizeof(x + 3);
          }),
-         "({ int x; sizeof(x+3); })");
+         "({ int x; sizeof(x+3); })",
+         false);
   assert(8,
          ({
            int *x;
            sizeof(x + 5);
          }),
-         "({ int *x; sizeof(x+5); })");
+         "({ int *x; sizeof(x+5); })",
+         false);
   assert(4,
          ({
            int *x;
            sizeof(*x);
          }),
-         "({ int *x; sizeof(*x); })");
-  assert(4, ({ sizeof(1); }), "({ sizeof(1); })");
-  assert(5, ({ sizeof(1) + 1; }), "({ sizeof(1)+1; })");
-  assert(4, ({ sizeof(sizeof(1)); }), "({ sizeof(sizeof(1)); })");
+         "({ int *x; sizeof(*x); })",
+         false);
+  assert(4, ({ sizeof(1); }), "({ sizeof(1); })", false);
+  assert(5, ({ sizeof(1) + 1; }), "({ sizeof(1)+1; })", false);
+  assert(4, ({ sizeof(sizeof(1)); }), "({ sizeof(sizeof(1)); })", false);
   assert(3,
          ({
            int x[2];
@@ -374,7 +412,8 @@ int main() {
            *y = 3;
            *x;
          }),
-         "({ int x[2]; int *y=&x; *y=3; *x; })");
+         "({ int x[2]; int *y=&x; *y=3; *x; })",
+         false);
   assert(3,
          ({
            int x[3];
@@ -383,7 +422,8 @@ int main() {
            *(x + 2) = 5;
            *x;
          }),
-         "({ int x[3]; *x=3; *(x+1)=4; *(x+2)=5; *x; })");
+         "({ int x[3]; *x=3; *(x+1)=4; *(x+2)=5; *x; })",
+         false);
   assert(4,
          ({
            int x[3];
@@ -392,7 +432,8 @@ int main() {
            *(x + 2) = 5;
            *(x + 1);
          }),
-         "({ int x[3]; *x=3; *(x+1)=4; *(x+2)=5; *(x+1); })");
+         "({ int x[3]; *x=3; *(x+1)=4; *(x+2)=5; *(x+1); })",
+         false);
   assert(5,
          ({
            int x[3];
@@ -401,7 +442,8 @@ int main() {
            *(x + 2) = 5;
            *(x + 2);
          }),
-         "({ int x[3]; *x=3; *(x+1)=4; *(x+2)=5; *(x+2); })");
+         "({ int x[3]; *x=3; *(x+1)=4; *(x+2)=5; *(x+2); })",
+         false);
   assert(1,
          ({
            int a[2];
@@ -410,7 +452,8 @@ int main() {
            int *p = a;
            *p;
          }),
-         "({ int a[2]; *a=1; *(a+1)=2; int *p=a; *p; })");
+         "({ int a[2]; *a=1; *(a+1)=2; int *p=a; *p; })",
+         false);
   assert(2,
          ({
            int a[2];
@@ -419,7 +462,8 @@ int main() {
            int *p = a;
            *(p + 1);
          }),
-         "({ int a[2]; *a=1; *(a+1)=2; int *p=a; *(p+1); })");
+         "({ int a[2]; *a=1; *(a+1)=2; int *p=a; *(p+1); })",
+         false);
   assert(3,
          ({
            int a[2];
@@ -428,13 +472,15 @@ int main() {
            int *p = a;
            *p + *(p + 1);
          }),
-         "({ int a[2]; *a=1; *(a+1)=2; int *p=a; *p+*(p+1); })");
+         "({ int a[2]; *a=1; *(a+1)=2; int *p=a; *p+*(p+1); })",
+         false);
   assert(8,
          ({
            int a[2];
            sizeof(a);
          }),
-         "({ int a[2]; sizeof(a); })");
+         "({ int a[2]; sizeof(a); })",
+         false);
   assert(3,
          ({
            int x[3];
@@ -443,7 +489,8 @@ int main() {
            x[2] = 5;
            *x;
          }),
-         "({ int x[3]; x[0]=3; x[1]=4; x[2]=5; *x; })");
+         "({ int x[3]; x[0]=3; x[1]=4; x[2]=5; *x; })",
+         false);
   assert(4,
          ({
            int x[3];
@@ -452,7 +499,8 @@ int main() {
            x[2] = 5;
            x[1];
          }),
-         "({ int x[3]; x[0]=3; x[1]=4; x[2]=5; x[1]; })");
+         "({ int x[3]; x[0]=3; x[1]=4; x[2]=5; x[1]; })",
+         false);
   assert(4,
          ({
            int x[3];
@@ -461,7 +509,8 @@ int main() {
            x[2] = 5;
            *(x + 1);
          }),
-         "({ int x[3]; x[0]=3; x[1]=4; x[2]=5; *(x+1); })");
+         "({ int x[3]; x[0]=3; x[1]=4; x[2]=5; *(x+1); })",
+         false);
   assert(5,
          ({
            int x[3];
@@ -470,7 +519,8 @@ int main() {
            x[2] = 5;
            x[2];
          }),
-         "({ int x[3]; x[0]=3; x[1]=4; x[2]=5; x[2]; })");
+         "({ int x[3]; x[0]=3; x[1]=4; x[2]=5; x[2]; })",
+         false);
   assert(0,
          ({
            int x[2][3];
@@ -478,7 +528,8 @@ int main() {
            *y = 0;
            **x;
          }),
-         "({ int x[2][3]; int *y=x; *y=0; **x; })");
+         "({ int x[2][3]; int *y=x; *y=0; **x; })",
+         false);
   assert(1,
          ({
            int x[2][3];
@@ -486,7 +537,8 @@ int main() {
            *(y + 1) = 1;
            *(*x + 1);
          }),
-         "({ int x[2][3]; int *y=x; *(y+1)=1; *(*x+1); })");
+         "({ int x[2][3]; int *y=x; *(y+1)=1; *(*x+1); })",
+         false);
   assert(2,
          ({
            int x[2][3];
@@ -494,7 +546,8 @@ int main() {
            *(y + 2) = 2;
            *(*x + 2);
          }),
-         "({ int x[2][3]; int *y=x; *(y+2)=2; *(*x+2); })");
+         "({ int x[2][3]; int *y=x; *(y+2)=2; *(*x+2); })",
+         false);
   assert(3,
          ({
            int x[2][3];
@@ -502,7 +555,8 @@ int main() {
            *(y + 3) = 3;
            **(x + 1);
          }),
-         "({ int x[2][3]; int *y=x; *(y+3)=3; **(x+1); })");
+         "({ int x[2][3]; int *y=x; *(y+3)=3; **(x+1); })",
+         false);
   assert(4,
          ({
            int x[2][3];
@@ -510,7 +564,8 @@ int main() {
            *(y + 4) = 4;
            *(*(x + 1) + 1);
          }),
-         "({ int x[2][3]; int *y=x; *(y+4)=4; *(*(x+1)+1); })");
+         "({ int x[2][3]; int *y=x; *(y+4)=4; *(*(x+1)+1); })",
+         false);
   assert(5,
          ({
            int x[2][3];
@@ -518,7 +573,8 @@ int main() {
            *(y + 5) = 5;
            *(*(x + 1) + 2);
          }),
-         "({ int x[2][3]; int *y=x; *(y+5)=5; *(*(x+1)+2); })");
+         "({ int x[2][3]; int *y=x; *(y+5)=5; *(*(x+1)+2); })",
+         false);
   assert(3,
          ({
            int x[3];
@@ -527,7 +583,8 @@ int main() {
            x[2] = 5;
            *x;
          }),
-         "({ int x[3]; *x=3; x[1]=4; x[2]=5; *x; })");
+         "({ int x[3]; *x=3; x[1]=4; x[2]=5; *x; })",
+         false);
   assert(4,
          ({
            int x[3];
@@ -536,7 +593,8 @@ int main() {
            x[2] = 5;
            *(x + 1);
          }),
-         "({ int x[3]; *x=3; x[1]=4; x[2]=5; *(x+1); })");
+         "({ int x[3]; *x=3; x[1]=4; x[2]=5; *(x+1); })",
+         false);
   assert(5,
          ({
            int x[3];
@@ -545,7 +603,8 @@ int main() {
            x[2] = 5;
            *(x + 2);
          }),
-         "({ int x[3]; *x=3; x[1]=4; x[2]=5; *(x+2); })");
+         "({ int x[3]; *x=3; x[1]=4; x[2]=5; *(x+2); })",
+         false);
   assert(5,
          ({
            int x[3];
@@ -554,7 +613,8 @@ int main() {
            x[2] = 5;
            *(x + 2);
          }),
-         "({ int x[3]; *x=3; x[1]=4; x[2]=5; *(x+2); })");
+         "({ int x[3]; *x=3; x[1]=4; x[2]=5; *(x+2); })",
+         false);
   assert(5,
          ({
            int x[3];
@@ -563,7 +623,8 @@ int main() {
            x[2] = 5;
            *(x + 2);
          }),
-         "({ int x[3]; *x=3; x[1]=4; x[2]=5; *(x+2); })");
+         "({ int x[3]; *x=3; x[1]=4; x[2]=5; *(x+2); })",
+         false);
   assert(0,
          ({
            int x[2][3];
@@ -571,7 +632,8 @@ int main() {
            y[0] = 0;
            x[0][0];
          }),
-         "({ int x[2][3]; int *y=x; y[0]=0; x[0][0]; })");
+         "({ int x[2][3]; int *y=x; y[0]=0; x[0][0]; })",
+         false);
   assert(1,
          ({
            int x[2][3];
@@ -579,7 +641,8 @@ int main() {
            y[1] = 1;
            x[0][1];
          }),
-         "({ int x[2][3]; int *y=x; y[1]=1; x[0][1]; })");
+         "({ int x[2][3]; int *y=x; y[1]=1; x[0][1]; })",
+         false);
   assert(2,
          ({
            int x[2][3];
@@ -587,7 +650,8 @@ int main() {
            y[2] = 2;
            x[0][2];
          }),
-         "({ int x[2][3]; int *y=x; y[2]=2; x[0][2]; })");
+         "({ int x[2][3]; int *y=x; y[2]=2; x[0][2]; })",
+         false);
   assert(3,
          ({
            int x[2][3];
@@ -595,7 +659,8 @@ int main() {
            y[3] = 3;
            x[1][0];
          }),
-         "({ int x[2][3]; int *y=x; y[3]=3; x[1][0]; })");
+         "({ int x[2][3]; int *y=x; y[3]=3; x[1][0]; })",
+         false);
   assert(4,
          ({
            int x[2][3];
@@ -603,7 +668,8 @@ int main() {
            y[4] = 4;
            x[1][1];
          }),
-         "({ int x[2][3]; int *y=x; y[4]=4; x[1][1]; })");
+         "({ int x[2][3]; int *y=x; y[4]=4; x[1][1]; })",
+         false);
   assert(5,
          ({
            int x[2][3];
@@ -611,14 +677,16 @@ int main() {
            y[5] = 5;
            x[1][2];
          }),
-         "({ int x[2][3]; int *y=x; y[5]=5; x[1][2]; })");
-  assert(1, ({ g0; }), "({ g0; })");
+         "({ int x[2][3]; int *y=x; y[5]=5; x[1][2]; })",
+         false);
+  assert(1, ({ g0; }), "({ g0; })", false);
   assert(3,
          ({
            g1 = 3;
            g1;
          }),
-         "({ g1=3; g1; })");
+         "({ g1=3; g1; })",
+         false);
   assert(0,
          ({
            int x[4];
@@ -628,7 +696,8 @@ int main() {
            x[3] = 3;
            x[0];
          }),
-         "({ int x[4]; x[0]=0; x[1]=1; x[2]=2; x[3]=3; x[0]; })");
+         "({ int x[4]; x[0]=0; x[1]=1; x[2]=2; x[3]=3; x[0]; })",
+         false);
   assert(1,
          ({
            int x[4];
@@ -638,7 +707,8 @@ int main() {
            x[3] = 3;
            x[1];
          }),
-         "({ int x[4]; x[0]=0; x[1]=1; x[2]=2; x[3]=3; x[1]; })");
+         "({ int x[4]; x[0]=0; x[1]=1; x[2]=2; x[3]=3; x[1]; })",
+         false);
   assert(2,
          ({
            int x[4];
@@ -648,7 +718,8 @@ int main() {
            x[3] = 3;
            x[2];
          }),
-         "({ int x[4]; x[0]=0; x[1]=1; x[2]=2; x[3]=3; x[2]; })");
+         "({ int x[4]; x[0]=0; x[1]=1; x[2]=2; x[3]=3; x[2]; })",
+         false);
   assert(3,
          ({
            int x[4];
@@ -658,32 +729,37 @@ int main() {
            x[3] = 3;
            x[3];
          }),
-         "({ int x[4]; x[0]=0; x[1]=1; x[2]=2; x[3]=3; x[3]; })");
+         "({ int x[4]; x[0]=0; x[1]=1; x[2]=2; x[3]=3; x[3]; })",
+         false);
   assert(16,
          ({
            int x[4];
            sizeof(x);
          }),
-         "({ int x[4]; sizeof(x); })");
+         "({ int x[4]; sizeof(x); })",
+         false);
   assert(1,
          ({
            char a;
            sizeof(a);
          }),
-         "({ char a; sizeof(a); })");
+         "({ char a; sizeof(a); })",
+         false);
   assert(10,
          ({
            char a[10];
            sizeof(a);
          }),
-         "({ char a[10]; sizeof(a); })");
+         "({ char a[10]; sizeof(a); })",
+         false);
   assert(3,
          ({
            char a = 1;
            char b = 2;
            a + b;
          }),
-         "({ char a=1; char b=2; a+b; })");
+         "({ char a=1; char b=2; a+b; })",
+         false);
   assert(3,
          ({
            char x[3];
@@ -692,93 +768,106 @@ int main() {
            int y = 4;
            x[0] + y;
          }),
-         "({ char x[3]; x[0]=-1; x[1]=2; int y; y=4; x[0]+y; })");
-  assert(97, ({ "abc"[0]; }), "({ \"abc\"[0]; })");
-  assert(98, ({ "abc"[1]; }), "({ \"abc\"[1]; })");
+         "({ char x[3]; x[0]=-1; x[1]=2; int y; y=4; x[0]+y; })",
+         false);
+  assert(97, ({ "abc"[0]; }), "({ \"abc\"[0]; })", false);
+  assert(98, ({ "abc"[1]; }), "({ \"abc\"[1]; })", false);
   assert(97,
          ({
            char *a = "abc";
            a[0];
          }),
-         "({ char *a=\"abc\"; a[0]; })");
+         "({ char *a=\"abc\"; a[0]; })",
+         false);
   assert(98,
          ({
            char *a = "abc";
            a[1];
          }),
-         "({ char *a=\"abc\"; a[1]; })");
+         "({ char *a=\"abc\"; a[1]; })",
+         false);
 
   assert(101,
          ({
            char *a = "abc", *b = "def";
            b[1];
          }),
-         "({ char *a=\"abc\",*b=\"def\"; b[1]; })");
+         "({ char *a=\"abc\",*b=\"def\"; b[1]; })",
+         false);
   assert(3,
          ({
            int x, y;
            x = 3;
            x;
          }),
-         "({ int x,y; x=3; x; })");
+         "({ int x,y; x=3; x; })",
+         false);
 
   assert(3,
          ({
            int x = 1, y = 2;
            x + y;
          }),
-         "({ int x=1, y=2; x+y; })");
+         "({ int x=1, y=2; x+y; })",
+         false);
 
   assert(1,
          ({
            int a[] = {1};
            a[0];
          }),
-         "({ int a[]={1}; a[0]; })");
+         "({ int a[]={1}; a[0]; })",
+         false);
   assert(2,
          ({
            int a[] = {1, 2};
            a[1];
          }),
-         "({ int a[]={1,2}; a[1]; })");
+         "({ int a[]={1,2}; a[1]; })",
+         false);
   assert(3,
          ({
            int a[3] = {1, 2, 3};
            a[2];
          }),
-         "({ int a[3]={1,2,3}; a[2]; })");
+         "({ int a[3]={1,2,3}; a[2]; })",
+         false);
   assert(1,
          ({
            int a[] = {1, 2, foo()};
            a[2];
          }),
-         "({ int a[]={1,2,foo()}; a[2]; })");
+         "({ int a[]={1,2,foo()}; a[2]; })",
+         false);
 
   assert(98,
          ({
            char a[] = "abc";
            a[1];
          }),
-         "({ char a[]=\"abc\"; a[1]; })");
+         "({ char a[]=\"abc\"; a[1]; })",
+         false);
 
   assert(98,
          ({
            char a[4] = "abc";
            a[1];
          }),
-         "({ char a[4]=\"abc\"; a[1]; })");
+         "({ char a[4]=\"abc\"; a[1]; })",
+         false);
 
-  assert(97, ({ g6[0]; }), "({ g6[0]; })");
-  assert(97, ({ g7[0]; }), "({ g7[0]; })");
+  assert(97, ({ g6[0]; }), "({ g6[0]; })", false);
+  assert(97, ({ g7[0]; }), "({ g7[0]; })", false);
   assert(3,
          ({
            g1 = 3;
            *g8;
          }),
-         "({ g1=3; *g8; })");
+         "({ g1=3; *g8; })",
+         false);
 
-  assert(3, ({ g10[3]; }), "({ g10[3]; })");
-  assert(97, ({ g11[0][0]; }), "({ g11[0][0]; })");
+  assert(3, ({ g10[3]; }), "({ g10[3]; })", false);
+  assert(97, ({ g11[0][0]; }), "({ g11[0][0]; })", false);
 
   assert(1,
          ({
@@ -786,7 +875,8 @@ int main() {
            void0();
            a;
          }),
-         "({ int a=1; void0(); a; })");
+         "({ int a=1; void0(); a; })",
+         false);
 
   assert(2,
          ({
@@ -795,7 +885,8 @@ int main() {
            long c = 2;
            c;
          }),
-         "({ int a=1; short b=2; long c=2; c; })");
+         "({ int a=1; short b=2; long c=2; c; })",
+         false);
 
   assert(2,
          ({
@@ -803,7 +894,8 @@ int main() {
            ++a;
            ++a;
          }),
-         "({ int a=0; ++a; ++a; })");
+         "({ int a=0; ++a; ++a; })",
+         false);
 
   assert(1,
          ({
@@ -811,7 +903,8 @@ int main() {
            --a;
            --a;
          }),
-         "({ int a=3; --a; --a; })");
+         "({ int a=3; --a; --a; })",
+         false);
 
   assert(2,
          ({
@@ -819,7 +912,8 @@ int main() {
            a++;
            a++;
          }),
-         "({ int a=0; a++; a++; })");
+         "({ int a=0; a++; a++; })",
+         false);
 
   assert(1,
          ({
@@ -827,7 +921,8 @@ int main() {
            a--;
            a--;
          }),
-         "({ int a=3; a--; a--; })");
+         "({ int a=3; a--; a--; })",
+         false);
 
   assert(4,
          ({
@@ -835,7 +930,8 @@ int main() {
            a += 2;
            a += 2;
          }),
-         "({ int a=0; a+=2; a+=2; })");
+         "({ int a=0; a+=2; a+=2; })",
+         false);
 
   assert(1,
          ({
@@ -843,33 +939,38 @@ int main() {
            a -= 2;
            a -= 2;
          }),
-         "({ int a=5; a-=2; a-=2; })");
+         "({ int a=5; a-=2; a-=2; })",
+         false);
   assert(98,
          ({
            char *a = "abc";
            *a++;
          }),
-         "({ char *a=\"abc\"; *a++; })");
+         "({ char *a=\"abc\"; *a++; })",
+         false);
   assert(99,
          ({
            char *a = "abc";
            *a += 2;
          }),
-         "({ char *a=\"abc\"; *a+=2; })");
+         "({ char *a=\"abc\"; *a+=2; })",
+         false);
 
   assert(6,
          ({
            int a = 2;
            a *= 3;
          }),
-         "({ int a=2; a*=3; })");
+         "({ int a=2; a*=3; })",
+         false);
 
   assert(2,
          ({
            int a = 6;
            a /= 3;
          }),
-         "({ int a=6; a/=3; })");
+         "({ int a=6; a/=3; })",
+         false);
 
   assert(1,
          ({
@@ -877,7 +978,8 @@ int main() {
            a = a == 1 ? a : 2;
            a;
          }),
-         "({ int a=1; a = a==1 ? a:2; })");
+         "({ int a=1; a = a==1 ? a:2; })",
+         false);
 
   assert(2,
          ({
@@ -885,7 +987,8 @@ int main() {
            a = a == 1 ? a : 2;
            a;
          }),
-         "({ int a=2; a = a==1 ? a:2; })");
+         "({ int a=2; a = a==1 ? a:2; })",
+         false);
 
   assert(1,
          ({
@@ -893,14 +996,16 @@ int main() {
            int b = 1;
            a | b;
          }),
-         "({ int a=0; int b=1; a|b; })");
+         "({ int a=0; int b=1; a|b; })",
+         false);
   assert(0,
          ({
            int a = 0;
            int b = 0;
            a | b | b;
          }),
-         "({ int a=0; int b=0; a|b|b; })");
+         "({ int a=0; int b=0; a|b|b; })",
+         false);
   assert(0,
          ({
            int a = 0;
@@ -908,7 +1013,8 @@ int main() {
            int c = a & b;
            c;
          }),
-         "({ int a=0; int b=1; int c=a&b; c; })");
+         "({ int a=0; int b=1; int c=a&b; c; })",
+         false);
   assert(1,
          ({
            int a = 1;
@@ -916,7 +1022,8 @@ int main() {
            int c = a & b;
            c;
          }),
-         "({ int a=1; int b=1; int c=a&b; c; })");
+         "({ int a=1; int b=1; int c=a&b; c; })",
+         false);
 
   assert(0,
          ({
@@ -925,7 +1032,8 @@ int main() {
            int c = a ^ b;
            c;
          }),
-         "({ int a=1; int b=1; int c=a^b; c; })");
+         "({ int a=1; int b=1; int c=a^b; c; })",
+         false);
 
   assert(1,
          ({
@@ -934,7 +1042,8 @@ int main() {
            int c = a ^ b;
            c;
          }),
-         "({ int a=0; int b=1; int c=a^b; c; })");
+         "({ int a=0; int b=1; int c=a^b; c; })",
+         false);
 
   assert(1,
          ({
@@ -942,7 +1051,8 @@ int main() {
            int b = (int) a;
            b;
          }),
-         "({ char a=1; int b=(int)a; b;})");
+         "({ char a=1; int b=(int)a; b;})",
+         false);
 
   assert(3,
          ({
@@ -950,12 +1060,13 @@ int main() {
            int *b = (int *) &a;
            *b;
          }),
-         "({ char a=3; int *b=(int *)&a; *b;})");
+         "({ char a=3; int *b=(int *)&a; *b;})",
+         false);
 
-  assert(-1, ({ ~0; }), "({ ~0; })");
+  assert(-1, ({ ~0; }), "({ ~0; })", false);
 
-  assert(5, ({ logor(); }), "({ logor(); })");
-  assert(5, ({ logand(); }), "({ logand(); })");
+  assert(5, ({ logor(); }), "({ logor(); })", false);
+  assert(5, ({ logand(); }), "({ logand(); })", false);
 
   assert(1,
          ({
@@ -963,7 +1074,8 @@ int main() {
            a = 1;
            a;
          }),
-         "({ bool a=0; a=1; a; })");
+         "({ bool a=0; a=1; a; })",
+         false);
 
   assert(3,
          ({
@@ -973,14 +1085,16 @@ int main() {
            a.b = 2;
            a.a;
          }),
-         "({ Struct a; a.a=3; a.b=2; a.a; })");
+         "({ Struct a; a.a=3; a.b=2; a.a; })",
+         false);
 
   assert(5,
          ({
            Struct a = {3, 2};
            a.b + a.a;
          }),
-         "({ Struct a={3,2}; a.b+a.a; })");
+         "({ Struct a={3,2}; a.b+a.a; })",
+         false);
 
   assert(3,
          ({
@@ -989,7 +1103,8 @@ int main() {
            a.e[1] = 2;
            a.e[0] + a.e[1];
          }),
-         "({ Struct a; a.e[0]=1; a.e[1]=2; a.e[0]+a.e[1]; })");
+         "({ Struct a; a.e[0]=1; a.e[1]=2; a.e[0]+a.e[1]; })",
+         false);
 
   assert(10,
          ({
@@ -997,7 +1112,8 @@ int main() {
            Struct *p = &a;
            p->a;
          }),
-         "({ Struct a={10}; Struct *p=&a; p->a; })");
+         "({ Struct a={10}; Struct *p=&a; p->a; })",
+         false);
 
   assert(10,
          ({
@@ -1006,7 +1122,8 @@ int main() {
            p->b = 10;
            p->b;
          }),
-         "({ Struct a; Struct *p=&a; p->b=10; p->b; })");
+         "({ Struct a; Struct *p=&a; p->b=10; p->b; })",
+         false);
 
   assert(3,
          ({
@@ -1017,46 +1134,52 @@ int main() {
            p->e[0] + p->e[1];
          }),
          "({ Struct a,*p; p=&a; p->e[0]=1; p->e[1]=2; "
-         "p->e[0]+p->e[1]; })");
+         "p->e[0]+p->e[1]; })",
+         false);
 
   assert(5,
          ({
            g13.a = 5;
            g13.a;
          }),
-         "({ g13.a=5; g13.a; })");
+         "({ g13.a=5; g13.a; })",
+         false);
 
-  assert(10, ({ mixed(1, 2, 3, 4); }), "({ mixed(1,2,3,4); })");
+  assert(10, ({ mixed(1, 2, 3, 4); }), "({ mixed(1,2,3,4); })", false);
 
-  assert(0, ({ A; }), "({ A; })");
-  assert(1, ({ B; }), "({ B; })");
-  assert(10, ({ C; }), "({ C; })");
-  assert(11, ({ D; }), "({ D; })");
+  assert(0, ({ A; }), "({ A; })", false);
+  assert(1, ({ B; }), "({ B; })", false);
+  assert(10, ({ C; }), "({ C; })", false);
+  assert(11, ({ D; }), "({ D; })", false);
 
   assert(0,
          ({
            int a = A1;
            a;
          }),
-         "({ int a=A1; a; })");
+         "({ int a=A1; a; })",
+         false);
   assert(1,
          ({
            int a = B1;
            a;
          }),
-         "({ int a=B1; a; })");
+         "({ int a=B1; a; })",
+         false);
   assert(20,
          ({
            int a = C1;
            a;
          }),
-         "({ int a=C1; a; })");
+         "({ int a=C1; a; })",
+         false);
   assert(21,
          ({
            int a = D1;
            a;
          }),
-         "({ int a=D1; a; })");
+         "({ int a=D1; a; })",
+         false);
 
   assert(5,
          ({
@@ -1065,7 +1188,8 @@ int main() {
            int b = a;
            a;
          }),
-         "({ int a=5; { int b = 10; } int b=a; a; })");
+         "({ int a=5; { int b = 10; } int b=a; a; })",
+         false);
 
   assert(5,
          ({
@@ -1074,14 +1198,16 @@ int main() {
            { int b = 10; }
            b;
          }),
-         "({ int a=5; int b=a; { int b = 10; } b; })");
+         "({ int a=5; int b=a; { int b = 10; } b; })",
+         false);
 
   assert(2,
          ({
            enum a { X, Y, Z };
            Z;
          }),
-         "({ enum a{X,Y,Z}; Z; })");
+         "({ enum a{X,Y,Z}; Z; })",
+         false);
 
   assert(5,
          ({
@@ -1093,68 +1219,81 @@ int main() {
            a.a = 5;
            a.a;
          }),
-         "({ struct a { int a; int b; }; struct a a; a.a=5; a.a; })");
+         "({ struct a { int a; int b; }; struct a a; a.a=5; a.a; })",
+         false);
 
-  assert(1, ({ TRUE; }), "({ TRUE; })");
-  assert(128, ({ MAX_LEN; }), "({ MAX_LEN; })");
+  assert(1, ({ TRUE; }), "({ TRUE; })", false);
+  assert(128, ({ MAX_LEN; }), "({ MAX_LEN; })", false);
 
-  assert(5, ({ one(5); }), "({ one(5); })");
-  assert(10, ({ one(5) + one(5); }), "({ one(5)+one(5); })");
-  assert(1, ({ equal(1, 1); }), "({ equal(1, 1); })");
-  assert(4, ({ add_sub(3, 1); }), "({ add_sub(3,1); })");
-  assert(5, ({ addadd(2, 3); }), "({ addadd(2,3); })");
-  assert(10, ({ addadd((1 + 2), (3 + 4)); }), "({ addadd((1+2),(3+4)); })");
+  assert(5, ({ one(5); }), "({ one(5); })", false);
+  assert(10, ({ one(5) + one(5); }), "({ one(5)+one(5); })", false);
+  assert(1, ({ equal(1, 1); }), "({ equal(1, 1); })", false);
+  assert(4, ({ add_sub(3, 1); }), "({ add_sub(3,1); })", false);
+  assert(5, ({ addadd(2, 3); }), "({ addadd(2,3); })", false);
+  assert(10,
+         ({ addadd((1 + 2), (3 + 4)); }),
+         "({ addadd((1+2),(3+4)); })",
+         false);
   assert(10,
          ({ add((one(1) + one(2)), (3 + 4)); }),
-         "({ add((one(1)+one(2)),(3+4)); })");
+         "({ add((one(1)+one(2)),(3+4)); })",
+         false);
   assert(15,
          ({
            int x = 5;
            int y = 10;
            padd(&x, &y);
          }),
-         "({ int x=5; int y=10; padd(&x, &y); })");
+         "({ int x=5; int y=10; padd(&x, &y); })",
+         false);
 
   assert(97,
          ({
            char *c = "abc\n";
            c[0];
          }),
-         "({ char *c=\"abc\\n\"; c[0]; })");
+         "({ char *c=\"abc\\n\"; c[0]; })",
+         false);
 
-  assert(48 + 50 + 52,
-         ({
-           char *c[] = {"01", "23", "45"};
-           c[0][0] + c[1][0] + c[2][0];
-         }),
-         "({ char *c[]={\"01\",\"23\",\"45\"}; c[0][0]+c[1][0]+c[2][0]; })");
+  assert(
+      48 + 50 + 52,
+      ({
+        char *c[] = {"01", "23", "45"};
+        (int) c[0][0] + c[1][0] + c[2][0];
+      }),
+      "({ char *c[]={\"01\",\"23\",\"45\"}; (int)c[0][0]+c[1][0]+c[2][0]; })",
+      false);
 
   assert(3,
          ({
            int a[] = {0, 1, 2};
            a[0] + a[1] + a[2];
          }),
-         "({ int a[]={0,1,2}; a[0]+a[1]+a[2]; })");
+         "({ int a[]={0,1,2}; a[0]+a[1]+a[2]; })",
+         false);
   assert(9,
          ({
            int d[][2] = {{1, 2}, {3, 4}, {5, 6}};
            d[0][0] + d[1][0] + d[2][0];
          }),
-         "({ int d[][2]={{1,2},{3,4},{5,6}}; d[0][0]+d[1][0]+d[2][0]; })");
+         "({ int d[][2]={{1,2},{3,4},{5,6}}; d[0][0]+d[1][0]+d[2][0]; })",
+         false);
 
   assert(7,
          ({
            Struct a = {1, 2, 3, 4, {5, 6, 7}, 0, {9, 10, 11}};
            a.e[2];
          }),
-         "({ Struct a={1,2,3,4,{5,6,7},0,{9,10,11}}; a.e[2];})");
+         "({ Struct a={1,2,3,4,{5,6,7},0,{9,10,11}}; a.e[2];})",
+         false);
 
   assert(11,
          ({
            Struct a = {1, 2, 3, 4, {5, 6, 7}, 0, {9, 10, 11}};
            a.g.c;
          }),
-         "({ Struct a={1,2,3,4,{5,6,7},0,{9,10,11}}; a.g.c;})");
+         "({ Struct a={1,2,3,4,{5,6,7},0,{9,10,11}}; a.g.c;})",
+         false);
 
   assert(4,
          ({
@@ -1163,127 +1302,159 @@ int main() {
            a = b;
            a.d;
          }),
-         "({ Struct a; Struct b={1,2,3,4}; a=b; a.d; })");
+         "({ Struct a; Struct b={1,2,3,4}; a=b; a.d; })",
+         false);
 
-  assert(3, ({ g14.a + g14.b; }), "({ g14.a+g14.b; })");
-  assert(5, ({ g15[0].a + g15[1].b; }), "({ g15[0].a+g15[1].b; })");
+  assert(3, ({ g14.a + g14.b; }), "({ g14.a+g14.b; })", false);
+  assert(5, ({ g15[0].a + g15[1].b; }), "({ g15[0].a+g15[1].b; })", false);
 
-  assert(11, ({ extern_a; }), "({ extern_a; })");
+  assert(11, ({ extern_a; }), "({ extern_a; })", false);
 
   assert(8,
          ({
            int a = 1;
            a << 3;
          }),
-         "({ int a=1; a<<3; })");
+         "({ int a=1; a<<3; })",
+         false);
   assert(1,
          ({
            int a = 8;
            a >> 3;
          }),
-         "({ int a=8; a>>3; })");
+         "({ int a=8; a>>3; })",
+         false);
 
   assert(-1,
          ({
            char a = 255;
            a;
          }),
-         "({ char a=255; a; })");
+         "({ char a=255; a; })",
+         false);
   assert(-1,
          ({
            signed char a = 255;
            a;
          }),
-         "({ signed char a=255; a; })");
+         "({ signed char a=255; a; })",
+         false);
   assert(255,
          ({
            unsigned char a = 255;
            a;
          }),
-         "({ unsigned char a=255; a; })");
+         "({ unsigned char a=255; a; })",
+         false);
 
   assert(-1,
          ({
            short a = 65535;
            a;
          }),
-         "({ short a=65535; a; })");
+         "({ short a=65535; a; })",
+         false);
   assert(-1,
          ({
            signed short a = 65535;
            a;
          }),
-         "({ signed short a=65535; a; })");
+         "({ signed short a=65535; a; })",
+         false);
   assert(65535,
          ({
            unsigned short a = 65535;
            a;
          }),
-         "({ unsigned short a=65535; a; })");
+         "({ unsigned short a=65535; a; })",
+         false);
 
-  assert(1, ({ sizeof(char); }), "({ sizeof(char); })");
-  assert(1, ({ sizeof(signed char); }), "({ sizeof(signed char); })");
-  assert(1, ({ sizeof(unsigned char); }), "({ sizeof(unsigned char); })");
-
-  assert(2, ({ sizeof(short); }), "({ sizeof(short); })");
-  assert(2, ({ sizeof(short int); }), "({ sizeof(short int); })");
-  assert(2, ({ sizeof(signed short); }), "({ sizeof(signed short); })");
+  assert(1, ({ sizeof(char); }), "({ sizeof(char); })", false);
+  assert(1, ({ sizeof(signed char); }), "({ sizeof(signed char); })", false);
   assert(
-      2, ({ sizeof(signed short int); }), "({ sizeof(signed short int); })");
-  assert(2, ({ sizeof(unsigned short); }), "({ sizeof(unsigned short); })");
+      1, ({ sizeof(unsigned char); }), "({ sizeof(unsigned char); })", false);
+
+  assert(2, ({ sizeof(short); }), "({ sizeof(short); })", false);
+  assert(2, ({ sizeof(short int); }), "({ sizeof(short int); })", false);
+  assert(
+      2, ({ sizeof(signed short); }), "({ sizeof(signed short); })", false);
+  assert(2,
+         ({ sizeof(signed short int); }),
+         "({ sizeof(signed short int); })",
+         false);
+  assert(2,
+         ({ sizeof(unsigned short); }),
+         "({ sizeof(unsigned short); })",
+         false);
   assert(2,
          ({ sizeof(unsigned short int); }),
-         "({ sizeof(unsigned short int); })");
+         "({ sizeof(unsigned short int); })",
+         false);
 
-  assert(4, ({ sizeof(int); }), "({ sizeof(int); })");
-  assert(4, ({ sizeof(signed); }), "({ sizeof(signed); })");
-  assert(4, ({ sizeof(unsigned); }), "({ sizeof(unsigned); })");
-  assert(4, ({ sizeof(signed int); }), "({ sizeof(signed int); })");
-  assert(4, ({ sizeof(unsigned int); }), "({ sizeof(unsigned int); })");
-
-  assert(8, ({ sizeof(long); }), "({ sizeof(long); })");
-  assert(8, ({ sizeof(long int); }), "({ sizeof(long int); })");
-  assert(8, ({ sizeof(long long); }), "({ sizeof(long long); })");
-  assert(8, ({ sizeof(long long int); }), "({ sizeof(long long int); })");
-
-  assert(8, ({ sizeof(signed long); }), "({ sizeof(signed long); })");
-  assert(8, ({ sizeof(signed long int); }), "({ sizeof(signed long int); })");
+  assert(4, ({ sizeof(int); }), "({ sizeof(int); })", false);
+  assert(4, ({ sizeof(signed); }), "({ sizeof(signed); })", false);
+  assert(4, ({ sizeof(unsigned); }), "({ sizeof(unsigned); })", false);
+  assert(4, ({ sizeof(signed int); }), "({ sizeof(signed int); })", false);
   assert(
-      8, ({ sizeof(signed long long); }), "({ sizeof(signed long long); })");
+      4, ({ sizeof(unsigned int); }), "({ sizeof(unsigned int); })", false);
+
+  assert(8, ({ sizeof(long); }), "({ sizeof(long); })", false);
+  assert(8, ({ sizeof(long int); }), "({ sizeof(long int); })", false);
+  assert(8, ({ sizeof(long long); }), "({ sizeof(long long); })", false);
+  assert(
+      8, ({ sizeof(long long int); }), "({ sizeof(long long int); })", false);
+
+  assert(8, ({ sizeof(signed long); }), "({ sizeof(signed long); })", false);
+  assert(8,
+         ({ sizeof(signed long int); }),
+         "({ sizeof(signed long int); })",
+         false);
+  assert(8,
+         ({ sizeof(signed long long); }),
+         "({ sizeof(signed long long); })",
+         false);
   assert(8,
          ({ sizeof(signed long long int); }),
-         "({ sizeof(signed long long int); })");
+         "({ sizeof(signed long long int); })",
+         false);
 
-  assert(8, ({ sizeof(unsigned long); }), "({ sizeof(unsigned long); })");
+  assert(
+      8, ({ sizeof(unsigned long); }), "({ sizeof(unsigned long); })", false);
   assert(8,
          ({ sizeof(unsigned long int); }),
-         "({ sizeof(unsigned long int); })");
+         "({ sizeof(unsigned long int); })",
+         false);
   assert(8,
          ({ sizeof(unsigned long long); }),
-         "({ sizeof(unsigned long long); })");
+         "({ sizeof(unsigned long long); })",
+         false);
   assert(8,
          ({ sizeof(unsigned long long int); }),
-         "({ sizeof(unsigned long long int); })");
+         "({ sizeof(unsigned long long int); })",
+         false);
 
   assert(1,
          ({
            g16.a = 1;
            g16.a;
          }),
-         "{ g16.a=1; g16.a; }");
+         "({ g16.a=1; g16.a; })",
+         false);
   assert(1,
          ({
            g16.d.a = 1;
            g16.d.a;
          }),
-         "{ g16.d.a=1; g16.d.a; }");
+         "({ g16.d.a=1; g16.d.a; })",
+         false);
 
   assert(3,
          ({
            const int a = 3;
            a;
          }),
-         "({ const int a=3; a; })");
+         "({ const int a=3; a; })",
+         false);
 
   assert(3,
          ({
@@ -1291,14 +1462,16 @@ int main() {
            const int *p = &a;
            *p;
          }),
-         "({ int a=3; const int *p=&a; *p; })");
+         "({ int a=3; const int *p=&a; *p; })",
+         false);
   assert(3,
          ({
            int a = 3;
            int const *p = &a;
            *p;
          }),
-         "({ int a=3; int const *p=&a; *p; })");
+         "({ int a=3; int const *p=&a; *p; })",
+         false);
 
   assert(3,
          ({
@@ -1306,7 +1479,8 @@ int main() {
            const int *const p = &a;
            *p;
          }),
-         "({ int a=3; const int *const p=&a; *p; })");
+         "({ int a=3; const int *const p=&a; *p; })",
+         false);
 
   assert(3,
          ({
@@ -1314,7 +1488,18 @@ int main() {
            const int *const restrict x = &a;
            *x;
          }),
-         "({ int a=3; const int *const restrict x=&a; *x; })");
+         "({ int a=3; const int *const restrict x=&a; *x; })",
+         false);
+
+  assert(4294967295, ({ 0xffffffff; }), "({ 0xffffffff; })", false);
+  assert(4294967295U, ({ 0xffffffffU; }), "({ 0xffffffffU; })", true);
+  assert(-1, ({ 0xffffffffffffffff; }), "({ 0xffffffffffffffff; })", false);
+  assert(
+      -1, ({ 0xffffffffffffffffLL; }), "({ 0xffffffffffffffffLL; })", false);
+  assert(18446744073709551615LLU,
+         ({ 0xffffffffffffffffLLU; }),
+         "({ 0xffffffffffffffffLLU; })",
+         true);
 
   if (success == number)
     p2("result: \x1b[32mOK\x1b[0m, ");
