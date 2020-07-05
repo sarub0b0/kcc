@@ -709,6 +709,8 @@ bool is_typename(struct token *tok) {
       "signed",
       "unsigned",
       "const",
+      "volatile",
+      "inline",
   };
 
   for (int i = 0; i < sizeof(keyword) / sizeof(*keyword); i++) {
@@ -1142,6 +1144,9 @@ struct type *typespec(struct token **ret,
       }
       tk = tk->next;
       continue;
+    }
+
+    if (consume(&tk, tk, "volatile") || consume(&tk, tk, "inline")) {
     }
 
     if (equal(tk, "struct")) {
