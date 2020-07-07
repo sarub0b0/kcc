@@ -1381,23 +1381,18 @@ struct type *union_declarator(struct token **ret,
 struct type *enum_declarator(struct token **ret, struct token *tk) {
 
   struct token *tag = consume_ident(&tk, tk);
+  struct type *ty = copy_type(ty_enum);
 
   if (tag && !equal(tk, "{")) {
-    *ret = tk;
-    struct tag_scope *ts = find_tag(tk);
+    struct tag_scope *ts = find_tag(tag);
     if (!ts) {
-      error_tok(tk, "unknown enum");
+      error_tok(tag, "unknown enum");
     }
     if (ts->type->kind != TY_ENUM) {
       error_tok(tk, "not an enum tag");
     }
+    *ret = tk;
     return ts->type;
-  }
-
-  struct type *ty = copy_type(ty_enum);
-  if (tag) {
-    ty->name = tag->str;
-    new_tagscope(ty);
   }
 
   skip(&tk, tk, "{");
@@ -1412,10 +1407,7 @@ struct type *enum_declarator(struct token **ret, struct token *tk) {
     char *name = get_ident(tk);
     tk = tk->next;
 
-    if (equal(tk, "=")) {
-      val = get_number(tk->next);
-      tk = tk->next->next;
-    }
+    if (equal(tk, "=")) val = const_expr(&tk, tk->next);
 
     struct var_scope *vs = new_varscope(name);
     vs->enum_ty = ty;
@@ -1423,6 +1415,7 @@ struct type *enum_declarator(struct token **ret, struct token *tk) {
   }
 
   if (tag) {
+    ty->name = tag->str;
     new_tagscope(ty);
   }
 
