@@ -1705,6 +1705,20 @@ int main(void) {
   assert(160, ({ '\xa0'; }), "({ \'\\xa0\'; })", false);
   assert(255, ({ '\xFF'; }), "({ \'\\xFF\'; })", false);
 
+#define shl(x, y) (x << y)
+  assert(1, ({ shl(1, 0); }), "({ shl(1, 0); })", false);
+  assert(2, ({ shl(1, 1); }), "({ shl(1, 1); })", false);
+  assert(4, ({ shl(1, 2); }), "({ shl(1, 2); })", false);
+  assert(8, ({ shl(1, 3); }), "({ shl(1, 3); })", false);
+  assert(16, ({ shl(1, 4); }), "({ shl(1, 4); })", false);
+
+#define shr(x, y) (x >> y)
+  assert(16, ({ shr(16, 0); }), "({ shr(16, 0); })", false);
+  assert(8, ({ shr(16, 1); }), "({ shr(16, 1); })", false);
+  assert(4, ({ shr(16, 2); }), "({ shr(16, 2); })", false);
+  assert(2, ({ shr(16, 3); }), "({ shr(16, 3); })", false);
+  assert(1, ({ shr(16, 4); }), "({ shr(16, 4); })", false);
+
   if (success == number)
     p2("result: \x1b[32mOK\x1b[0m, ");
   else

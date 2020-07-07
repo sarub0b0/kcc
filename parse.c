@@ -884,6 +884,10 @@ long eval(struct node *node, struct var **var) {
       return eval(node->lhs, NULL) ^ eval(node->rhs, NULL);
     case ND_BITAND:
       return eval(node->lhs, NULL) & eval(node->rhs, NULL);
+    case ND_SHL:
+      return eval(node->lhs, NULL) << eval(node->rhs, NULL);
+    case ND_SHR:
+      return eval(node->lhs, NULL) >> eval(node->rhs, NULL);
     case ND_EQ:
       return eval(node->lhs, NULL) == eval(node->rhs, NULL);
     case ND_NE:
