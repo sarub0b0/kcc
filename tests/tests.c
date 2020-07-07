@@ -1085,6 +1085,65 @@ int main(void) {
          }),
          "({ int a=5; a-=2; a-=2; })",
          false);
+
+  assert(1,
+         ({
+           int i = 1;
+           i <<= 0;
+           i;
+         }),
+         "({ int i=1; i<<=0; i; })",
+         false);
+  assert(8,
+         ({
+           int i = 1;
+           i <<= 3;
+           i;
+         }),
+         "({ int i=1; i<<=3; i; })",
+         false);
+  assert(10,
+         ({
+           int i = 5;
+           i <<= 1;
+           i;
+         }),
+         "({ int i=5; i<<=1; i; })",
+         false);
+  assert(2,
+         ({
+           int i = 5;
+           i >>= 1;
+           i;
+         }),
+         "({ int i=5; i>>=1; i; })",
+         false);
+
+  assert(2,
+         ({
+           int i = 6;
+           i &= 3;
+           i;
+         }),
+         "({ int i=6; i&=3; i; })",
+         false);
+  assert(7,
+         ({
+           int i = 6;
+           i |= 3;
+           i;
+         }),
+         "({ int i=6; i|=3; i; })",
+         false);
+  assert(10,
+         ({
+           int i = 15;
+           i ^= 5;
+           i;
+         }),
+         "({ int i=15; i^=5; i; })",
+         false);
+
   assert(98,
          ({
            char *a = "abc";

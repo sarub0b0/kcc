@@ -1647,37 +1647,50 @@ struct node *assign(struct token **ret, struct token *tk) {
   struct node *n = conditional(&tk, tk);
   struct token *start = tk;
   if (consume(&tk, tk, "=")) {
-    n = new_node_assign(n, assign(&tk, tk), start);
-    *ret = tk;
-    return n;
+    return new_node_assign(n, assign(ret, tk), start);
   }
 
   if (consume(&tk, tk, "+=")) {
-    *ret = tk->next;
-    return new_node_assign(
-        n, new_add(n, new_node_num(get_number(tk), tk), tk), start);
+    return new_node_assign(n, new_add(n, assign(ret, tk), tk), start);
   }
 
   if (consume(&tk, tk, "-=")) {
-    *ret = tk->next;
-    return new_node_assign(
-        n, new_sub(n, new_node_num(get_number(tk), tk), tk), start);
+    return new_node_assign(n, new_sub(n, assign(ret, tk), tk), start);
   }
 
   if (consume(&tk, tk, "*=")) {
-    *ret = tk->next;
     return new_node_assign(
-        n,
-        new_node_binary(ND_MUL, n, new_node_num(get_number(tk), tk), tk),
-        start);
+        n, new_node_binary(ND_MUL, n, assign(ret, tk), tk), start);
   }
 
   if (consume(&tk, tk, "/=")) {
-    *ret = tk->next;
     return new_node_assign(
-        n,
-        new_node_binary(ND_DIV, n, new_node_num(get_number(tk), tk), tk),
-        start);
+        n, new_node_binary(ND_DIV, n, assign(ret, tk), tk), start);
+  }
+
+  if (consume(&tk, tk, "|=")) {
+    return new_node_assign(
+        n, new_node_binary(ND_BITOR, n, assign(ret, tk), tk), start);
+  }
+
+  if (consume(&tk, tk, "^=")) {
+    return new_node_assign(
+        n, new_node_binary(ND_BITXOR, n, assign(ret, tk), tk), start);
+  }
+
+  if (consume(&tk, tk, "&=")) {
+    return new_node_assign(
+        n, new_node_binary(ND_BITAND, n, assign(ret, tk), tk), start);
+  }
+
+  if (consume(&tk, tk, "<<=")) {
+    return new_node_assign(
+        n, new_node_binary(ND_SHL, n, assign(ret, tk), tk), start);
+  }
+
+  if (consume(&tk, tk, ">>=")) {
+    return new_node_assign(
+        n, new_node_binary(ND_SHR, n, assign(ret, tk), tk), start);
   }
 
   *ret = tk;
@@ -2611,9 +2624,17 @@ void gvar_initializer(struct token **ret, struct token *tk, struct var *var) {
 //
 // expr = assign
 //
-// assign = conditional (
-//          ( "=" | "+=" | "-=" | "*=" | "/=" ) assign
-//        )?
+// assign = conditional ( assign-op assign)?
+// assign-op = "="
+//           | "+="
+//           | "-="
+//           | "*="
+//           | "/="
+//           | "|="
+//           | "^="
+//           | "&="
+//           | "<<="
+//           | ">>="
 //
 // conditional = logor ( "?" expr ":" conditional )?
 //
