@@ -415,6 +415,54 @@ int main(void) {
          "j; })",
          false);
 
+  assert(4,
+         ({
+           int i = 0, j = 0;
+           for (; i < 10; i++) {
+             if (i < 5) continue;
+             if (i > 8) break;
+             j++;
+           }
+           j;
+         }),
+         "({ int i=0,j=0; for(; i<10; i++){ if(i<5) continue; if (i>8) "
+         "break; j++; } j; })",
+         false);
+
+  assert(5,
+         ({
+           int i = 0, j = 0;
+           while (i < 10) {
+             i++;
+             j++;
+             if (i < 5)
+               continue;
+             else
+               break;
+           }
+           j;
+         }),
+         "({ int i=0,j=0; for(; i<10; i++){ j++; if(i<5) continue; else "
+         "break; } j; })",
+         false);
+
+  assert(5,
+         ({
+           int i = 0, j = 0;
+           do {
+             i++;
+             j++;
+             if (i < 5)
+               continue;
+             else
+               break;
+           } while (i < 10);
+           j;
+         }),
+         "({ int i=0,j=0; do { i++; j++; if (i<5) continue; else break; } "
+         "while (i<10); "
+         "j; })",
+         false);
   assert(3,
          ({
            int x;

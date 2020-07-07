@@ -18,6 +18,7 @@ struct function *current_fn;
 
 int label_seq = 0;
 int continue_seq = 0;
+int break_seq = 0;
 int func_seq = 0;
 
 int gen_expr(struct node *);
@@ -174,8 +175,9 @@ void gen_for(struct node *node) {
   // .L.end.XXX
 
   int seq = label_seq++;
-  int cseq = continue_seq;
+  int bcseq = continue_seq;
   continue_seq = seq;
+  break_seq = seq;
 
   if (node->init) {
     gen_stmt(node->init);
@@ -186,7 +188,7 @@ void gen_for(struct node *node) {
     gen_expr(node->cond);
     inc--;
     printf("    cmp %s, 0\n", reg64[inc]);
-    printf("    je  .L.end.%03d\n", seq);
+    printf("    je  .L.break.%03d\n", seq);
   }
 
   if (node->then) {
@@ -198,9 +200,10 @@ void gen_for(struct node *node) {
     gen_stmt(node->inc);
   }
   printf("    jmp .L.begin.%03d\n", seq);
-  printf(".L.end.%03d:\n", seq);
+  printf(".L.break.%03d:\n", seq);
 
-  continue_seq = cseq;
+  continue_seq = bcseq;
+  break_seq = bcseq;
 }
 
 void gen_do(struct node *node) {
@@ -220,6 +223,7 @@ void gen_do(struct node *node) {
   int seq = label_seq++;
   int cseq = continue_seq;
   continue_seq = seq;
+  break_seq = seq;
 
   printf(".L.begin.%03d:\n", seq);
 
@@ -232,13 +236,13 @@ void gen_do(struct node *node) {
     gen_expr(node->cond);
     inc--;
     printf("    cmp %s, 0\n", reg64[inc]);
-    printf("    je  .L.end.%03d\n", seq);
   }
 
-  printf("    jmp .L.begin.%03d\n", seq);
-  printf(".L.end.%03d:\n", seq);
+  printf("    jne .L.begin.%03d\n", seq);
+  printf(".L.break.%03d:\n", seq);
 
   continue_seq = cseq;
+  break_seq = cseq;
 }
 
 void gen_switch(struct node *node) {
@@ -266,7 +270,9 @@ void gen_switch(struct node *node) {
     printf("    jmp  .L.case.%03d.%03d\n", seq, cnt);
   }
 
+  printf("    jmp  .L.break.%03d\n", break_seq);
   gen_stmt(node->then);
+  printf(".L.break.%03d:\n", break_seq);
 }
 
 void gen_case(struct node *node) {
@@ -276,6 +282,10 @@ void gen_case(struct node *node) {
 
 void gen_continue(struct node *node) {
   printf("    jmp .L.continue.%03d\n", continue_seq);
+}
+
+void gen_break(struct node *node) {
+  printf("    jmp .L.break.%03d\n", break_seq);
 }
 
 void gen_block(struct node *node) {
@@ -671,6 +681,9 @@ void gen_stmt(struct node *node) {
       return;
     case ND_CONTINUE:
       gen_continue(node);
+      return;
+    case ND_BREAK:
+      gen_break(node);
       return;
     case ND_BLOCK:
       gen_block(node);
