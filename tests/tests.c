@@ -459,6 +459,7 @@ int main(void) {
          "while (i++<10); "
          "j; })",
          false);
+
   assert(3,
          ({
            int x;
