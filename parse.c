@@ -1644,8 +1644,8 @@ struct node *assign(struct token **ret, struct token *tk) {
   struct token *start = tk;
   if (consume(&tk, tk, "=")) {
     n = new_node_assign(n, assign(&tk, tk), start);
-    if (is_void_assign_element(n->rhs))
-      error_tok(start, "Can't Assign to void function");
+    *ret = tk;
+    return n;
   }
 
   if (consume(&tk, tk, "+=")) {
