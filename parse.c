@@ -648,7 +648,7 @@ void expect(struct token **ret, struct token *tk, char *op) {
   *ret = tk->next;
 }
 
-unsigned long long expect_number(struct token **ret, struct token *tk) {
+long expect_number(struct token **ret, struct token *tk) {
   if (tk->kind != TK_NUM) {
     error_tok(tk, "数ではありません");
   }
@@ -656,7 +656,7 @@ unsigned long long expect_number(struct token **ret, struct token *tk) {
   return tk->val;
 }
 
-unsigned long long get_number(struct token *tok) {
+long get_number(struct token *tok) {
   if (tok->kind != TK_NUM) {
     error_tok(tok, "expected an number");
   }
@@ -773,7 +773,7 @@ struct node *new_node_binary(enum node_kind kind,
   return n;
 }
 
-struct node *new_node_num(unsigned long long val, struct token *token) {
+struct node *new_node_num(long val, struct token *token) {
   struct node *n = calloc(1, sizeof(struct node));
   n->kind = ND_NUM;
   n->val = val;
@@ -784,7 +784,7 @@ struct node *new_node_num(unsigned long long val, struct token *token) {
     n->type = copy_type(ty_int);
   return n;
 }
-struct node *new_node_ulong(unsigned long long val, struct token *token) {
+struct node *new_node_ulong(long val, struct token *token) {
   struct node *n = calloc(1, sizeof(struct node));
   n->kind = ND_NUM;
   n->val = val;
@@ -853,7 +853,7 @@ struct init_data *new_init(struct type *type,
   return init;
 }
 
-unsigned long long eval(struct node *node, struct var **var) {
+long eval(struct node *node, struct var **var) {
   add_type(node);
   switch (node->kind) {
     case ND_ADD:
@@ -1398,7 +1398,7 @@ struct type *enum_declarator(struct token **ret, struct token *tk) {
   skip(&tk, tk, "{");
 
   int i = 0;
-  unsigned long long val = 0;
+  long val = 0;
   while (!consume_end(&tk, tk)) {
     if (0 < i++) {
       skip(&tk, tk, ",");

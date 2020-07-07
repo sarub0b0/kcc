@@ -6,6 +6,7 @@
  *
  */
 
+#include <stdio.h>
 #include <stdbool.h>
 
 #include "include.h"
@@ -1591,6 +1592,16 @@ int main(void) {
          false);
 
   assert(6, ({ C3; }), "({ C3; })", false);
+
+  assert(1, ({ '\001'; }), "({ \'\\001\'; })", false);
+  assert(8, ({ '\010'; }), "({ \'\\010\'; })", false);
+  assert(64, ({ '\100'; }), "({ \'\\100\'; })", false);
+  assert(72, ({ '\110'; }), "({ \'\\110\'; })", false);
+
+  assert(1, ({ '\x01'; }), "({ \'\\x01\'; })", false);
+  assert(17, ({ '\x11'; }), "({ \'\\x11\'; })", false);
+  assert(160, ({ '\xa0'; }), "({ \'\\xa0\'; })", false);
+  assert(255, ({ '\xFF'; }), "({ \'\\xFF\'; })", false);
 
   if (success == number)
     p2("result: \x1b[32mOK\x1b[0m, ");

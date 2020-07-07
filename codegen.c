@@ -333,7 +333,7 @@ int gen_expr(struct node *node) {
   struct type *ty = node->type;
   switch (node->kind) {
     case ND_NUM:
-      printf("    mov %s, %llu\n", reg(ty, inc++), node->val);
+      printf("    mov %s, %lu\n", reg(ty, inc++), node->val);
       return 0;
     case ND_VAR:
       gen_addr(node);

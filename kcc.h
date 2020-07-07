@@ -35,7 +35,7 @@ enum token_kind {
 struct token {
   enum token_kind kind;
   struct token *next;
-  unsigned long long val;
+  long val;
   char *str;
   char *loc;
   int len;
@@ -168,7 +168,7 @@ struct var {
   bool is_static;
 
   char *data;
-  unsigned long long addend;
+  long addend;
   struct value *values;
 };
 
@@ -216,7 +216,7 @@ struct node {
   // variable
   struct var *var;
 
-  unsigned long long val;
+  long val;
 
   bool is_init;
 };
@@ -259,7 +259,7 @@ bool consume(struct token **, struct token *, char *);
 struct token *consume_ident(struct token **, struct token *);
 bool equal(struct token *, char *);
 bool at_eof(struct token *);
-unsigned long long get_number(struct token *);
+long get_number(struct token *);
 long const_expr(struct token **, struct token *);
 
 struct token *copy_token(struct token *);

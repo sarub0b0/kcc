@@ -125,6 +125,83 @@ struct token *new_token(enum token_kind kind,
   return t;
 }
 
+bool is_hex(char c) {
+  return ('0' <= c && c <= '9') || ('a' <= c && c <= 'f') ||
+         ('A' <= c && c <= 'F');
+}
+
+int hex(char c) {
+  if ('0' <= c && c <= '9') {
+    return c - '0';
+  }
+  if ('a' <= c && c <= 'f') {
+    return c - 'a' + 10;
+  }
+  if ('A' <= c && c <= 'F') {
+    return c - 'A' + 10;
+  }
+
+  return 0;
+}
+
+int escaped_char(char **new_pos, char *p) {
+  // \000 - \777: \x, \xx, \xxx
+  if ('0' <= *p && *p <= '7') {
+    int c = *p++ - '0';
+    if ('0' <= *p && *p <= '7') {
+      c = (c * 8) + (*p++ - '0');
+      if ('0' <= *p && *p <= '7') {
+        c = (c * 8) + (*p++ - '0');
+      }
+    }
+    *new_pos = p;
+    return c;
+  }
+
+  // 0x00 - 0xff
+  if (*p == 'x') {
+    p++;
+    if (!is_hex(*p)) {
+      error_at(p, "invalid hex escape sequence");
+    }
+
+    int c = 0;
+
+    for (; is_hex(*p); p++) {
+      c = (c * 16) + hex(*p);
+
+      if (c >= 256) {
+        error_at(p, "hex escape sequence out of range");
+      }
+    }
+
+    *new_pos = p;
+    return c;
+  }
+
+  *new_pos = p + 1;
+  switch (*p) {
+    case 'a':
+      return '\a';
+    case 'b':
+      return '\b';
+    case 'f':
+      return '\f';
+    case 'n':
+      return '\n';
+    case 'r':
+      return '\r';
+    case 't':
+      return '\t';
+    case 'v':
+      return '\v';
+    case 'e':
+      return 27;
+    default:
+      return *p;
+  }
+}
+
 struct token *string_literal_token(struct token *cur, char *start) {
   char *p = start + 1;
 
@@ -151,6 +228,32 @@ struct token *string_literal_token(struct token *cur, char *start) {
   ret->str_len = len;
   ret->str_literal = buf;
 
+  return ret;
+}
+
+struct token *char_literal_token(struct token *cur, char *start) {
+
+  char *p = start + 1;
+  if (*p == '\0') {
+    error_tok(cur, "");
+  }
+
+  int val;
+
+  if (*p == '\\') {
+    val = escaped_char(&p, p + 1);
+  } else {
+    val = *p++;
+  }
+
+  if (*p != '\'') {
+    error_tok(cur, "char literal too long");
+  }
+  p++;
+
+  struct token *ret = new_token(TK_NUM, cur, start, p - start);
+  ret->val = val;
+  ret->type = copy_type(ty_int);
   return ret;
 }
 
@@ -279,6 +382,12 @@ struct token *tokenize(char *filename, char *input, int line_num) {
       continue;
     }
 
+    if (*p == '\'') {
+      cur = char_literal_token(cur, p);
+      p += cur->len;
+      continue;
+    }
+
     if (ispunct(*p)) {
       cur = new_token(TK_RESERVED, cur, p++, 1);
       continue;
@@ -297,7 +406,7 @@ struct token *tokenize(char *filename, char *input, int line_num) {
         UNSIGNED = 1 << 2,
       };
 
-      unsigned long long val = strtoull(p, &p, base);
+      long val = strtoull(p, &p, base);
 
       int type = 0;
 
