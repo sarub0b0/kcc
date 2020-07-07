@@ -65,13 +65,26 @@ void __macro_hideset() {
 #define A2 A2
   int B2;
 #define B2 B2
-  int C2 = B2;
+  int C2 = B2 + 5;
 #define C2 C2
 
 #undef A2
 #undef B2
 #undef C2
 }
+
+enum {
+  A3,
+#define A3 A3
+  B3,
+#define B3 B3
+  C3 = B3 + 5,
+#define C3 C3
+};
+
+#undef A3
+#undef B3
+#undef C3
 
 Struct g13;
 
@@ -1567,6 +1580,17 @@ int main(void) {
          }),
          "({ int (*__f)(int); __f=func2; __f(3); })",
          false);
+
+  assert(1,
+         ({
+           enum enum_a ea;
+           ea = B;
+           ea;
+         }),
+         "({ enum enum_a ea; ea=B; ea; })",
+         false);
+
+  assert(6, ({ C3; }), "({ C3; })", false);
 
   if (success == number)
     p2("result: \x1b[32mOK\x1b[0m, ");
