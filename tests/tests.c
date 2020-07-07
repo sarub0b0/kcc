@@ -250,6 +250,19 @@ int func2(int x) {
   return x + 1;
 }
 
+int switch_case(int x) {
+  switch (x) {
+    case 0:
+      return 0;
+    case 1:
+      return 1;
+    case 2:
+      return 2;
+    default:
+      return -1;
+  }
+}
+
 int main(void) {
   assert(0, 0, "0", false);
   assert(42, 42, "42", false);
@@ -357,6 +370,11 @@ int main(void) {
          }),
          "({ int i=0; do{ i++; }while(i<5); i; })",
          false);
+
+  assert(0, ({ switch_case(0); }), "({ switch_case(0); })", false);
+  assert(1, ({ switch_case(1); }), "({ switch_case(1); })", false);
+  assert(2, ({ switch_case(2); }), "({ switch_case(2); })", false);
+  assert(-1, ({ switch_case(3); }), "({ switch_case(3); })", false);
 
   assert(3,
          ({

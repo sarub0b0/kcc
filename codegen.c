@@ -228,6 +228,39 @@ void gen_do(struct node *node) {
   printf(".L.end.%03d:\n", seq);
 }
 
+void gen_switch(struct node *node) {
+  int seq = label_seq++;
+  // switch(A) {
+  // case B:
+  //   C;
+  // default:
+  //   D;
+  // }
+  int cnt = 0;
+  gen_expr(node->cond);
+  inc--;
+
+  for (struct node *n = node->case_next; n; n = n->case_next) {
+    n->case_label = cnt++;
+    n->switch_seq = seq;
+    printf("    cmp %s, %ld\n", reg64[inc], n->val);
+    printf("    je  .L.case.%03d.%03d\n", seq, n->case_label);
+  }
+
+  if (node->default_case) {
+    node->default_case->case_label = cnt;
+    node->default_case->switch_seq = seq;
+    printf("    jmp  .L.case.%03d.%03d\n", seq, cnt);
+  }
+
+  gen_stmt(node->then);
+}
+
+void gen_case(struct node *node) {
+  printf(".L.case.%03d.%03d:\n", node->switch_seq, node->case_label);
+  gen_stmt(node->body);
+}
+
 void gen_block(struct node *node) {
   for (struct node *n = node->body; n; n = n->next) gen_stmt(n);
 }
@@ -612,6 +645,12 @@ void gen_stmt(struct node *node) {
       return;
     case ND_DO:
       gen_do(node);
+      return;
+    case ND_SWITCH:
+      gen_switch(node);
+      return;
+    case ND_CASE:
+      gen_case(node);
       return;
     case ND_BLOCK:
       gen_block(node);
