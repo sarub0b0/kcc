@@ -388,30 +388,28 @@ int main(void) {
          "({ int i=0,j=0; for(; i<10; i++){ if(i<5) continue; j++;} j; })",
          false);
 
-  assert(6,
+  assert(5,
          ({
            int i = 0, j = 0;
-           while (i < 10) {
-             i++;
+           while (i++ < 10) {
              if (i < 5) continue;
              j++;
            }
            j;
          }),
-         "({ int i=0,j=0; for(; i<10; i++){ if(i<5) continue; j++;} j; })",
+         "({ int i=0,j=0; while(i++<10){ if(i<5) continue; j++;} j; })",
          false);
 
-  assert(6,
+  assert(5,
          ({
            int i = 0, j = 0;
            do {
-             i++;
              if (i < 5) continue;
              j++;
-           } while (i < 10);
+           } while (i++ < 10);
            j;
          }),
-         "({ int i=0,j=0; do { i++; if (i<5) continue; j++; } while (i<10); "
+         "({ int i=0,j=0; do { if (i<5) continue; j++; } while (i++<10); "
          "j; })",
          false);
 
@@ -432,8 +430,7 @@ int main(void) {
   assert(5,
          ({
            int i = 0, j = 0;
-           while (i < 10) {
-             i++;
+           while (i++ < 10) {
              j++;
              if (i < 5)
                continue;
@@ -442,27 +439,27 @@ int main(void) {
            }
            j;
          }),
-         "({ int i=0,j=0; for(; i<10; i++){ j++; if(i<5) continue; else "
-         "break; } j; })",
+         "({ int i=0,j=0; while(i++<10){ j++; if(i<5) continue; else break; "
+         "} j; })",
          false);
 
-  assert(5,
+  assert(6,
          ({
            int i = 0, j = 0;
            do {
-             i++;
              j++;
              if (i < 5)
                continue;
              else
                break;
-           } while (i < 10);
+           } while (i++ < 10);
            j;
          }),
-         "({ int i=0,j=0; do { i++; j++; if (i<5) continue; else break; } "
-         "while (i<10); "
+         "({ int i=0,j=0; do { j++; if (i<5) continue; else break; } "
+         "while (i++<10); "
          "j; })",
          false);
+
   assert(3,
          ({
            int x;
