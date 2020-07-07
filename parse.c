@@ -1961,6 +1961,12 @@ struct node *stmt(struct token **ret, struct token *tk) {
     return n;
   }
 
+  if (equal(tk, "break")) {
+    n = new_node(ND_BREAK, tk);
+    skip(ret, tk->next, ";");
+    return n;
+  }
+
   if (equal(tk, ";")) {
     n = new_node(ND_BLOCK, tk);
     skip(ret, tk, ";");
@@ -2596,6 +2602,7 @@ void gvar_initializer(struct token **ret, struct token *tk, struct var *var) {
 //      | "case" const-expr ":" stmt
 //      | "default" ":" stmt
 //      | "continue" ";"
+//      | "break" ";"
 //      | "return" expr ";"
 //
 // expr = assign

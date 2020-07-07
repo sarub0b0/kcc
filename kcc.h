@@ -78,6 +78,7 @@ enum node_kind {
   ND_SWITCH,
   ND_CASE,
   ND_CONTINUE,
+  ND_BREAK,
   ND_LABEL,
   ND_BLOCK,
   ND_FUNCALL,
