@@ -2609,7 +2609,6 @@ void gvar_initializer(struct token **ret, struct token *tk, struct var *var) {
 //
 // assign = conditional (
 //          ( "=" | "+=" | "-=" | "*=" | "/=" ) assign
-//          | ( "++" | "--" )
 //        )?
 //
 // conditional = logor ( "?" expr ":" conditional )?
@@ -2633,11 +2632,14 @@ void gvar_initializer(struct token **ret, struct token *tk, struct var *var) {
 //       | ( "++" | "--" ) unary
 //       | postfix
 //
-// postfix = primary
+// postfix = primary (
 //         | ( "[" expr "]" )*
 //         | "." ident
 //         | "->" ident
 //         | funcall
+//         | "++"
+//         | "--"
+//         )
 //
 // primary = "(" "{" compound-stmt "}" ")"
 //         | num
