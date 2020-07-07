@@ -17,6 +17,11 @@
 
 struct type;
 
+struct hideset {
+  struct hideset *next;
+  char *name; // macro name
+};
+
 enum token_kind {
   TK_RESERVED,
   TK_IDENT,
@@ -48,6 +53,9 @@ struct token {
 
   // type of numeric literals
   struct type *type;
+
+  // hideset is used macro expansion
+  struct hideset *hideset;
 };
 
 enum node_kind {
@@ -240,7 +248,7 @@ void error_at(char *, char *, ...);
 void warn_tok(struct token *, char *, ...);
 void error_tok(struct token *, char *, ...);
 
-struct token *tokenize(char *, char *);
+struct token *tokenize(char *, char *, int);
 struct token *tokenize_file(char *);
 struct token *preprocess(struct token *);
 struct program *parse(struct token *);
@@ -254,7 +262,10 @@ bool at_eof(struct token *);
 unsigned long long get_number(struct token *);
 long const_expr(struct token **, struct token *);
 
+struct token *copy_token(struct token *);
+
 void print_tokens(struct token *);
+void print_tokens_text(struct token *);
 void print_ast(struct program *, char *);
 void print_function(struct program *);
 void print_tok_pos(struct token *);

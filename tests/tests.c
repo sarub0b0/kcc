@@ -59,6 +59,20 @@ enum enum_b {
   D1,
 };
 
+void __macro_hideset() {
+
+  int A2;
+#define A2 A2
+  int B2;
+#define B2 B2
+  int C2 = B2;
+#define C2 C2
+
+#undef A2
+#undef B2
+#undef C2
+}
+
 Struct g13;
 
 struct {
