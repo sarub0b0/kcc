@@ -350,9 +350,11 @@ struct token *tokenize(char *filename, char *input, int line_num) {
       continue;
     }
 
-    if (starts_with(p, "...")) {
+    if (starts_with(p, "...") || starts_with(p, ">>=") ||
+        starts_with(p, "<<=")) {
       cur = new_token(TK_RESERVED, cur, p, 3);
       p += 3;
+      continue;
     }
 
     if (starts_with(p, "==") || starts_with(p, "!=") ||
@@ -360,9 +362,11 @@ struct token *tokenize(char *filename, char *input, int line_num) {
         starts_with(p, "++") || starts_with(p, "--") ||
         starts_with(p, "+=") || starts_with(p, "-=") ||
         starts_with(p, "*=") || starts_with(p, "/=") ||
-        starts_with(p, "&&") || starts_with(p, "||") ||
-        starts_with(p, "<<") || starts_with(p, ">>") ||
-        starts_with(p, "->") || starts_with(p, "##")) {
+        starts_with(p, "|=") || starts_with(p, "^=") ||
+        starts_with(p, "&=") || starts_with(p, "&&") ||
+        starts_with(p, "||") || starts_with(p, "<<") ||
+        starts_with(p, ">>") || starts_with(p, "->") ||
+        starts_with(p, "##")) {
       cur = new_token(TK_RESERVED, cur, p, 2);
       p += 2;
       continue;
