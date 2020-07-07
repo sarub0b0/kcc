@@ -1826,9 +1826,8 @@ struct node *stmt(struct token **ret, struct token *tk) {
                   current_fn->name);
       tk = tk->next;
     }
-    skip(&tk, tk, ";");
+    skip(ret, tk, ";");
 
-    *ret = tk;
     return n;
   }
 
@@ -1857,9 +1856,8 @@ struct node *stmt(struct token **ret, struct token *tk) {
     skip(&tk, tk->next, "(");
     n->cond = expr(&tk, tk);
     skip(&tk, tk, ")");
-    n->then = stmt(&tk, tk);
+    n->then = stmt(ret, tk);
 
-    *ret = tk;
     return n;
   }
 
@@ -1887,10 +1885,9 @@ struct node *stmt(struct token **ret, struct token *tk) {
     }
     skip(&tk, tk, ")");
 
-    n->then = stmt(&tk, tk);
+    n->then = stmt(ret, tk);
 
     leave_scope();
-    *ret = tk;
     return n;
   }
 
@@ -1902,8 +1899,7 @@ struct node *stmt(struct token **ret, struct token *tk) {
     skip(&tk, tk, "(");
     n->cond = expr(&tk, tk);
     skip(&tk, tk, ")");
-    skip(&tk, tk, ";");
-    *ret = tk;
+    skip(ret, tk, ";");
     return n;
   }
 
@@ -1919,11 +1915,10 @@ struct node *stmt(struct token **ret, struct token *tk) {
     struct node *sw = current_switch;
     current_switch = n;
 
-    n->then = stmt(&tk, tk);
+    n->then = stmt(ret, tk);
 
     current_switch = sw;
 
-    *ret = tk;
     return n;
   }
 
@@ -1937,12 +1932,11 @@ struct node *stmt(struct token **ret, struct token *tk) {
 
     skip(&tk, tk, ":");
 
-    n->body = stmt(&tk, tk);
+    n->body = stmt(ret, tk);
 
     n->case_next = current_switch->case_next;
     current_switch->case_next = n;
 
-    *ret = tk;
     return n;
   }
 
@@ -1954,17 +1948,22 @@ struct node *stmt(struct token **ret, struct token *tk) {
 
     skip(&tk, tk->next, ":");
 
-    n->body = stmt(&tk, tk);
+    n->body = stmt(ret, tk);
 
     current_switch->default_case = n;
 
-    *ret = tk;
+    return n;
+  }
+
+  if (equal(tk, "continue")) {
+    n = new_node(ND_CONTINUE, tk);
+    skip(ret, tk->next, ";");
     return n;
   }
 
   if (equal(tk, ";")) {
     n = new_node(ND_BLOCK, tk);
-    *ret = tk->next;
+    skip(ret, tk, ";");
     return n;
   }
 
@@ -1973,8 +1972,7 @@ struct node *stmt(struct token **ret, struct token *tk) {
   }
 
   n = new_node_expr(&tk, tk);
-  skip(&tk, tk, ";");
-  *ret = tk;
+  skip(ret, tk, ";");
   return n;
 }
 
@@ -2597,6 +2595,7 @@ void gvar_initializer(struct token **ret, struct token *tk, struct var *var) {
 //      | "switch" "(" expr ")" stmt
 //      | "case" const-expr ":" stmt
 //      | "default" ":" stmt
+//      | "continue" ";"
 //      | "return" expr ";"
 //
 // expr = assign

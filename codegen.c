@@ -17,6 +17,7 @@ int inc = 0;
 struct function *current_fn;
 
 int label_seq = 0;
+int continue_seq = 0;
 int func_seq = 0;
 
 int gen_expr(struct node *);
@@ -173,6 +174,9 @@ void gen_for(struct node *node) {
   // .L.end.XXX
 
   int seq = label_seq++;
+  int cseq = continue_seq;
+  continue_seq = seq;
+
   if (node->init) {
     gen_stmt(node->init);
   }
@@ -189,11 +193,14 @@ void gen_for(struct node *node) {
     gen_stmt(node->then);
   }
 
+  printf(".L.continue.%03d:\n", seq);
   if (node->inc) {
     gen_stmt(node->inc);
   }
   printf("    jmp .L.begin.%03d\n", seq);
   printf(".L.end.%03d:\n", seq);
+
+  continue_seq = cseq;
 }
 
 void gen_do(struct node *node) {
@@ -211,12 +218,16 @@ void gen_do(struct node *node) {
   // .L.end.XXX
 
   int seq = label_seq++;
+  int cseq = continue_seq;
+  continue_seq = seq;
+
   printf(".L.begin.%03d:\n", seq);
 
   if (node->then) {
     gen_stmt(node->then);
   }
 
+  printf(".L.continue.%03d:\n", seq);
   if (node->cond) {
     gen_expr(node->cond);
     inc--;
@@ -226,6 +237,8 @@ void gen_do(struct node *node) {
 
   printf("    jmp .L.begin.%03d\n", seq);
   printf(".L.end.%03d:\n", seq);
+
+  continue_seq = cseq;
 }
 
 void gen_switch(struct node *node) {
@@ -259,6 +272,10 @@ void gen_switch(struct node *node) {
 void gen_case(struct node *node) {
   printf(".L.case.%03d.%03d:\n", node->switch_seq, node->case_label);
   gen_stmt(node->body);
+}
+
+void gen_continue(struct node *node) {
+  printf("    jmp .L.continue.%03d\n", continue_seq);
 }
 
 void gen_block(struct node *node) {
@@ -651,6 +668,9 @@ void gen_stmt(struct node *node) {
       return;
     case ND_CASE:
       gen_case(node);
+      return;
+    case ND_CONTINUE:
+      gen_continue(node);
       return;
     case ND_BLOCK:
       gen_block(node);

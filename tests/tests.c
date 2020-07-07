@@ -376,6 +376,45 @@ int main(void) {
   assert(2, ({ switch_case(2); }), "({ switch_case(2); })", false);
   assert(-1, ({ switch_case(3); }), "({ switch_case(3); })", false);
 
+  assert(5,
+         ({
+           int i = 0, j = 0;
+           for (; i < 10; i++) {
+             if (i < 5) continue;
+             j++;
+           }
+           j;
+         }),
+         "({ int i=0,j=0; for(; i<10; i++){ if(i<5) continue; j++;} j; })",
+         false);
+
+  assert(6,
+         ({
+           int i = 0, j = 0;
+           while (i < 10) {
+             i++;
+             if (i < 5) continue;
+             j++;
+           }
+           j;
+         }),
+         "({ int i=0,j=0; for(; i<10; i++){ if(i<5) continue; j++;} j; })",
+         false);
+
+  assert(6,
+         ({
+           int i = 0, j = 0;
+           do {
+             i++;
+             if (i < 5) continue;
+             j++;
+           } while (i < 10);
+           j;
+         }),
+         "({ int i=0,j=0; do { i++; if (i<5) continue; j++; } while (i<10); "
+         "j; })",
+         false);
+
   assert(3,
          ({
            int x;
