@@ -1676,16 +1676,6 @@ struct node *assign(struct token **ret, struct token *tk) {
         start);
   }
 
-  if (consume(&tk, tk, "++")) {
-    *ret = tk;
-    return new_node_assign(n, new_add(n, new_node_num(1, tk), tk), start);
-  }
-
-  if (consume(&tk, tk, "--")) {
-    *ret = tk;
-    return new_node_assign(n, new_sub(n, new_node_num(1, tk), tk), start);
-  }
-
   *ret = tk;
   return n;
 }
@@ -2154,6 +2144,16 @@ struct node *postfix(struct token **ret, struct token *tk) {
       n->member = get_member(n->lhs->type, tk);
       tk = tk->next;
       continue;
+    }
+
+    if (consume(&tk, tk, "++")) {
+      *ret = tk;
+      return new_node_assign(n, new_add(n, new_node_num(1, tk), tk), start);
+    }
+
+    if (consume(&tk, tk, "--")) {
+      *ret = tk;
+      return new_node_assign(n, new_sub(n, new_node_num(1, tk), tk), start);
     }
 
     *ret = tk;
