@@ -54,6 +54,8 @@ static struct tag_scope *tags;
 static struct var_scope *vars;
 static int scope_depth;
 
+static struct node *current_switch;
+
 struct function *funcdef(struct token **,
                          struct token *,
                          struct type *,
@@ -1905,6 +1907,61 @@ struct node *stmt(struct token **ret, struct token *tk) {
     return n;
   }
 
+  if (equal(tk, "switch")) {
+    n = new_node(ND_SWITCH, tk);
+
+    skip(&tk, tk->next, "(");
+
+    n->cond = expr(&tk, tk);
+
+    skip(&tk, tk, ")");
+
+    struct node *sw = current_switch;
+    current_switch = n;
+
+    n->then = stmt(&tk, tk);
+
+    current_switch = sw;
+
+    *ret = tk;
+    return n;
+  }
+
+  if (equal(tk, "case")) {
+    if (!current_switch) {
+      error_tok(tk, "stray case");
+    }
+    n = new_node(ND_CASE, tk);
+
+    n->val = const_expr(&tk, tk->next);
+
+    skip(&tk, tk, ":");
+
+    n->body = stmt(&tk, tk);
+
+    n->case_next = current_switch->case_next;
+    current_switch->case_next = n;
+
+    *ret = tk;
+    return n;
+  }
+
+  if (equal(tk, "default")) {
+    if (!current_switch) {
+      error_tok(tk, "stray default");
+    }
+    n = new_node(ND_CASE, tk);
+
+    skip(&tk, tk->next, ":");
+
+    n->body = stmt(&tk, tk);
+
+    current_switch->default_case = n;
+
+    *ret = tk;
+    return n;
+  }
+
   if (equal(tk, ";")) {
     n = new_node(ND_BLOCK, tk);
     *ret = tk->next;
@@ -2537,6 +2594,9 @@ void gvar_initializer(struct token **ret, struct token *tk, struct var *var) {
 //      | "while" "(" expr ")" stmt
 //      | "for" "(" ( declaration | expr )? ";" expr? ";" expr? ")" stmt
 //      | "do" stmt "while" "(" expr ")" ";"
+//      | "switch" "(" expr ")" stmt
+//      | "case" const-expr ":" stmt
+//      | "default" ":" stmt
 //      | "return" expr ";"
 //
 // expr = assign

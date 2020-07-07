@@ -75,6 +75,8 @@ enum node_kind {
   ND_IF,
   ND_FOR,
   ND_DO,
+  ND_SWITCH,
+  ND_CASE,
   ND_LABEL,
   ND_BLOCK,
   ND_FUNCALL,
@@ -198,6 +200,12 @@ struct node {
   // block statement
   struct node *body;
   struct node *next;
+
+  // switch-case
+  struct node *case_next;
+  struct node *default_case;
+  int case_label;
+  int switch_seq;
 
   // function call
   struct type *func_ty;
