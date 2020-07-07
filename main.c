@@ -29,6 +29,7 @@ struct config {
   bool is_ast_dump;
   bool is_dump_tokens;
   bool is_list_func;
+  bool is_text_dump;
 
   // ast-dumpのフィルタ
   char *funcname;
@@ -43,6 +44,7 @@ void usage(void) {
   fprintf(stderr, "  -h, --help\n");
   fprintf(stderr, "  --ast-dump\n");
   fprintf(stderr, "  --dump-tokens\n");
+  fprintf(stderr, "  --text-dump\n");
   fprintf(stderr, "  --list-function\n");
   fprintf(stderr, "  --include, -I\n");
   fprintf(stderr, "\n");
@@ -53,6 +55,7 @@ struct option long_options[] = {
     {"ast-dump", optional_argument, NULL, 1},
     {"dump-tokens", no_argument, NULL, 2},
     {"list-function", no_argument, NULL, 3},
+    {"text-dump", no_argument, NULL, 4},
     {"include", required_argument, NULL, 'I'},
     {0, 0, 0, 0},
 };
@@ -83,6 +86,9 @@ void configure(int argc, char **argv, struct config *cfg) {
         break;
       case 3:
         cfg->is_list_func = true;
+        break;
+      case 4:
+        cfg->is_text_dump = true;
         break;
       case 'h':
         usage();
@@ -119,6 +125,10 @@ int main(int argc, char *argv[]) {
 
   if (cfg.is_dump_tokens) {
     print_tokens(tk);
+    return 0;
+  }
+  if (cfg.is_text_dump) {
+    print_tokens_text(tk);
     return 0;
   }
 

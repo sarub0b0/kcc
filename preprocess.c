@@ -97,6 +97,54 @@ void print_args(struct macro_arg *args) {
   fprintf(stderr, "\n");
 }
 
+bool hideset_contains(struct hideset *hs, char *name, int len) {
+  for (; hs; hs = hs->next)
+    if (strlen(hs->name) == len && strncmp(hs->name, name, len) == 0)
+      return true;
+
+  return false;
+}
+
+struct hideset *new_hideset(char *name) {
+  struct hideset *hs = calloc(1, sizeof(struct hideset));
+  hs->name = name;
+  return hs;
+}
+
+struct hideset *join_hideset(struct hideset *lhs, struct hideset *rhs) {
+
+  struct hideset head = {};
+  struct hideset *cur = &head;
+  for (; lhs; lhs = lhs->next) {
+    cur = cur->next = new_hideset(lhs->name);
+  }
+  cur->next = rhs;
+
+  return head.next;
+}
+
+struct hideset *hideset_sames(struct hideset *hs1, struct hideset *hs2) {
+  struct hideset head = {};
+  struct hideset *cur = &head;
+  for (; hs1; hs1 = hs1->next) {
+    if (hideset_contains(hs2, hs1->name, strlen(hs1->name)))
+      cur = cur->next = new_hideset(hs1->name);
+  }
+
+  return head.next;
+}
+
+struct token *add_hideset(struct token *tk, struct hideset *hs) {
+  struct token head = {};
+  struct token *cur = &head;
+  for (; tk; tk = tk->next) {
+    struct token *t = copy_token(tk);
+    t->hideset = join_hideset(t->hideset, hs);
+    cur = cur->next = t;
+  }
+  return head.next;
+}
+
 bool is_hash(struct token *tk) {
   return tk->at_bol && equal(tk, "#");
 }
@@ -520,7 +568,7 @@ struct token *paste(struct token *lhs, struct token *rhs) {
 
   snprintf(buf, size, "%.*s%.*s", lhs->len, lhs->str, rhs->len, rhs->str);
 
-  struct token *tk = tokenize(lhs->filename, buf);
+  struct token *tk = tokenize(lhs->filename, buf, lhs->line_num);
 
   if (tk->next->kind != TK_EOF) {
     error_tok(lhs, "pasting formde '%s%s', an invalid preprocessing token");
@@ -556,7 +604,7 @@ char *add_quotes(char *str) {
 struct token *new_string_token(char *str, struct token *tk) {
   char *new_str = add_quotes(str);
 
-  return tokenize(tk->filename, new_str);
+  return tokenize(tk->filename, new_str, tk->line_num);
 }
 
 struct token *stringize(struct token *arg, struct token *tk) {
@@ -611,6 +659,7 @@ struct token *replace_token(struct token *tk, struct macro_arg *args) {
 }
 
 bool expand_macro(struct token **ret, struct token *tk) {
+  if (hideset_contains(tk->hideset, tk->str, tk->len)) return false;
 
   struct macro *m = find_macro(tk);
   if (!m) {
@@ -619,14 +668,18 @@ bool expand_macro(struct token **ret, struct token *tk) {
 
   // #define macro num | string
   if (m->is_objlike) {
-    *ret = append_tokens(m->expand, tk->next);
+    struct hideset *hs = join_hideset(tk->hideset, new_hideset(m->name));
+    struct token *expand = add_hideset(m->expand, hs);
+    *ret = append_tokens(expand, tk->next);
+
     return true;
   }
-  // #define macro(var) expression
-  if (!consume(&tk, tk->next, "(")) return false;
 
-  struct macro_param *params = m->params;
-  struct macro_arg *args = macro_args(&tk, tk, params);
+  // #define macro(var) expression
+  if (!equal(tk->next, "(")) return false;
+
+  struct token *macro_tk = tk;
+  struct macro_arg *args = macro_args(&tk, tk->next->next, m->params);
 
   struct token *tk2 = replace_token(m->expand, args);
 
@@ -653,11 +706,7 @@ struct token *new_num_token(int val, struct token *tk) {
   struct token *ret = copy_token(tk);
   char *buf = calloc(20, sizeof(char));
   snprintf(buf, 20, "%d", val);
-
-  ret->val = val;
-  ret->str = buf;
-  ret->kind = TK_NUM;
-  return ret;
+  return tokenize(tk->filename, buf, tk->line_num);
 }
 
 struct token *read_expression(struct token **ret, struct token *tk) {
@@ -841,7 +890,7 @@ struct token *preprocess2(struct token *tk) {
 }
 
 void def_macro(char *def, char *val) {
-  struct token *tk = tokenize("(pre-define)", val);
+  struct token *tk = tokenize("(pre-define)", val, 1);
   add_macro(def, true, tk);
 }
 

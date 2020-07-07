@@ -26,13 +26,47 @@ void print_tokens(struct token *token) {
 
   for (struct token *t = token; t; t = t->next) {
     fprintf(stderr,
-            "%s:%d %*s %s\n",
+            "%s:%d %*s %s",
             t->filename,
             t->line_num,
             12,
             token_kind_str[t->kind],
             t->str);
+    if (t->hideset) {
+      fprintf(stderr, "  macro: ");
+      for (struct hideset *hs = t->hideset; hs; hs = hs->next)
+        fprintf(stderr, "%s, ", hs->name);
+    }
+    fprintf(stderr, "\n");
   }
+}
+
+void print_tokens_text(struct token *token) {
+  int depth = 0;
+  int line = 1;
+  char *space = " ";
+  bool prev_paren = false;
+  for (struct token *tk = token; tk->kind != TK_EOF; tk = tk->next) {
+    if (equal(tk, "{") || equal(tk, "(")) {
+      depth += 4;
+    }
+    if (equal(tk, "}") || equal(tk, ")")) {
+      depth -= 4;
+    }
+    if (line > 1 && tk->at_bol) {
+      fprintf(stderr, "\n");
+    }
+
+    if (tk->has_space && tk->at_bol) {
+      fprintf(stderr, "%*s", depth, " ");
+    }
+
+    if (tk->has_space && !tk->at_bol) fprintf(stderr, " ");
+
+    fprintf(stderr, "%.*s", tk->len, tk->loc);
+    line++;
+  }
+  fprintf(stderr, "\n");
 }
 
 int starts_with(const char *p, const char *q) {
@@ -184,7 +218,7 @@ void add_line_info(struct token *tk) {
   } while (*p++);
 }
 
-struct token *tokenize(char *filename, char *input) {
+struct token *tokenize(char *filename, char *input, int line_num) {
   strings = NULL;
   current_filename = filename;
   current_userinput = input;
@@ -338,6 +372,8 @@ struct token *tokenize(char *filename, char *input) {
 
   new_token(TK_EOF, cur, p, 0);
   convert_ident_to_reserved(head.next);
+
+  for (struct token *t = head.next; t; t = t->next) t->line_num = line_num;
   add_line_info(head.next);
 
   return head.next;
@@ -398,6 +434,6 @@ struct token *tokenize_file(char *file) {
 
   remove_backslash(input);
 
-  struct token *token = tokenize(file, input);
+  struct token *token = tokenize(file, input, 1);
   return token;
 }
