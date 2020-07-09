@@ -78,3 +78,9 @@ void warn_tok(struct token *tk, char *fmt, ...) {
 
   yellow(verror_at(tk->loc, tk->input, tk->filename, tk->line_num, fmt, ap));
 }
+
+void info_tok(struct token *tk, char *fmt, ...) {
+  va_list ap;
+  va_start(ap, fmt);
+  verror_at(tk->loc, tk->input, tk->filename, tk->line_num, fmt, ap);
+}

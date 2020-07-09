@@ -125,7 +125,6 @@ struct type {
   enum type_kind kind;
   size_t size;
   size_t align;
-  char *name;
   bool is_unsigned;
   bool is_const;
   bool is_variadic;
@@ -137,6 +136,7 @@ struct type {
 
   // name token
   struct token *token;
+  // char *name;
 
   // function
   struct type *return_type;
@@ -181,7 +181,7 @@ struct member {
   struct type *type;
   int align;
   int offset;
-  char *name;
+  struct token *name;
 };
 
 struct node {
@@ -257,6 +257,7 @@ void error(char *, ...);
 void error_at(char *, char *, ...);
 void warn_tok(struct token *, char *, ...);
 void error_tok(struct token *, char *, ...);
+void info_tok(struct token *, char *, ...);
 
 struct token *tokenize(char *, char *, int);
 struct token *tokenize_file(char *);

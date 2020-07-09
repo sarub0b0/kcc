@@ -235,7 +235,7 @@ void print_struct(bool has_function) {
              first_prefix,
              second_prefix,
              type_to_name(m->type->kind),
-             m->name);
+             m->name->str);
     }
   }
 }
@@ -678,10 +678,20 @@ struct member *get_member(struct type *ty, struct token *tk) {
   // for (struct member *m = ty->members; m; m = m->next) {
   //   debug("  %s", m->name);
   // }
+
   for (struct member *m = ty->members; m; m = m->next) {
-    if (find_cond(m->name, tk)) return m;
+
+    if (m->type->kind == TY_STRUCT && !m->name) {
+      if (get_member(m->type, tk)) {
+        return m;
+      }
+      continue;
+    }
+
+    if (find_cond(m->name->str, tk)) return m;
   }
 
+  warn_tok(tk, "no such member '%s'", tk->str);
   return NULL;
 }
 
@@ -998,12 +1008,12 @@ struct node *new_sub(struct node *lhs, struct node *rhs, struct token *tk) {
   return NULL;
 }
 
-struct tag_scope *new_tagscope(struct type *type) {
+struct tag_scope *new_tagscope(struct token *tk, struct type *type) {
   struct tag_scope *tag = calloc(1, sizeof(struct tag_scope));
-  tag->name = type->name;
   tag->depth = scope_depth;
   tag->next = tags;
   tag->type = type;
+  tag->name = tk->str;
   tags = tag;
   return tag;
 }
@@ -1254,8 +1264,8 @@ struct type *typespec(struct token **ret,
     tk = tk->next;
   }
 
-  ty = copy_type(ty);
   if (is_const) {
+    ty = copy_type(ty);
     ty->is_const = is_const;
   }
 
@@ -1274,11 +1284,11 @@ struct member *struct_members(struct token **ret, struct token *tk) {
   skip(&tk, tk, "{");
   while (!equal(tk, "}")) {
     struct var_attr attr = {};
-    struct member *m = calloc(1, sizeof(struct member));
-
     struct type *base_type = typespec(&tk, tk, &attr);
+
+    struct member *m = calloc(1, sizeof(struct member));
     m->type = declarator(&tk, tk, base_type);
-    m->name = m->type->name;
+    m->name = m->type->token;
     m->align = m->type->align;
 
     cur = cur->next = m;
@@ -1293,6 +1303,7 @@ struct member *struct_members(struct token **ret, struct token *tk) {
 struct type *struct_union_declarator(struct token **ret,
                                      struct token *tk,
                                      enum type_kind kind) {
+
   struct token *tag = NULL;
   if (tk->kind == TK_IDENT) {
     tag = tk;
@@ -1309,26 +1320,30 @@ struct type *struct_union_declarator(struct token **ret,
     }
 
     if (kind == TY_UNION) ty = copy_type(ty_union);
-    ty->token = tk;
+    // ty->token = tag;
+    // ty->name = tag->str;
     ty->is_incomplete = true;
-    new_tagscope(ty);
+
+    new_tagscope(tag, ty);
 
     return ty;
   }
 
   if (kind == TY_UNION) ty = copy_type(ty_union);
-  ty->token = tk;
-  ty->members = struct_members(&tk, tk);
+  // ty->token = tk;
+  ty->members = struct_members(ret, tk);
 
   if (tag) {
-    ty->name = tag->str;
-    ty->tag = tag->str;
-    new_tagscope(ty);
-  } else {
-    ty->name = "";
+    struct tag_scope *ts = find_tag(tag);
+    if (ts && ts->depth == scope_depth) {
+      *ts->type = *ty;
+      return ts->type;
+    }
+    // ty->name = tag->str;
+    // ty->token = tag;
+    new_tagscope(tag, ty);
   }
 
-  *ret = tk;
   return ty;
 }
 
@@ -1358,12 +1373,15 @@ struct type *struct_declarator(struct token **ret,
     if (ty->align < m->align) ty->align = m->align;
 
     ty->size = offset + size_of(m->type);
+
+    debug("%s offset %d", m->name->str, offset);
   }
 
   if (size_of(ty) % ty->align != 0) {
     ty->size = offset + (ty->align - (offset % ty->align));
   }
 
+  debug("struct  align %d; size %d;", ty->align, ty->size);
   return ty;
 }
 
@@ -1421,8 +1439,8 @@ struct type *enum_declarator(struct token **ret, struct token *tk) {
   }
 
   if (tag) {
-    ty->name = tag->str;
-    new_tagscope(ty);
+    // ty->name = tag->str;
+    new_tagscope(tag, ty);
   }
 
   *ret = tk;
@@ -1438,7 +1456,7 @@ struct type *typedef_declarator(struct token **ret,
 
   while (true) {
 
-    new_varscope(ty->name)->type_def = ty;
+    new_varscope(get_ident(ty->token))->type_def = ty;
 
     if (consume(&tk, tk, ";")) break;
 
@@ -1460,7 +1478,7 @@ struct function *funcdef(struct token **ret,
   locals = NULL;
   struct function *fn = calloc(1, sizeof(struct function));
 
-  fn->name = type->name;
+  fn->name = get_ident(type->token);
   fn->type = type->return_type;
   fn->token = tk;
   fn->is_static = attr->is_static;
@@ -1480,7 +1498,7 @@ struct function *funcdef(struct token **ret,
 
   struct type *ty = type->params;
   for (; ty; ty = ty->next) {
-    new_lvar(ty->name, ty);
+    new_lvar(get_ident(ty->token), ty);
   }
   fn->params = locals;
 
@@ -1512,17 +1530,17 @@ struct type *declarator(struct token **ret,
   }
 
   char *type_name = "";
-  struct token *tk_name = tk;
+  struct token *ty_token = tk;
 
   if (tk->kind == TK_IDENT) {
     type_name = get_ident(tk);
-    tk_name = tk;
+    ty_token = tk;
     tk = tk->next;
   }
 
   type = type_suffix(&tk, tk, type);
-  type->name = type_name;
-  type->token = tk_name;
+  // type->name = type_name;
+  type->token = ty_token;
 
   *ret = tk;
   return type;
@@ -1620,15 +1638,16 @@ struct node *declaration(struct token **ret, struct token *tk) {
 
     if (attr.is_static) {
 
-      var = new_gvar(static_lvar_name(type->name), type, true, true);
-      new_varscope(var->type->name)->var = var;
+      var = new_gvar(
+          static_lvar_name(get_ident(type->token)), type, true, true);
+      new_varscope(get_ident(type->token))->var = var;
       if (consume(&tk, tk, "=")) {
         gvar_initializer(&tk, tk, var);
       }
       continue;
     }
 
-    var = new_lvar(type->name, type);
+    var = new_lvar(get_ident(type->token), type);
 
     if (consume(&tk, tk, "=")) {
       cur = cur->next = lvar_initializer(&tk, tk, var);
@@ -2148,8 +2167,15 @@ struct node *postfix(struct token **ret, struct token *tk) {
 
     if (consume(&tk, tk, ".")) {
       add_type(n);
+      struct member *m = get_member(n->type, tk);
+      if (!m) {
+        error_tok(tk, "no such member '%s'", tk->str);
+      }
       n = new_node_unary(ND_MEMBER, n, tk);
-      n->member = get_member(n->lhs->type, tk);
+      n->member = m;
+
+      info_tok(tk, "m %s", m->name);
+      add_type(n);
       tk = tk->next;
       continue;
     }
@@ -2157,8 +2183,13 @@ struct node *postfix(struct token **ret, struct token *tk) {
     if (consume(&tk, tk, "->")) {
       n = new_node_unary(ND_DEREF, n, tk);
       add_type(n);
+      struct member *m = get_member(n->type, tk);
+      if (!m) {
+        error_tok(tk, "no such member '%s'", tk->str);
+      }
       n = new_node_unary(ND_MEMBER, n, tk);
-      n->member = get_member(n->lhs->type, tk);
+      n->member = m;
+      add_type(n);
       tk = tk->next;
       continue;
     }
@@ -2700,7 +2731,8 @@ struct program *parse(struct token *tk) {
       if (vs) {
         current_fn = vs->var;
       } else {
-        current_fn = new_gvar(type->name, type, attr.is_static, false);
+        current_fn =
+            new_gvar(get_ident(type->token), type, attr.is_static, false);
       }
 
       if (!consume(&tk, tk, ";")) {
@@ -2709,8 +2741,8 @@ struct program *parse(struct token *tk) {
       continue;
     }
 
-    struct var *gvar =
-        new_gvar(type->name, type, attr.is_static, !attr.is_extern);
+    struct var *gvar = new_gvar(
+        get_ident(type->token), type, attr.is_static, !attr.is_extern);
     if (!equal(tk, ";")) {
       while (!equal(tk, ";")) {
         if (consume(&tk, tk, "=")) {
@@ -2718,7 +2750,8 @@ struct program *parse(struct token *tk) {
         }
         if (consume(&tk, tk, ",")) {
           type = declarator(&tk, tk, type);
-          gvar = new_gvar(type->name, type, attr.is_static, !attr.is_extern);
+          gvar = new_gvar(
+              get_ident(type->token), type, attr.is_static, !attr.is_extern);
         }
       }
     }

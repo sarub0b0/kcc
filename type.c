@@ -4,36 +4,36 @@
 
 #include "kcc.h"
 
-struct type *ty_void = &(struct type){TY_VOID, 1, 1, ""};
-struct type *ty_bool = &(struct type){TY_BOOL, 1, 1, ""};
-struct type *ty_char = &(struct type){TY_CHAR, 1, 1, ""};
-struct type *ty_short = &(struct type){TY_SHORT, 2, 2, ""};
-struct type *ty_int = &(struct type){TY_INT, 4, 4, ""};
-struct type *ty_long = &(struct type){TY_LONG, 8, 8, ""};
+struct type *ty_void = &(struct type){TY_VOID, 1, 1};
+struct type *ty_bool = &(struct type){TY_BOOL, 1, 1};
+struct type *ty_char = &(struct type){TY_CHAR, 1, 1};
+struct type *ty_short = &(struct type){TY_SHORT, 2, 2};
+struct type *ty_int = &(struct type){TY_INT, 4, 4};
+struct type *ty_long = &(struct type){TY_LONG, 8, 8};
 
-struct type *ty_schar = &(struct type){TY_CHAR, 1, 1, ""};
-struct type *ty_sshort = &(struct type){TY_SHORT, 2, 2, ""};
-struct type *ty_sint = &(struct type){TY_INT, 4, 4, ""};
-struct type *ty_slong = &(struct type){TY_LONG, 8, 8, ""};
+struct type *ty_schar = &(struct type){TY_CHAR, 1, 1};
+struct type *ty_sshort = &(struct type){TY_SHORT, 2, 2};
+struct type *ty_sint = &(struct type){TY_INT, 4, 4};
+struct type *ty_slong = &(struct type){TY_LONG, 8, 8};
 
-struct type *ty_uchar = &(struct type){TY_CHAR, 1, 1, "", true};
-struct type *ty_ushort = &(struct type){TY_SHORT, 2, 2, "", true};
-struct type *ty_uint = &(struct type){TY_INT, 4, 4, "", true};
-struct type *ty_ulong = &(struct type){TY_LONG, 8, 8, "", true};
+struct type *ty_uchar = &(struct type){TY_CHAR, 1, 1, true};
+struct type *ty_ushort = &(struct type){TY_SHORT, 2, 2, true};
+struct type *ty_uint = &(struct type){TY_INT, 4, 4, true};
+struct type *ty_ulong = &(struct type){TY_LONG, 8, 8, true};
 
-struct type *ty_float = &(struct type){TY_FLOAT, 4, 4, ""};
-struct type *ty_doble = &(struct type){TY_DOUBLE, 8, 8, ""};
+struct type *ty_float = &(struct type){TY_FLOAT, 4, 4};
+struct type *ty_doble = &(struct type){TY_DOUBLE, 8, 8};
 
-struct type *ty_enum = &(struct type){TY_ENUM, 4, 4, ""};
-struct type *ty_struct = &(struct type){TY_STRUCT, 0, 1, ""};
-struct type *ty_union = &(struct type){TY_UNION, 0, 1, ""};
+struct type *ty_enum = &(struct type){TY_ENUM, 4, 4};
+struct type *ty_struct = &(struct type){TY_STRUCT, 0, 1};
+struct type *ty_union = &(struct type){TY_UNION, 0, 1};
 
 void print_type(struct type *ty) {
   if (!ty) return;
 
   fprintf(stderr,
           "type: %s; size: %ld; align: %ld; array_size: %ld\n",
-          ty->name,
+          ty->token->str,
           ty->size,
           ty->align,
           ty->array_size);
@@ -224,6 +224,9 @@ void add_type(struct node *n) {
     case ND_DEREF:
       if (!n->lhs->type->ptr_to) {
         error("Invalid pointer deference");
+      }
+      if (n->lhs->type->ptr_to->kind == TY_VOID) {
+        error("Invalid void pointer deference");
       }
       n->type = n->lhs->type->ptr_to;
       return;
