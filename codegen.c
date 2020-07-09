@@ -13,8 +13,6 @@ const char *reg16[] = {"r10w", "r11w", "r12w", "r13w", "r14w", "r15w"};
 const char *reg32[] = {"r10d", "r11d", "r12d", "r13d", "r14d", "r15d"};
 const char *reg64[] = {"r10", "r11", "r12", "r13", "r14", "r15"};
 
-// static int file_num = 0;
-
 int inc = 0;
 struct function *current_fn;
 
@@ -26,9 +24,10 @@ int func_seq = 0;
 int gen_expr(struct node *);
 void gen_stmt(struct node *);
 
-// void lines_of_code(struct node *n) {
-//   printf("    .loc %d %d %d\n", file_num, n->token->line_num, 0);
-// }
+void lines_of_code(struct node *n) {
+  struct token *tk = n->token;
+  printf("    .loc %d %d %d\n", tk->file_num, tk->line_num, tk->col);
+}
 
 size_t type_size(struct type *ty) {
   if (ty->kind == TY_ARRAY) return type_size(ty->ptr_to);
@@ -396,7 +395,7 @@ int gen_expr(struct node *node) {
     return 0;
   }
 
-  // lines_of_code(node);
+  lines_of_code(node);
 
   struct type *ty = node->type;
   switch (node->kind) {
@@ -666,7 +665,7 @@ int gen_expr(struct node *node) {
 }
 
 void gen_stmt(struct node *node) {
-  // lines_of_code(node);
+  lines_of_code(node);
   switch (node->kind) {
     case ND_RETURN:
       gen_expr(node->lhs);
@@ -876,7 +875,6 @@ int nargs(struct var *v) {
 void text_section(struct program *prog) {
   printf("    .text\n");
 
-  // file_num++;
   for (struct function *fn = prog->functions; fn; fn = fn->next) {
     current_fn = fn;
 
@@ -887,7 +885,6 @@ void text_section(struct program *prog) {
     printf("%s:\n", fn->name);
 
     printf(".LFB%d:\n", func_seq);
-    // printf("    .file %d \"%s\"\n", file_num, prog->filename);
 
     set_offset_and_stack_size(fn);
 
@@ -922,10 +919,19 @@ void text_section(struct program *prog) {
   }
 }
 
+void loaded_file_for_debug() {
+  char **input_files = get_input_files();
+  for (int i = 0; input_files[i]; i++) {
+    printf("    .file %d \"%s\"\n", i + 1, input_files[i]);
+  }
+}
+
 void gen_code(struct program *prog) {
   printf("    .file \"%s\"\n", prog->filename);
 
   header();
+
+  loaded_file_for_debug();
 
   bss_section(prog);
   data_section(prog);
@@ -933,3 +939,4 @@ void gen_code(struct program *prog) {
 
   return;
 }
+

@@ -145,8 +145,9 @@ int main(int argc, char *argv[]) {
     return 0;
   }
 
-  if (!cfg.is_ast_dump && !cfg.is_dump_tokens && !cfg.is_list_func)
+  if (!cfg.is_ast_dump && !cfg.is_dump_tokens && !cfg.is_list_func) {
     gen_code(pr);
+  }
 
   return 0;
 }

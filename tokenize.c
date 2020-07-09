@@ -12,6 +12,8 @@
 struct string *strings;
 char *current_userinput;
 char *current_filename;
+char **input_files;
+static int file_num = 0;
 
 const char *token_kind_str[TK_KIND_NUM] = {
     "reserved",
@@ -301,17 +303,21 @@ void add_line_info(struct token *tk) {
   bool at_bol = true;
   bool has_space = false;
   int line_num = 1;
+  int col = 0;
 
   do {
+    col++;
     if (p == tk->loc) {
       tk->at_bol = at_bol;
       tk->has_space = has_space;
       tk->line_num = line_num;
+      tk->col = col;
       tk = tk->next;
     }
 
     if (*p == '\n') {
       line_num++;
+      col = 0;
       at_bol = true;
     } else if (isspace(*p)) {
       has_space = true;
@@ -322,7 +328,7 @@ void add_line_info(struct token *tk) {
   } while (*p++);
 }
 
-struct token *tokenize(char *filename, char *input, int line_num) {
+struct token *tokenize(char *filename, char *input, int file_num) {
   strings = NULL;
   current_filename = filename;
   current_userinput = input;
@@ -487,7 +493,7 @@ struct token *tokenize(char *filename, char *input, int line_num) {
   new_token(TK_EOF, cur, p, 0);
   convert_ident_to_reserved(head.next);
 
-  for (struct token *t = head.next; t; t = t->next) t->line_num = line_num;
+  for (struct token *t = head.next; t; t = t->next) t->file_num = file_num;
   add_line_info(head.next);
 
   return head.next;
@@ -543,11 +549,34 @@ void remove_backslash(char *input) {
   *q = '\0';
 }
 
+char **get_input_files() {
+  return input_files;
+}
+
+bool is_loaded_file(char *file) {
+  if (!input_files) return false;
+
+  for (int i = 0; input_files[i]; i++) {
+    if (strlen(file) == strlen(input_files[i]) &&
+        !strncmp(input_files[i], file, strlen(file))) {
+      return true;
+    }
+  }
+  return false;
+}
+
 struct token *tokenize_file(char *file) {
   char *input = readfile(file);
 
   remove_backslash(input);
 
-  struct token *token = tokenize(file, input, 1);
+  if (!is_loaded_file(file)) {
+    input_files = realloc(input_files, sizeof(char *) * (file_num + 2));
+    input_files[file_num++] = file;
+    input_files[file_num] = NULL;
+  }
+
+  struct token *token = tokenize(file, input, file_num);
   return token;
 }
+
