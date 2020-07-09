@@ -1373,15 +1373,12 @@ struct type *struct_declarator(struct token **ret,
     if (ty->align < m->align) ty->align = m->align;
 
     ty->size = offset + size_of(m->type);
-
-    debug("%s offset %d", m->name->str, offset);
   }
 
   if (size_of(ty) % ty->align != 0) {
     ty->size = offset + (ty->align - (offset % ty->align));
   }
 
-  debug("struct  align %d; size %d;", ty->align, ty->size);
   return ty;
 }
 
@@ -2174,7 +2171,6 @@ struct node *postfix(struct token **ret, struct token *tk) {
       n = new_node_unary(ND_MEMBER, n, tk);
       n->member = m;
 
-      info_tok(tk, "m %s", m->name);
       add_type(n);
       tk = tk->next;
       continue;

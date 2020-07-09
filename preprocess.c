@@ -568,7 +568,7 @@ struct token *paste(struct token *lhs, struct token *rhs) {
 
   snprintf(buf, size, "%.*s%.*s", lhs->len, lhs->str, rhs->len, rhs->str);
 
-  struct token *tk = tokenize(lhs->filename, buf, lhs->line_num);
+  struct token *tk = tokenize(lhs->filename, buf, lhs->file_num);
 
   if (tk->next->kind != TK_EOF) {
     error_tok(lhs, "pasting formde '%s%s', an invalid preprocessing token");
@@ -604,7 +604,7 @@ char *add_quotes(char *str) {
 struct token *new_string_token(char *str, struct token *tk) {
   char *new_str = add_quotes(str);
 
-  return tokenize(tk->filename, new_str, tk->line_num);
+  return tokenize(tk->filename, new_str, tk->file_num);
 }
 
 struct token *stringize(struct token *arg, struct token *tk) {
@@ -706,7 +706,7 @@ struct token *new_num_token(int val, struct token *tk) {
   struct token *ret = copy_token(tk);
   char *buf = calloc(20, sizeof(char));
   snprintf(buf, 20, "%d", val);
-  return tokenize(tk->filename, buf, tk->line_num);
+  return tokenize(tk->filename, buf, tk->file_num);
 }
 
 struct token *read_expression(struct token **ret, struct token *tk) {
