@@ -439,7 +439,7 @@ int gen_expr(struct node *node) {
       struct type *ty1 = node->lhs->type;
       struct type *ty2 = kind == ND_MEMBER ? node->lhs->lhs->type : NULL;
 
-      if ((ty1->is_const && node->is_init == false) |
+      if ((ty1->is_const && node->is_init == false) ||
           (kind == ND_MEMBER && ty2->is_const)) {
 
         error_tok(node->token, "cannot assign to a const variable");
