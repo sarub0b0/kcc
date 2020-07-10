@@ -2151,7 +2151,8 @@ struct node *postfix(struct token **ret, struct token *tk) {
 
   while (true) {
     if (equal(tk, "(")) {
-      return funcall(ret, tk, n);
+      n = funcall(&tk, tk, n);
+      continue;
     }
 
     if (consume(&tk, tk, "[")) {
@@ -2191,13 +2192,13 @@ struct node *postfix(struct token **ret, struct token *tk) {
     }
 
     if (consume(&tk, tk, "++")) {
-      *ret = tk;
-      return new_node_assign(n, new_add(n, new_node_num(1, tk), tk), start);
+      n = new_node_assign(n, new_add(n, new_node_num(1, tk), tk), start);
+      continue;
     }
 
     if (consume(&tk, tk, "--")) {
-      *ret = tk;
-      return new_node_assign(n, new_sub(n, new_node_num(1, tk), tk), start);
+      n = new_node_assign(n, new_sub(n, new_node_num(1, tk), tk), start);
+      continue;
     }
 
     *ret = tk;

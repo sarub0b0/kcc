@@ -7,6 +7,7 @@
  */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <stdbool.h>
 
 #include "include.h"
@@ -261,6 +262,18 @@ int switch_case(int x) {
     default:
       return -1;
   }
+}
+
+struct s1 {
+  int x;
+  int y;
+};
+
+struct s1 *func3(int x, int y) {
+  struct s1 *s = calloc(1, sizeof(struct s1));
+  s->x = x;
+  s->y = y;
+  return s;
 }
 
 int main(void) {
@@ -1777,6 +1790,9 @@ int main(void) {
   assert(4, ({ shr(16, 2); }), "({ shr(16, 2); })", false);
   assert(2, ({ shr(16, 3); }), "({ shr(16, 3); })", false);
   assert(1, ({ shr(16, 4); }), "({ shr(16, 4); })", false);
+
+  assert(2, ({ func3(2, 3)->x; }), "({ func3(2,3)->x; })", false);
+  assert(3, ({ func3(2, 3)->y; }), "({ func3(2,3)->y; })", false);
 
   if (success == number)
     p2("result: \x1b[32mOK\x1b[0m, ");
