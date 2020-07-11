@@ -88,6 +88,7 @@ enum node_kind {
   ND_VAR,
   ND_ADDR,
   ND_DEREF,
+  ND_BINARY,
   ND_EXPR_STMT,
   ND_STMT_EXPR,
   ND_LIST_EXPR,
