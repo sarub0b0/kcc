@@ -582,6 +582,7 @@ int gen_expr(struct node *node) {
   const char *rs = reg(node->lhs->type, inc - 1);
   const char *rd = reg(node->lhs->type, inc - 2);
   const char *ra = areg(node->lhs->type);
+  const char *rmod = argreg(node->lhs->type, 2);
   inc--;
 
   switch (node->kind) {
@@ -599,6 +600,12 @@ int gen_expr(struct node *node) {
       printf("    cqo\n");
       printf("    idiv %s\n", rs);
       printf("    mov %s, %s\n", rd, ra);
+      break;
+    case ND_MOD:
+      printf("    mov %s, %s\n", ra, rd);
+      printf("    cqo\n");
+      printf("    idiv %s\n", rs);
+      printf("    mov %s, %s\n", rd, rmod);
       break;
     case ND_EQ:
       printf("    cmp %s, %s\n", rd, rs);

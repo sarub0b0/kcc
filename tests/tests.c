@@ -290,6 +290,7 @@ int main(void) {
   assert(47, 5 + 6 * 7, "5+6*7", false);
   assert(15, 5 * (9 - 6), "5*(9-6)", false);
   assert(4, (3 + 5) / 2, "(3+5)/2", false);
+  assert(3, 13 % 5, "13 % 5", false);
   assert(3, +3, "+3", false);
   assert(8, -(-3 - 5), "-(-3-5)", false);
   assert(15, -3 * (-5), "-3*(-5)", false);
