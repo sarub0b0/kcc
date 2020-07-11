@@ -257,6 +257,9 @@ void add_type(struct node *n) {
       n->type = stmt->lhs->type;
       return;
     }
+    case ND_BINARY:
+      n->type = n->lhs->type;
+      return;
     default:
       return;
   }

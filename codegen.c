@@ -206,7 +206,8 @@ void gen_for(struct node *node) {
 
   printf(".L.continue.%03d:\n", seq);
   if (node->inc) {
-    gen_stmt(node->inc);
+    gen_expr(node->inc);
+    inc--;
   }
   printf("    jmp .L.begin.%03d\n", seq);
   printf(".L.break.%03d:\n", seq);
@@ -571,6 +572,11 @@ int gen_expr(struct node *node) {
         inc--;
       }
       inc++;
+      return 0;
+    case ND_BINARY:
+      gen_expr(node->lhs);
+      inc--;
+      gen_expr(node->rhs);
       return 0;
     default:
       break;

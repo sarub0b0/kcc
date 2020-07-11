@@ -1806,6 +1806,17 @@ int main(void) {
   assert(2, ({ func3(2, 3)->x; }), "({ func3(2,3)->x; })", false);
   assert(3, ({ func3(2, 3)->y; }), "({ func3(2,3)->y; })", false);
 
+  assert(1,
+         ({
+           int a = 0;
+           for (int i = 0, j = 10; i < 10; i++, j--) {
+             a = j;
+           }
+           a;
+         }),
+         "({ int a=0; for(int i=0,j=10; i<10; i++,j--){ a=j; } a; })",
+         false);
+
   if (success == number)
     p2("result: \x1b[32mOK\x1b[0m, ");
   else
