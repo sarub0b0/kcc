@@ -1487,6 +1487,11 @@ struct type *typename(struct token **ret, struct token *tk) {
   return pointers(ret, tk, ty);
 }
 
+void predefined_ident_func(char *name) {
+  struct var *v = new_string_literal(name, strlen(name) + 1);
+  new_varscope("__func__")->var = v;
+}
+
 struct function *funcdef(struct token **ret,
                          struct token *tk,
                          struct type *type,
@@ -1517,6 +1522,10 @@ struct function *funcdef(struct token **ret,
     new_lvar(get_ident(ty->token), ty);
   }
   fn->params = locals;
+
+  // predefined identifier __func__
+  // static const char __func__[] = "func-name";
+  predefined_ident_func(fn->name);
 
   if (equal(tk, "{")) {
     fn->type->is_incomplete = false;

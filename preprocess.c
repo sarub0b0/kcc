@@ -30,6 +30,8 @@ struct macro {
   char *name;
   struct token *expand;
   struct macro_param *params;
+
+  struct token *(*func)(struct token *);
   bool is_objlike;
   bool is_delete;
 };
@@ -676,6 +678,11 @@ bool expand_macro(struct token **ret, struct token *tk) {
   if (!m) {
     return false;
   }
+  if (m->func) {
+    *ret = m->func(tk);
+    (*ret)->next = tk->next;
+    return true;
+  }
 
   // #define macro num | string
   if (m->is_objlike) {
@@ -907,6 +914,19 @@ void def_macro(char *def, char *val) {
   add_macro(def, true, tk);
 }
 
+void builtin_macro(char *def, void *func) {
+  struct macro *m = add_macro(def, true, NULL);
+  m->func = func;
+}
+
+struct token *file_macro(struct token *tk) {
+  return new_string_token(tk->filename, tk);
+}
+
+struct token *line_macro(struct token *tk) {
+  return new_num_token(tk->line_num, tk);
+}
+
 void pre_defined_macro() {
   def_macro("__STDC__", "1");
   def_macro("__STDC_HOSTED__", "1");
@@ -919,7 +939,9 @@ void pre_defined_macro() {
   def_macro("__x86_64__", "1");
   def_macro("__LP64__", "1");
   def_macro("__restrict", "restrict");
-  // def_macro("", "");
+
+  builtin_macro("__FILE__", file_macro);
+  builtin_macro("__LINE__", line_macro);
 }
 
 struct token *preprocess(struct token *tk) {
