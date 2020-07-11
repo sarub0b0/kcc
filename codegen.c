@@ -1,4 +1,3 @@
-#include <assert.h>
 #include <stdio.h>
 
 #include "kcc.h"
@@ -99,7 +98,8 @@ const char *size_name(struct type *ty) {
   }
 }
 
-void gen_addr(struct node *n) {
+int gen_addr(struct node *n) {
+  int offset = 0;
   switch (n->kind) {
     case ND_VAR:
       if (n->var->is_local) {
@@ -107,17 +107,28 @@ void gen_addr(struct node *n) {
       } else {
         printf("    mov %s, offset %s\n", reg64[inc++], n->var->name);
       }
-      return;
+      return n->var->offset;
     case ND_DEREF:
-      gen_expr(n->lhs);
-      return;
+      offset = gen_expr(n->lhs);
+      return offset;
     case ND_MEMBER:
-      gen_addr(n->lhs);
+      offset = gen_addr(n->lhs);
       printf("    add %s, %d\n", reg64[inc - 1], n->member->offset);
-      return;
+      return offset - n->member->offset;
     default:
-      return;
+      error_tok(n->token, "unknown addr type");
+      return 0;
   }
+}
+
+void func_addr(struct node *n) {
+  int offset = gen_addr(n);
+  inc--;
+
+  if (n->kind == ND_MEMBER || n->type->kind == TY_PTR)
+    printf("    mov %s, [rbp-%d]\n", reg64[inc], offset);
+
+  printf("    call %s\n", reg64[inc]);
 }
 
 void gen_if(struct node *node) {
@@ -305,15 +316,12 @@ void gen_block(struct node *node) {
 void gen_func(struct node *node) {
   struct type *fn_ty = node->func_ty;
 
-  // gen_expr(node->lhs);
   for (struct node *n = node->body; n; n = n->next) {
     gen_expr(n);
     inc--;
   }
-  if (6 < node->nargs) {
-    error("Too many funcall argumentes");
-  }
 
+  int push_num = 0;
   for (int i = node->nargs - 1; 0 <= i; i--) {
     struct var *arg = node->args[i];
 
@@ -323,8 +331,13 @@ void gen_func(struct node *node) {
     if (arg_ty->kind == TY_ARRAY)
       size = 8;
 
-    char *insn = arg_ty->is_unsigned ? "movzx" : "movsx";
+    if (5 < i) {
+      printf("    push [rbp-%d]\n", arg->offset);
+      push_num++;
+      continue;
+    }
 
+    char *insn = arg_ty->is_unsigned ? "movzx" : "movsx";
     switch (size) {
       case 1:
         printf(
@@ -340,6 +353,8 @@ void gen_func(struct node *node) {
       case 8:
         printf("    mov %s, [rbp-%d]\n", argreg64[i], arg->offset);
         break;
+      default:
+        error_tok(node->token, "invalid size %d", size);
     }
   }
 
@@ -347,20 +362,22 @@ void gen_func(struct node *node) {
   printf("    push r11\n");
 
   printf("    mov rax, 0\n");
-  if (node->lhs->var->is_local) {
-    printf("    mov rax, [rbp-%d]\n", node->lhs->var->offset);
-    printf("    call rax\n");
-  } else {
-    printf("    call %s\n", node->token->str);
-  }
+
+  func_addr(node->lhs);
 
   printf("    pop r11\n");
   printf("    pop r10\n");
 
-  if (fn_ty->kind != TY_VOID)
+  if (push_num) {
+    printf("    add rsp, %d\n", push_num * 8);
+  }
+
+  if (fn_ty->return_type->kind != TY_VOID)
     printf("    mov %s, %s\n", reg(fn_ty, inc++), areg(fn_ty));
-  else
+  else {
+    printf("    mov rax, 0\n");
     inc++;
+  }
 
   return;
 }
@@ -918,12 +935,19 @@ void text_section(struct program *prog) {
     int params_num = nargs(fn->params);
 
     for (struct var *v = fn->params; v; v = v->next) {
+      if (6 < params_num) {
+        printf("    mov r10, [rbp+%d]\n", (--params_num - 2) * 8);
+        printf("    mov [rbp-%d], r10\n", v->offset);
+        continue;
+      }
       printf(
           "    mov [rbp-%d], %s\n", v->offset, argreg(v->type, --params_num));
     }
     for (struct node *n = fn->stmt; n; n = n->next) {
       gen_stmt(n);
-      assert(inc == 0);
+      if (inc != 0) {
+        error("increment count is not zero '%d'", inc);
+      }
     }
 
     printf(".L.return.%s:\n", fn->name);
