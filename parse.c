@@ -2143,11 +2143,38 @@ struct node *mul(struct token **ret, struct token *tk) {
   }
 }
 
+char *compound_name() {
+  char *buf = calloc(28, sizeof(char));
+  static int inc = 0;
+  snprintf(buf, 28, "__compound_literal.%d", inc++);
+  return buf;
+}
+
+struct node *compound_literal(struct token **ret,
+                              struct token *tk,
+                              struct type *ty) {
+  if (scope_depth == 0) {
+    struct var *v = new_gvar(compound_name(), ty, true, true);
+    gvar_initializer(ret, tk, v);
+    return new_node_var(v, tk);
+  }
+
+  struct var *v = new_lvar(compound_name(), ty);
+  struct node *lhs = lvar_initializer(ret, tk, v);
+  struct node *rhs = new_node_var(v, tk);
+  return new_node_binary(ND_BINARY, lhs, rhs, tk);
+}
+
 struct node *cast(struct token **ret, struct token *tk) {
 
   if (equal(tk, "(") && is_typename(tk->next)) {
     struct type *cast_type = typename(&tk, tk->next);
     skip(&tk, tk, ")");
+
+    if (equal(tk, "{")) {
+      return compound_literal(ret, tk, cast_type);
+    }
+
     *ret = tk;
     return new_node_cast(unary(ret, tk), cast_type);
   }
@@ -2427,7 +2454,7 @@ struct init_data *array_initializer(struct token **ret,
                                     struct token *tk,
                                     struct type *type) {
 
-  consume(&tk, tk, "{");
+  bool has_parent = consume(&tk, tk, "{");
 
   if (type->is_incomplete) {
     int array_size = 0;
@@ -2450,7 +2477,8 @@ struct init_data *array_initializer(struct token **ret,
     init->child[i] = initializer(&tk, tk, type->ptr_to);
   }
 
-  consume_end(&tk, tk);
+  if (has_parent)
+    consume_end(&tk, tk);
 
   *ret = tk;
 
@@ -2472,12 +2500,11 @@ struct init_data *struct_initializer(struct token **ret,
   }
 
   int member_num = 0;
-
   for (struct member *m = type->members; m; m = m->next) member_num++;
 
   struct init_data *init = new_init(type, member_num, NULL, tk);
 
-  consume(&tk, tk, "{");
+  bool has_parent = consume(&tk, tk, "{");
   int i = 0;
   for (struct member *m = type->members; m && !is_end(tk); m = m->next, i++) {
     if (0 < i)
@@ -2486,7 +2513,8 @@ struct init_data *struct_initializer(struct token **ret,
     init->child[i] = initializer(&tk, tk, m->type);
   }
 
-  consume_end(&tk, tk);
+  if (has_parent)
+    consume_end(&tk, tk);
   *ret = tk;
   return init;
 }
@@ -2742,7 +2770,9 @@ void gvar_initializer(struct token **ret, struct token *tk, struct var *var) {
 //
 // add = mul ( "+" mul | "-" mul )*
 // mul = cast ( "*" cast | "/" cast | "%" cast )*
-// cast = ( "(" typename ")" )? unary
+// cast = "(" typename ")" compound-literal
+//      | "(" typename ")" unary
+//      | unary
 // unary = ( "+" | "-" | "*" | "&" | "~" )? cast
 //       | ( "++" | "--" ) unary
 //       | postfix
