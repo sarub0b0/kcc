@@ -2386,6 +2386,7 @@ struct node *funcall(struct token **ret, struct token *tk, struct node *fn) {
   struct node *funcall = new_node(ND_FUNCALL, fn->token);
 
   struct type *ty = fn->type->kind == TY_FUNC ? fn->type : fn->type->ptr_to;
+
   struct type *param = ty->params;
 
   int nargs = 0;

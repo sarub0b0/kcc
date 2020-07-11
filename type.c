@@ -28,6 +28,8 @@ struct type *ty_enum = &(struct type){TY_ENUM, 4, 4};
 struct type *ty_struct = &(struct type){TY_STRUCT, 0, 1};
 struct type *ty_union = &(struct type){TY_UNION, 0, 1};
 
+struct type *ty_func = &(struct type){TY_FUNC, 8, 8};
+
 void print_type(struct type *ty) {
   if (!ty)
     return;
@@ -62,6 +64,8 @@ char *type_to_name(enum type_kind kind) {
       return "struct";
     case TY_UNION:
       return "union";
+    case TY_FUNC:
+      return "function";
     default:
       break;
   }
@@ -85,16 +89,16 @@ int size_of(struct type *ty) {
   return ty->size;
 }
 
-struct type *func_type(struct type *return_ty) {
-  struct type *ret = calloc(1, sizeof(struct type));
-  ret->kind = TY_FUNC;
-  ret->return_type = return_ty;
-  return ret;
-}
-
 struct type *copy_type(struct type *ty) {
   struct type *ret = calloc(1, sizeof(struct type));
   *ret = *ty;
+  return ret;
+}
+
+struct type *func_type(struct type *return_ty) {
+  struct type *ret = copy_type(ty_func);
+  ret->kind = TY_FUNC;
+  ret->return_type = return_ty;
   return ret;
 }
 
@@ -234,6 +238,10 @@ void add_type(struct node *n) {
       }
       return;
     case ND_DEREF:
+      if (n->lhs->type->kind == TY_FUNC) {
+        *n = *n->lhs;
+        return;
+      }
       if (!n->lhs->type->ptr_to) {
         error("Invalid pointer deference");
       }

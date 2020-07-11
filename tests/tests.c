@@ -272,9 +272,13 @@ int switch_case(int x) {
   }
 }
 
+int func_ptr() {
+  return 10;
+}
 struct s1 {
   int x;
   int y;
+  int (*f)();
 };
 
 struct s1 *func3(int x, int y) {
@@ -1822,6 +1826,15 @@ int main(void) {
   assert(1, ({ ptr_struct->a; }), "({ ptr_struct->a; })", false);
   assert(2, ({ ptr_struct->b; }), "({ ptr_struct->b; })", false);
   assert(3, ({ ptr_struct->c; }), "({ ptr_struct->c; })", false);
+
+  assert(10,
+         ({
+           struct s1 s;
+           s.f = func_ptr;
+           s.f();
+         }),
+         "({ struct s1 s; s.f=func_ptr; s.f(); })",
+         false);
 
   if (success == number)
     p2("result: \x1b[32mOK\x1b[0m, ");
