@@ -48,6 +48,8 @@ typedef struct {
   } g;
 } Struct;
 
+Struct *ptr_struct = &(Struct){1, 2, 3, 4};
+
 enum enum_a {
   A,
   B,
@@ -1816,6 +1818,10 @@ int main(void) {
          }),
          "({ int a=0; for(int i=0,j=10; i<10; i++,j--){ a=j; } a; })",
          false);
+
+  assert(1, ({ ptr_struct->a; }), "({ ptr_struct->a; })", false);
+  assert(2, ({ ptr_struct->b; }), "({ ptr_struct->b; })", false);
+  assert(3, ({ ptr_struct->c; }), "({ ptr_struct->c; })", false);
 
   if (success == number)
     p2("result: \x1b[32mOK\x1b[0m, ");
