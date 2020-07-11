@@ -11,7 +11,7 @@
 #include "kcc.h"
 
 #define MAX_LEN 256
-#define STANDARD_INCLUDE_PATH 5
+#define STANDARD_INCLUDE_PATH 6
 
 struct token *tk;
 int verbose;
@@ -20,6 +20,7 @@ char **include_paths;
 char *standard_include_path[STANDARD_INCLUDE_PATH] = {
     "/usr/include",
     "/usr/include/x86_64-linux-gnu",
+    "/usr/lib/gcc/x86_64-linux-gnu/9/include",
     "/usr/include/x86_64-linux-gnu/9/include",
     "/usr/local/include",
     "/usr/include/linux",

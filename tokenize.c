@@ -467,7 +467,6 @@ struct token *tokenize(char *filename, char *input, int file_num) {
           ty = (val >> 63) ? ty_ulong : ty_long;
         } else if (unsigned_) {
           ty = (val >> 32) ? ty_ulong : ty_uint;
-
         } else if (val >> 63) {
           ty = ty_ulong;
         } else if (val >> 32) {
@@ -483,7 +482,7 @@ struct token *tokenize(char *filename, char *input, int file_num) {
       cur->val = val;
       cur->len = p - q;
       cur->str = strndup(q, cur->len);
-      cur->type = ty;
+      cur->type = copy_type(ty);
       continue;
     }
 

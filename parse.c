@@ -352,7 +352,10 @@ void print_stmt(struct node *n,
       print_stmt(n->rhs, is_next_stmt, false, scope_prefix);
       break;
     case ND_NUM:
-      printf("%s-Num '%llu'\n", local_prefix, n->val);
+      printf("%s-Num %s '%llu'\n",
+             local_prefix,
+             type_to_name(n->type->kind),
+             n->val);
       break;
     case ND_VAR:
       printf("%s-Var '%s'\n", local_prefix, n->var->name);
@@ -790,10 +793,6 @@ struct node *new_node_num(long val, struct token *token) {
   n->kind = ND_NUM;
   n->val = val;
   n->token = token;
-  if (token->type)
-    n->type = copy_type(token->type);
-  else
-    n->type = copy_type(ty_int);
   return n;
 }
 struct node *new_node_ulong(long val, struct token *token) {
@@ -845,7 +844,6 @@ struct node *new_node_cast(struct node *expr, struct type *ty) {
   n->lhs = expr;
   n->token = expr->token;
   n->type = copy_type(ty);
-  n->token = expr->token;
   return n;
 }
 

@@ -18,6 +18,7 @@ typedef int Int32;
 Int32 number = 0;
 Int32 success = 0;
 Int32 failed = 0;
+
 Int32 g0 = 1;
 Int32 g1, g2;
 Int32 g3 = 0, g4 = 0;
@@ -1708,10 +1709,10 @@ int main(void) {
          false);
 
   assert(4294967295, ({ 0xffffffff; }), "({ 0xffffffff; })", false);
-  assert(4294967295U, ({ 0xffffffffU; }), "({ 0xffffffffU; })", true);
-  assert(-1, ({ 0xffffffffffffffff; }), "({ 0xffffffffffffffff; })", false);
+  assert(4294967295U, ({ 0xffffffffU; }), "({ 0xffffffffU; })", false);
+  assert(-1, ({ 0xffffffffffffffff; }), "({ 0xffffffffffffffff; })", true);
   assert(
-      -1, ({ 0xffffffffffffffffLL; }), "({ 0xffffffffffffffffLL; })", false);
+      -1, ({ 0xffffffffffffffffLL; }), "({ 0xffffffffffffffffLL; })", true);
   assert(18446744073709551615LLU,
          ({ 0xffffffffffffffffLLU; }),
          "({ 0xffffffffffffffffLLU; })",
