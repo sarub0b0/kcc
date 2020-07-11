@@ -1632,6 +1632,13 @@ struct type *funcdef_args(struct token **ret,
     ty = typespec(&tk, tk, NULL);
     ty = declarator(&tk, tk, ty);
 
+    // *argv[] -> **argv
+    if (ty->kind == TY_ARRAY) {
+      struct token *ty_tok = ty->token;
+      ty = pointer_to(ty->ptr_to);
+      ty->token = ty_tok;
+    }
+
     cur = cur->next = copy_type(ty);
   }
   skip(&tk, tk, ")");

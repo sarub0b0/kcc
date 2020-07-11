@@ -39,8 +39,8 @@ size_t type_size(struct type *ty) {
 const char *areg(struct type *ty) {
   const char *r[] = {"al", "ax", "eax", "rax"};
 
-  if (ty->kind == TY_ARRAY)
-    return areg(ty->ptr_to);
+  // if (ty->kind == TY_ARRAY)
+  //   return areg(ty->ptr_to);
 
   switch (size_of(ty)) {
     case 1:
@@ -55,8 +55,8 @@ const char *areg(struct type *ty) {
 }
 
 const char *argreg(struct type *ty, int i) {
-  if (ty->kind == TY_ARRAY)
-    return argreg(ty->ptr_to, i);
+  // if (ty->kind == TY_ARRAY)
+  //   return argreg(ty->ptr_to, i);
 
   switch (size_of(ty)) {
     case 1:
@@ -71,8 +71,8 @@ const char *argreg(struct type *ty, int i) {
 }
 
 const char *reg(struct type *ty, int i) {
-  if (ty->kind == TY_ARRAY)
-    return reg(ty->ptr_to, i);
+  // if (ty->kind == TY_ARRAY)
+  //   return reg(ty->ptr_to, i);
 
   switch (size_of(ty)) {
     case 1:
