@@ -2107,12 +2107,18 @@ struct node *mul(struct token **ret, struct token *tk) {
     struct token *start = tk;
     if (consume(&tk, tk, "*")) {
       n = new_node_binary(ND_MUL, n, cast(&tk, tk), start);
-    } else if (consume(&tk, tk, "/")) {
-      n = new_node_binary(ND_DIV, n, cast(&tk, tk), start);
-    } else {
-      *ret = tk;
-      return n;
+      continue;
     }
+    if (consume(&tk, tk, "/")) {
+      n = new_node_binary(ND_DIV, n, cast(&tk, tk), start);
+      continue;
+    }
+    if (consume(&tk, tk, "%")) {
+      n = new_node_binary(ND_MOD, n, cast(&tk, tk), start);
+      continue;
+    }
+    *ret = tk;
+    return n;
   }
 }
 
@@ -2714,7 +2720,7 @@ void gvar_initializer(struct token **ret, struct token *tk, struct var *var) {
 // shift = add ( "<<" add | ">>" add )*
 //
 // add = mul ( "+" mul | "-" mul )*
-// mul = cast ( "*" cast | "/" cast )*
+// mul = cast ( "*" cast | "/" cast | "%" cast )*
 // cast = ( "(" typename ")" )? unary
 // unary = ( "+" | "-" | "*" | "&" | "~" )? cast
 //       | ( "++" | "--" ) unary
