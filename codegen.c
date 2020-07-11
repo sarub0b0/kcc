@@ -533,8 +533,6 @@ int gen_expr(struct node *node) {
         printf("    %s %s, %s\n", insn, reg32[inc - 1], reg16[inc - 1]);
       } else if (to_size == 4) {
         printf("    mov %s, %s\n", reg32[inc - 1], reg32[inc - 1]);
-      } else if (to_size == 8) {
-        printf("    mov %s, %s\n", reg64[inc - 1], reg64[inc - 1]);
       } else if (is_integer(from) && size_of(from) < 8 &&
                  !from->is_unsigned) {
         printf("    movsx %s, %s\n", reg64[inc - 1], reg(from, inc - 1));

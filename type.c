@@ -41,6 +41,8 @@ void print_type(struct type *ty) {
 
 char *type_to_name(enum type_kind kind) {
   switch (kind) {
+    case TY_BOOL:
+      return "bool";
     case TY_INT:
       return "int";
     case TY_CHAR:
@@ -205,10 +207,14 @@ void add_type(struct node *n) {
       n->type = copy_type(ty_int);
       return;
     case ND_NUM:
+      if (n->type) {
+        return;
+      }
       if (n->token->type)
-        n->type = copy_type(n->token->type);
+        n->type = n->token->type;
       else
         n->type = copy_type(ty_int);
+      return;
     case ND_LOGOR:
     case ND_LOGAND:
     case ND_NOT:
