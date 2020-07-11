@@ -123,7 +123,8 @@ void print_tok(struct token *tk, char end_str) {
 
   int line_num = 1;
   for (char *p = input; p < line; p++)
-    if (*p == '\n') line_num++;
+    if (*p == '\n')
+      line_num++;
 
   fprintf(stdout, " %s:%d: ", file, line_num);
   fprintf(stdout, "%.*s\n", (int) (end - line), line);
@@ -144,7 +145,8 @@ void print_tok_pos(struct token *tk) {
 
   int line_num = 1;
   for (char *p = input; p < line; p++)
-    if (*p == '\n') line_num++;
+    if (*p == '\n')
+      line_num++;
 
   fprintf(stdout, "%s:%d\n", file, line_num);
 }
@@ -179,7 +181,8 @@ void print_globals(bool has_function) {
     char *prefix = "|-";
     char *type = "Param";
 
-    if (!has_function) prefix = "`-";
+    if (!has_function)
+      prefix = "`-";
 
     printf("%s%s ", prefix, type);
     if (v->type->kind == TY_STRUCT) {
@@ -244,7 +247,8 @@ void print_stmt(struct node *n,
                 bool is_next_stmt,
                 bool is_next_node,
                 char *prefix) {
-  if (!n) return;
+  if (!n)
+    return;
 
   char *local_prefix;
   char *scope_prefix;
@@ -549,7 +553,8 @@ void print_stmt(struct node *n,
 }
 
 void print_compound_stmt(struct node *stmt, bool is_next) {
-  if (!stmt) return;
+  if (!stmt)
+    return;
 
   char buf[MAX_LEN];
   char *global_prefix;
@@ -691,7 +696,8 @@ struct member *get_member(struct type *ty, struct token *tk) {
       continue;
     }
 
-    if (find_cond(m->name->str, tk)) return m;
+    if (find_cond(m->name->str, tk))
+      return m;
   }
 
   warn_tok(tk, "no such member '%s'", tk->str);
@@ -726,7 +732,8 @@ bool is_typename(struct token *tok) {
 
 struct function *find_func(char *name) {
   for (struct function *fn = functions; fn; fn = fn->next) {
-    if (!fn->name) continue;
+    if (!fn->name)
+      continue;
     if (strlen(fn->name) == strlen(name) &&
         strncmp(fn->name, name, strlen(name)) == 0) {
       return fn;
@@ -737,7 +744,8 @@ struct function *find_func(char *name) {
 }
 struct tag_scope *find_tag(struct token *tk) {
   for (struct tag_scope *t = tags; t; t = t->next) {
-    if (find_cond(t->name, tk)) return t;
+    if (find_cond(t->name, tk))
+      return t;
   }
 
   return NULL;
@@ -748,7 +756,8 @@ struct var_scope *find_var(struct token *tk) {
   //   debug("  %s", v->name);
   // }
   for (struct var_scope *v = vars; v; v = v->next) {
-    if (find_cond(v->name, tk)) return v;
+    if (find_cond(v->name, tk))
+      return v;
   }
 
   return NULL;
@@ -926,16 +935,19 @@ long eval(struct node *node, struct var **var) {
       }
       switch (size_of(node->type)) {
         case 1:
-          if (node->type->is_unsigned) return (unsigned char) val;
+          if (node->type->is_unsigned)
+            return (unsigned char) val;
           return (char) val;
         case 2:
-          if (node->type->is_unsigned) return (unsigned short) val;
+          if (node->type->is_unsigned)
+            return (unsigned short) val;
           return (short) val;
         default:
           if ((size_of(node->type)) != 4) {
             error_tok(node->token, "invalid size");
           }
-          if (node->type->is_unsigned) return (unsigned int) val;
+          if (node->type->is_unsigned)
+            return (unsigned int) val;
           return (int) val;
       }
     }
@@ -1317,7 +1329,8 @@ struct type *struct_union_declarator(struct token **ret,
       return t->type;
     }
 
-    if (kind == TY_UNION) ty = copy_type(ty_union);
+    if (kind == TY_UNION)
+      ty = copy_type(ty_union);
     // ty->token = tag;
     // ty->name = tag->str;
     ty->is_incomplete = true;
@@ -1327,7 +1340,8 @@ struct type *struct_union_declarator(struct token **ret,
     return ty;
   }
 
-  if (kind == TY_UNION) ty = copy_type(ty_union);
+  if (kind == TY_UNION)
+    ty = copy_type(ty_union);
   // ty->token = tk;
   ty->members = struct_members(ret, tk);
 
@@ -1351,7 +1365,8 @@ struct type *struct_declarator(struct token **ret,
 
   struct type *ty = struct_union_declarator(ret, tk, kind);
 
-  if (ty->is_incomplete) return ty;
+  if (ty->is_incomplete)
+    return ty;
   // align and offset calculation
   // アライメント
   // 各メンバーのアドレスは型のアライメントの倍数になる
@@ -1368,7 +1383,8 @@ struct type *struct_declarator(struct token **ret,
     }
     offset += size_of(m->type);
 
-    if (ty->align < m->align) ty->align = m->align;
+    if (ty->align < m->align)
+      ty->align = m->align;
 
     ty->size = offset + size_of(m->type);
   }
@@ -1385,14 +1401,17 @@ struct type *union_declarator(struct token **ret,
                               enum type_kind kind) {
   struct type *ty = struct_union_declarator(ret, tk, kind);
 
-  if (ty->is_incomplete) return ty;
+  if (ty->is_incomplete)
+    return ty;
   // align and offset calculation
   // アライメント
   // 各メンバーのオフセットを0にする
   int max_align = 0;
   for (struct member *m = ty->members; m; m = m->next) {
-    if (ty->align < m->align) ty->align = m->align;
-    if (ty->size < size_of(m->type)) ty->size = size_of(m->type);
+    if (ty->align < m->align)
+      ty->align = m->align;
+    if (ty->size < size_of(m->type))
+      ty->size = size_of(m->type);
   }
   return ty;
 }
@@ -1426,7 +1445,8 @@ struct type *enum_declarator(struct token **ret, struct token *tk) {
     char *name = get_ident(tk);
     tk = tk->next;
 
-    if (equal(tk, "=")) val = const_expr(&tk, tk->next);
+    if (equal(tk, "="))
+      val = const_expr(&tk, tk->next);
 
     struct var_scope *vs = new_varscope(name);
     vs->enum_ty = ty;
@@ -1453,7 +1473,8 @@ struct type *typedef_declarator(struct token **ret,
 
     new_varscope(get_ident(ty->token))->type_def = ty;
 
-    if (consume(&tk, tk, ";")) break;
+    if (consume(&tk, tk, ";"))
+      break;
 
     ty = declarator(&tk, tk, type);
   }
@@ -1789,7 +1810,8 @@ struct node *bitand(struct token **ret, struct token *tk) {
 struct node *compound_stmt(struct token **ret, struct token *tk) {
   struct node *n = NULL;
 
-  if (!equal(tk, "{")) return NULL;
+  if (!equal(tk, "{"))
+    return NULL;
 
   n = new_node(ND_BLOCK, tk);
 
@@ -2228,8 +2250,10 @@ struct node *primary(struct token **ret, struct token *tk) {
     struct var_scope *vs = find_var(tk);
     *ret = tk->next;
     if (vs) {
-      if (vs->var) return new_node_var(vs->var, tk);
-      if (vs->enum_ty) return new_node_num(vs->enum_val, tk);
+      if (vs->var)
+        return new_node_var(vs->var, tk);
+      if (vs->enum_ty)
+        return new_node_num(vs->enum_val, tk);
     }
 
     if (equal(tk->next, "(")) {
@@ -2304,7 +2328,8 @@ struct node *funcall(struct token **ret, struct token *tk, struct node *fn) {
   int nargs = 0;
 
   while (!equal(tk, ")")) {
-    if (nargs) skip(&tk, tk, ",");
+    if (nargs)
+      skip(&tk, tk, ",");
 
     struct token *start = tk;
     struct node *arg = assign(&tk, tk);
@@ -2371,7 +2396,8 @@ struct init_data *array_initializer(struct token **ret,
   if (type->is_incomplete) {
     int array_size = 0;
     for (struct token *tk1 = tk; !is_end(tk1); array_size++) {
-      if (array_size > 0) skip(&tk1, tk1, ",");
+      if (array_size > 0)
+        skip(&tk1, tk1, ",");
       initializer(&tk1, tk1, type->ptr_to);
     }
     type->size = size_of(type->ptr_to) * array_size;
@@ -2383,7 +2409,8 @@ struct init_data *array_initializer(struct token **ret,
   struct init_data *init = new_init(type, type->array_size, NULL, tk);
 
   for (int i = 0; i < init->len && !is_end(tk); i++) {
-    if (0 < i) skip(&tk, tk, ",");
+    if (0 < i)
+      skip(&tk, tk, ",");
     init->child[i] = initializer(&tk, tk, type->ptr_to);
   }
 
@@ -2417,7 +2444,8 @@ struct init_data *struct_initializer(struct token **ret,
   consume(&tk, tk, "{");
   int i = 0;
   for (struct member *m = type->members; m && !is_end(tk); m = m->next, i++) {
-    if (0 < i) skip(&tk, tk, ",");
+    if (0 < i)
+      skip(&tk, tk, ",");
 
     init->child[i] = initializer(&tk, tk, m->type);
   }
@@ -2712,7 +2740,8 @@ struct program *parse(struct token *tk) {
     struct var_attr attr = {};
 
     type = typespec(&tk, tk, &attr);
-    if (consume(&tk, tk, ";")) continue;
+    if (consume(&tk, tk, ";"))
+      continue;
 
     type = declarator(&tk, tk, type);
 

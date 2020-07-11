@@ -199,7 +199,8 @@ int __fib(int (*__func)(int), int x) {
 }
 
 int fib(int n) {
-  if (n <= 1) return 1;
+  if (n <= 1)
+    return 1;
   return fib(n - 1) + __fib(fib, n - 2);
 }
 int foo(void) {
@@ -226,15 +227,19 @@ void void1() {
 }
 
 int logand(void) {
-  if (1 && 0) return 0;
+  if (1 && 0)
+    return 0;
 
-  if (1 && 1) return 5;
+  if (1 && 1)
+    return 5;
 }
 
 int logor(void) {
-  if (0 || 0) return 0;
+  if (0 || 0)
+    return 0;
 
-  if (0 || 1) return 5;
+  if (0 || 1)
+    return 5;
 }
 int mixed(int a, short b, long c, char d) {
   int x = a + b + c + d;
@@ -394,7 +399,8 @@ int main(void) {
          ({
            int i = 0, j = 0;
            for (; i < 10; i++) {
-             if (i < 5) continue;
+             if (i < 5)
+               continue;
              j++;
            }
            j;
@@ -406,7 +412,8 @@ int main(void) {
          ({
            int i = 0, j = 0;
            while (i++ < 10) {
-             if (i < 5) continue;
+             if (i < 5)
+               continue;
              j++;
            }
            j;
@@ -418,7 +425,8 @@ int main(void) {
          ({
            int i = 0, j = 0;
            do {
-             if (i < 5) continue;
+             if (i < 5)
+               continue;
              j++;
            } while (i++ < 10);
            j;
@@ -431,8 +439,10 @@ int main(void) {
          ({
            int i = 0, j = 0;
            for (; i < 10; i++) {
-             if (i < 5) continue;
-             if (i > 8) break;
+             if (i < 5)
+               continue;
+             if (i > 8)
+               break;
              j++;
            }
            j;

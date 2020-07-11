@@ -30,7 +30,8 @@ void lines_of_code(struct node *n) {
 }
 
 size_t type_size(struct type *ty) {
-  if (ty->kind == TY_ARRAY) return type_size(ty->ptr_to);
+  if (ty->kind == TY_ARRAY)
+    return type_size(ty->ptr_to);
 
   return ty->size;
 }
@@ -38,7 +39,8 @@ size_t type_size(struct type *ty) {
 const char *areg(struct type *ty) {
   const char *r[] = {"al", "ax", "eax", "rax"};
 
-  if (ty->kind == TY_ARRAY) return areg(ty->ptr_to);
+  if (ty->kind == TY_ARRAY)
+    return areg(ty->ptr_to);
 
   switch (size_of(ty)) {
     case 1:
@@ -53,7 +55,8 @@ const char *areg(struct type *ty) {
 }
 
 const char *argreg(struct type *ty, int i) {
-  if (ty->kind == TY_ARRAY) return argreg(ty->ptr_to, i);
+  if (ty->kind == TY_ARRAY)
+    return argreg(ty->ptr_to, i);
 
   switch (size_of(ty)) {
     case 1:
@@ -68,7 +71,8 @@ const char *argreg(struct type *ty, int i) {
 }
 
 const char *reg(struct type *ty, int i) {
-  if (ty->kind == TY_ARRAY) return reg(ty->ptr_to, i);
+  if (ty->kind == TY_ARRAY)
+    return reg(ty->ptr_to, i);
 
   switch (size_of(ty)) {
     case 1:
@@ -315,7 +319,8 @@ void gen_func(struct node *node) {
     int size = size_of(arg->type);
     struct type *arg_ty = arg->type;
 
-    if (arg_ty->kind == TY_ARRAY) size = 8;
+    if (arg_ty->kind == TY_ARRAY)
+      size = 8;
 
     char *insn = arg_ty->is_unsigned ? "movzx" : "movsx";
 
@@ -725,9 +730,11 @@ char *data_symbol(int size) {
 }
 
 size_t align(struct type *ty) {
-  if (ty->kind == TY_ARRAY) return align(ty->ptr_to);
+  if (ty->kind == TY_ARRAY)
+    return align(ty->ptr_to);
 
-  if (ty->kind == TY_STRUCT || ty->kind == TY_UNION) return ty->align;
+  if (ty->kind == TY_STRUCT || ty->kind == TY_UNION)
+    return ty->align;
 
   return ty->size;
 }
@@ -813,7 +820,8 @@ void data_section(struct program *prog) {
   printf("    .data\n");
 
   for (struct var *v = prog->globals; v; v = v->next) {
-    if (!v->data) continue;
+    if (!v->data)
+      continue;
 
     emit_data_info(v, false);
 
@@ -830,7 +838,8 @@ void bss_section(struct program *prog) {
   printf("    .bss\n");
 
   for (struct var *v = prog->globals; v; v = v->next) {
-    if (v->data) continue;
+    if (v->data)
+      continue;
 
     emit_data_info(v, false);
     printf("    .zero %d\n", size_of(v->type));
@@ -937,4 +946,3 @@ void gen_code(struct program *prog) {
 
   return;
 }
-

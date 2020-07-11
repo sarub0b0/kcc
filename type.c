@@ -29,7 +29,8 @@ struct type *ty_struct = &(struct type){TY_STRUCT, 0, 1};
 struct type *ty_union = &(struct type){TY_UNION, 0, 1};
 
 void print_type(struct type *ty) {
-  if (!ty) return;
+  if (!ty)
+    return;
 
   fprintf(stderr,
           "type: %s; size: %ld; align: %ld; array_size: %ld\n",
@@ -129,11 +130,14 @@ struct type *get_type(struct type *ty1, struct type *ty2) {
   if (ty1->kind == TY_FLOAT || ty2->kind == TY_FLOAT)
     return ty1->kind == TY_FLOAT ? ty1 : ty2;
 
-  if (ty1->ptr_to) return pointer_to(ty1->ptr_to);
+  if (ty1->ptr_to)
+    return pointer_to(ty1->ptr_to);
 
-  if (ty1->size != ty2->size) return ty1->size > ty2->size ? ty1 : ty2;
+  if (ty1->size != ty2->size)
+    return ty1->size > ty2->size ? ty1 : ty2;
 
-  if (ty2->is_unsigned) return ty2;
+  if (ty2->is_unsigned)
+    return ty2;
 
   return ty;
 }
@@ -157,7 +161,8 @@ void type_convert(struct node **lhs, struct node **rhs) {
 }
 
 void add_type(struct node *n) {
-  if (!n || n->type) return;
+  if (!n || n->type)
+    return;
 
   add_type(n->lhs);
   add_type(n->rhs);

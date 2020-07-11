@@ -248,7 +248,8 @@ char *join_tokens(struct token *start, struct token *end) {
 char *search_include_paths(char *filename, struct token *tk) {
   for (char **p = include_paths; *p; p++) {
     char *path = join_path(*p, filename);
-    if (exist_file(path)) return path;
+    if (exist_file(path))
+      return path;
   }
 
   error_tok(tk, "'%s' file not found", filename);
@@ -350,7 +351,8 @@ void validate_params(struct macro *m) {
           strncmp(p->name, tk->str, tk->len) == 0)
         match = true;
       if (p->is_variadic) {
-        if (strncmp("__VA_ARGS__", tk->str, tk->len) == 0) match = true;
+        if (strncmp("__VA_ARGS__", tk->str, tk->len) == 0)
+          match = true;
       }
     }
     // if (!match) {
@@ -360,7 +362,8 @@ void validate_params(struct macro *m) {
 }
 
 struct token *end_token(struct token *tok) {
-  if (!tok) return NULL;
+  if (!tok)
+    return NULL;
 
   struct token *end = tok;
   for (struct token *tk = tok; tk->kind != TK_EOF; tk = tk->next) {
@@ -382,7 +385,8 @@ struct macro *find_macro(struct token *tk) {
   //   debug("  %s", m->name);
   // }
   for (struct macro *m = macros; m; m = m->next) {
-    if (find_cond(m->name, tk) && !m->is_delete) return m;
+    if (find_cond(m->name, tk) && !m->is_delete)
+      return m;
   }
 
   return NULL;
@@ -422,17 +426,21 @@ struct macro_arg *arg(struct token **ret,
 
   int depth = 0;
   while (true) {
-    if (depth == 0 && equal(tk, ",") && !is_variadic) break;
+    if (depth == 0 && equal(tk, ",") && !is_variadic)
+      break;
 
-    if (depth == 0 && equal(tk, ")")) break;
+    if (depth == 0 && equal(tk, ")"))
+      break;
 
     if (tk->kind == TK_EOF) {
       error_tok(tk, "Invalid");
     }
 
-    if (equal(tk, "(")) depth++;
+    if (equal(tk, "("))
+      depth++;
 
-    if (equal(tk, ")")) depth--;
+    if (equal(tk, ")"))
+      depth--;
 
     cur = cur->next = copy_token(tk);
     tk = tk->next;
@@ -580,7 +588,8 @@ struct token *paste(struct token *lhs, struct token *rhs) {
 char *add_quotes(char *str) {
   int size = 3; // \" ... \"\0
   for (int i = 0; str[i]; i++) {
-    if (str[i] == '\\' || str[i] == '"') size++;
+    if (str[i] == '\\' || str[i] == '"')
+      size++;
     size++;
   }
 
@@ -589,7 +598,8 @@ char *add_quotes(char *str) {
   buf[pos++] = '"';
 
   for (int i = 0; str[i]; i++) {
-    if (str[i] == '\\' || str[i] == '"') buf[pos++] = '\\';
+    if (str[i] == '\\' || str[i] == '"')
+      buf[pos++] = '\\';
 
     buf[pos++] = str[i];
   }
@@ -659,7 +669,8 @@ struct token *replace_token(struct token *tk, struct macro_arg *args) {
 }
 
 bool expand_macro(struct token **ret, struct token *tk) {
-  if (hideset_contains(tk->hideset, tk->str, tk->len)) return false;
+  if (hideset_contains(tk->hideset, tk->str, tk->len))
+    return false;
 
   struct macro *m = find_macro(tk);
   if (!m) {
@@ -676,7 +687,8 @@ bool expand_macro(struct token **ret, struct token *tk) {
   }
 
   // #define macro(var) expression
-  if (!equal(tk->next, "(")) return false;
+  if (!equal(tk->next, "("))
+    return false;
 
   struct token *macro_tk = tk;
   struct macro_arg *args = macro_args(&tk, tk->next->next, m->params);
@@ -729,7 +741,8 @@ struct token *read_expression(struct token **ret, struct token *tk) {
       struct macro *m = find_macro(tok);
 
       tok = tok->next;
-      if (has_parent) skip(&tok, tok, ")");
+      if (has_parent)
+        skip(&tok, tok, ")");
 
       cur = cur->next = new_num_token(m ? 1 : 0, start);
       continue;

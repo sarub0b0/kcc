@@ -63,7 +63,8 @@ void print_tokens_text(struct token *token) {
       fprintf(stderr, "%*s", depth, " ");
     }
 
-    if (tk->has_space && !tk->at_bol) fprintf(stderr, " ");
+    if (tk->has_space && !tk->at_bol)
+      fprintf(stderr, " ");
 
     fprintf(stderr, "%.*s", tk->len, tk->loc);
     line++;
@@ -220,7 +221,8 @@ struct token *string_literal_token(struct token *cur, char *start) {
   int len = 0;
 
   while (*p != '"') {
-    if (*p == '\\') buf[len++] = *p++;
+    if (*p == '\\')
+      buf[len++] = *p++;
     buf[len++] = *p++;
   }
 
@@ -351,7 +353,8 @@ struct token *tokenize(char *filename, char *input, int file_num) {
 
     if (starts_with(p, "/*")) {
       char *q = strstr(p + 2, "*/");
-      if (!q) error_at(p, "コメントが閉じられていません");
+      if (!q)
+        error_at(p, "コメントが閉じられていません");
       p = q + 2;
       continue;
     }
@@ -519,7 +522,8 @@ char *readfile(char *path) {
 
   fread(buf, size, 1, f);
 
-  if (size == 0 || buf[size - 1] != '\n') buf[size++] = '\n';
+  if (size == 0 || buf[size - 1] != '\n')
+    buf[size++] = '\n';
 
   buf[size] = '\0';
   fclose(f);
@@ -553,7 +557,8 @@ char **get_input_files() {
 }
 
 bool is_loaded_file(char *file) {
-  if (!input_files) return false;
+  if (!input_files)
+    return false;
 
   for (int i = 0; input_files[i]; i++) {
     if (strlen(file) == strlen(input_files[i]) &&
