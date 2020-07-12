@@ -198,7 +198,9 @@ void gen_for(struct node *node) {
   // .L.end.XXX
 
   int seq = label_seq++;
-  int bcseq = continue_seq;
+  int cnum = continue_seq;
+  int brnum = break_seq;
+
   continue_seq = seq;
   break_seq = seq;
 
@@ -226,8 +228,8 @@ void gen_for(struct node *node) {
   printf("    jmp .L.begin.%03d\n", seq);
   printf(".L.break.%03d:\n", seq);
 
-  continue_seq = bcseq;
-  break_seq = bcseq;
+  continue_seq = cnum;
+  break_seq = brnum;
 }
 
 void gen_do(struct node *node) {
@@ -245,7 +247,8 @@ void gen_do(struct node *node) {
   // .L.end.XXX
 
   int seq = label_seq++;
-  int cseq = continue_seq;
+  int cnum = continue_seq;
+  int brnum = break_seq;
   continue_seq = seq;
   break_seq = seq;
 
@@ -265,12 +268,17 @@ void gen_do(struct node *node) {
   printf("    jne .L.begin.%03d\n", seq);
   printf(".L.break.%03d:\n", seq);
 
-  continue_seq = cseq;
-  break_seq = cseq;
+  continue_seq = cnum;
+  break_seq = brnum;
 }
 
 void gen_switch(struct node *node) {
   int seq = label_seq++;
+  int cnum = continue_seq;
+  int brnum = break_seq;
+  continue_seq = seq;
+  break_seq = seq;
+
   // switch(A) {
   // case B:
   //   C;
@@ -294,9 +302,12 @@ void gen_switch(struct node *node) {
     printf("    jmp  .L.case.%03d.%03d\n", seq, cnt);
   }
 
-  printf("    jmp  .L.break.%03d\n", break_seq);
+  printf("    jmp  .L.break.%03d\n", seq);
   gen_stmt(node->then);
-  printf(".L.break.%03d:\n", break_seq);
+  printf(".L.break.%03d:\n", seq);
+
+  continue_seq = cnum;
+  break_seq = brnum;
 }
 
 void gen_case(struct node *node) {
