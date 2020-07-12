@@ -75,7 +75,7 @@ char *type_to_name(enum type_kind kind) {
 bool is_integer(struct type *type) {
   if (type->kind == TY_INT || type->kind == TY_CHAR ||
       type->kind == TY_SHORT || type->kind == TY_LONG ||
-      type->kind == TY_BOOL) {
+      type->kind == TY_BOOL || type->kind == TY_ENUM) {
     return true;
   }
   return false;
