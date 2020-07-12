@@ -1,4 +1,4 @@
-
+#!/bin/bash
 
 CC=kcc
 TMP=build
