@@ -579,7 +579,7 @@ int main(void) {
          false);
   assert(4, ({ sizeof(1); }), "({ sizeof(1); })", false);
   assert(5, ({ sizeof(1) + 1; }), "({ sizeof(1)+1; })", false);
-  assert(4, ({ sizeof(sizeof(1)); }), "({ sizeof(sizeof(1)); })", false);
+  assert(8, ({ sizeof(sizeof(1)); }), "({ sizeof(sizeof(1)); })", false);
   assert(3,
          ({
            int x[2];
