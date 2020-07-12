@@ -2226,6 +2226,23 @@ struct node *unary(struct token **ret, struct token *tk) {
   return postfix(ret, tk);
 }
 
+struct node *new_inc_dec(struct node *n, struct token *tk, int addend) {
+  add_type(n);
+  struct var *v = new_lvar("", n->type);
+  struct node *nvar = new_node_var(v, tk);
+
+  struct node *n1 = new_node_assign(nvar, n, tk);
+
+  struct node *n2 =
+      0 < addend
+          ? new_node_assign(n, new_add(n, new_node_num(1, tk), tk), tk)
+          : new_node_assign(n, new_sub(n, new_node_num(1, tk), tk), tk);
+
+  n = new_node_binary(
+      ND_BINARY, n1, new_node_binary(ND_BINARY, n2, nvar, tk), tk);
+  return n;
+}
+
 struct node *postfix(struct token **ret, struct token *tk) {
 
   struct token *start = tk;
@@ -2274,13 +2291,19 @@ struct node *postfix(struct token **ret, struct token *tk) {
       continue;
     }
 
+    // arg = new;
+    // new = n;
+    // n = n+1;
+    //
+    // binari --- n1
+    //        |-- n2
     if (consume(&tk, tk, "++")) {
-      n = new_node_assign(n, new_add(n, new_node_num(1, tk), tk), start);
+      n = new_inc_dec(n, tk, 1);
       continue;
     }
 
     if (consume(&tk, tk, "--")) {
-      n = new_node_assign(n, new_sub(n, new_node_num(1, tk), tk), start);
+      n = new_inc_dec(n, tk, -1);
       continue;
     }
 

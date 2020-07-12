@@ -415,7 +415,7 @@ int main(void) {
          "({ int i=0,j=0; for(; i<10; i++){ if(i<5) continue; j++;} j; })",
          false);
 
-  assert(5,
+  assert(6,
          ({
            int i = 0, j = 0;
            while (i++ < 10) {
@@ -428,7 +428,7 @@ int main(void) {
          "({ int i=0,j=0; while(i++<10){ if(i<5) continue; j++;} j; })",
          false);
 
-  assert(5,
+  assert(6,
          ({
            int i = 0, j = 0;
            do {
@@ -1081,7 +1081,7 @@ int main(void) {
          "({ int a=3; --a; --a; })",
          false);
 
-  assert(2,
+  assert(1,
          ({
            int a = 0;
            a++;
@@ -1090,7 +1090,7 @@ int main(void) {
          "({ int a=0; a++; a++; })",
          false);
 
-  assert(1,
+  assert(2,
          ({
            int a = 3;
            a--;
@@ -1175,7 +1175,7 @@ int main(void) {
          "({ int i=15; i^=5; i; })",
          false);
 
-  assert(98,
+  assert(97,
          ({
            char *a = "abc";
            *a++;
@@ -1185,9 +1185,10 @@ int main(void) {
   assert(99,
          ({
            char *a = "abc";
-           *a += 2;
+           a += 2;
+           *a;
          }),
-         "({ char *a=\"abc\"; *a+=2; })",
+         "({ char *a=\"abc\"; a+=2; *a; })",
          false);
 
   assert(6,
