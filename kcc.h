@@ -14,6 +14,13 @@
 #define find_cond(name, token) \
   (strlen(name) == token->len && strncmp(name, token->str, token->len) == 0)
 
+// #define error(...)
+// #define verror_at(...)
+// #define error_at(...)
+// #define error_tok(...)
+// #define warn_tok(...)
+// #define info_tok(...)
+
 struct type;
 
 struct hideset {
