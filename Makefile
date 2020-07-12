@@ -13,6 +13,13 @@ test: kcc
 	cc -static -g -o tmp tmp.s
 	./tmp
 
+self: kcc
+	./self-compile.sh
+	./build/kcc -Itests tests/tests.c > tmp.s
+	cc -static -g -o tmp tmp.s
+	./tmp
+
+
 clean:
 	rm -f kcc *.o tmp*
 
