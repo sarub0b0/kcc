@@ -310,6 +310,27 @@ void print_stmt(struct node *n,
       scope_prefix = strndup(buf, MAX_LEN);
       print_stmt(n->lhs, is_next_stmt, true, scope_prefix);
       print_stmt(n->rhs, is_next_stmt, false, scope_prefix);
+    case ND_SHL:
+      printf("%s-Shl '<<'\n", local_prefix);
+      if (is_next_node) {
+        snprintf(buf, MAX_LEN, "%s |", scope_prefix);
+      } else {
+        snprintf(buf, MAX_LEN, "%s  ", scope_prefix);
+      }
+      scope_prefix = strndup(buf, MAX_LEN);
+      print_stmt(n->lhs, is_next_stmt, true, scope_prefix);
+      print_stmt(n->rhs, is_next_stmt, false, scope_prefix);
+      break;
+    case ND_SHR:
+      printf("%s-Shr '>>'\n", local_prefix);
+      if (is_next_node) {
+        snprintf(buf, MAX_LEN, "%s |", scope_prefix);
+      } else {
+        snprintf(buf, MAX_LEN, "%s  ", scope_prefix);
+      }
+      scope_prefix = strndup(buf, MAX_LEN);
+      print_stmt(n->lhs, is_next_stmt, true, scope_prefix);
+      print_stmt(n->rhs, is_next_stmt, false, scope_prefix);
       break;
     case ND_DIV:
       printf("%s-Div '/'\n", local_prefix);
@@ -356,7 +377,7 @@ void print_stmt(struct node *n,
       print_stmt(n->rhs, is_next_stmt, false, scope_prefix);
       break;
     case ND_NUM:
-      printf("%s-Num %s '%llu'\n",
+      printf("%s-Num %s '%lu'\n",
              local_prefix,
              type_to_name(n->type->kind),
              n->val);
@@ -369,6 +390,16 @@ void print_stmt(struct node *n,
       break;
     case ND_DEREF:
       printf("%s-Deref '%s'\n", local_prefix, n->token->str);
+      if (is_next_node) {
+        snprintf(buf, MAX_LEN, "%s |", scope_prefix);
+      } else {
+        snprintf(buf, MAX_LEN, "%s  ", scope_prefix);
+      }
+      scope_prefix = strndup(buf, MAX_LEN);
+      print_stmt(n->lhs, is_next_stmt, false, scope_prefix);
+      break;
+    case ND_NOT:
+      printf("%s-Not '%s'\n", local_prefix, n->token->str);
       if (is_next_node) {
         snprintf(buf, MAX_LEN, "%s |", scope_prefix);
       } else {
@@ -2144,9 +2175,9 @@ struct node *mul(struct token **ret, struct token *tk) {
 }
 
 char *compound_name() {
-  char *buf = calloc(28, sizeof(char));
+  char *buf = calloc(1, sizeof(char) * 32);
   static int inc = 0;
-  snprintf(buf, 28, "__compound_literal.%d", inc++);
+  snprintf(buf, 32, "__compound_literal.%d", inc++);
   return buf;
 }
 
@@ -2641,19 +2672,19 @@ struct node *lvar_initializer(struct token **ret,
 void write_data(char *data, long val, int size) {
   switch (size) {
     case 1:
-      *(char *) data = val;
+      *(char *) data = (char) val;
       return;
     case 2:
-      *(short *) data = val;
+      *(short *) data = (short) val;
       return;
     case 4:
-      *(int *) data = val;
+      *(int *) data = (int) val;
       return;
     default:
       if (size != 8) {
         error("invalid value size");
       }
-      *(long *) data = val;
+      *(long *) data = (long) val;
       return;
   }
 }
@@ -2688,7 +2719,6 @@ struct value *create_gvar_data(struct value *cur,
 
   struct var *var = NULL;
   long val = eval(init->expr, &var);
-
   if (var) {
     struct value *v = calloc(1, sizeof(struct value));
     v->offset = offset;
@@ -2707,7 +2737,7 @@ void gvar_initializer(struct token **ret, struct token *tk, struct var *var) {
   struct init_data *init = initializer(ret, tk, var->type);
 
   char *data = calloc(1, size_of(var->type));
-  struct value head = head;
+  struct value head = {};
   create_gvar_data(&head, data, init, var->type, 0);
   var->data = data;
   var->values = head.next;
