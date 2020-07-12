@@ -2343,7 +2343,7 @@ struct node *primary(struct token **ret, struct token *tk) {
     struct node *node = unary(&tk, tk);
     add_type(node);
     *ret = tk;
-    return new_node_num(size_of(node->type), tk);
+    return new_node_ulong(size_of(node->type), tk);
   }
 
   if (tk->kind == TK_STR) {
