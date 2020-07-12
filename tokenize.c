@@ -221,9 +221,11 @@ struct token *string_literal_token(struct token *cur, char *start) {
   int len = 0;
 
   while (*p != '"') {
-    if (*p == '\\')
+    if (*p == '\\') {
+      buf[len++] = escaped_char(&p, p + 1);
+    } else {
       buf[len++] = *p++;
-    buf[len++] = *p++;
+    }
   }
 
   buf[len++] = '\0';
@@ -583,4 +585,3 @@ struct token *tokenize_file(char *file) {
   struct token *token = tokenize(file, input, file_num);
   return token;
 }
-
