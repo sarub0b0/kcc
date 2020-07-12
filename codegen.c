@@ -515,7 +515,7 @@ int gen_expr(struct node *node) {
       gen_expr(node->lhs);
       printf("    cmp %s, 0\n", reg(node->lhs->type, --inc));
       printf("    sete %s\n", reg8[inc]);
-      printf("    movzb %s, %s\n", reg64[inc], reg8[inc]);
+      printf("    movzx %s, %s\n", reg64[inc], reg8[inc]);
       inc++;
       return 0;
     case ND_BITNOT:
@@ -665,12 +665,12 @@ int gen_expr(struct node *node) {
     case ND_EQ:
       printf("    cmp %s, %s\n", rd, rs);
       printf("    sete al\n");
-      printf("    movzb %s, al\n", rd);
+      printf("    movzx %s, al\n", rd);
       break;
     case ND_NE:
       printf("    cmp %s, %s\n", rd, rs);
       printf("    setne al\n");
-      printf("    movzb %s, al\n", rd);
+      printf("    movzx %s, al\n", rd);
       break;
     case ND_LE:
       printf("    cmp %s, %s\n", rd, rs);
@@ -679,7 +679,7 @@ int gen_expr(struct node *node) {
       } else {
         printf("    setle al\n");
       }
-      printf("    movzb %s, al\n", rd);
+      printf("    movzx %s, al\n", rd);
       break;
     case ND_LT:
       printf("    cmp %s, %s\n", rd, rs);
@@ -688,17 +688,17 @@ int gen_expr(struct node *node) {
       } else {
         printf("    setl al\n");
       }
-      printf("    movzb %s, al\n", rd);
+      printf("    movzx %s, al\n", rd);
       break;
     case ND_GE:
       printf("    cmp %s, %s\n", rd, rs);
       printf("    setge al\n");
-      printf("    movzb %s, al\n", rd);
+      printf("    movzx %s, al\n", rd);
       break;
     case ND_GT:
       printf("    cmp %s, %s\n", rd, rs);
       printf("    setg al\n");
-      printf("    movzb %s, al\n", rd);
+      printf("    movzx %s, al\n", rd);
       break;
     case ND_BITOR:
       printf("    or %s, %s\n", rd, rs);
