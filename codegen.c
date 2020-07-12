@@ -102,6 +102,7 @@ int gen_addr(struct node *n) {
   int offset = 0;
   switch (n->kind) {
     case ND_VAR:
+      printf("// var %s\n", n->var->name);
       if (n->var->is_local) {
         printf("    lea %s, [rbp-%d]\n", reg64[inc++], n->var->offset);
       } else {
@@ -109,9 +110,11 @@ int gen_addr(struct node *n) {
       }
       return n->var->offset;
     case ND_DEREF:
+      printf("// deref\n");
       offset = gen_expr(n->lhs);
       return offset;
     case ND_MEMBER:
+      printf("// member\n");
       offset = gen_addr(n->lhs);
       printf("    add %s, %d\n", reg64[inc - 1], n->member->offset);
       return offset - n->member->offset;
@@ -383,6 +386,7 @@ void gen_func(struct node *node) {
 }
 
 void load(struct type *type) {
+  printf("// load\n");
   if (type->kind == TY_ARRAY || type->kind == TY_STRUCT ||
       type->kind == TY_UNION || type->kind == TY_FUNC) {
     return;
@@ -401,6 +405,7 @@ void load(struct type *type) {
 }
 
 void store(struct type *type) {
+  printf("// store\n");
   if (type->kind == TY_STRUCT || type->kind == TY_UNION) {
 
     for (int i = 0; i < size_of(type); i++) {
@@ -423,6 +428,7 @@ int gen_expr(struct node *node) {
   struct type *ty = node->type;
   switch (node->kind) {
     case ND_NUM:
+      printf("// num\n");
       printf("    mov %s, %lu\n", reg(ty, inc++), node->val);
       return 0;
     case ND_VAR:
@@ -430,10 +436,12 @@ int gen_expr(struct node *node) {
       load(node->type);
       return 0;
     case ND_MEMBER:
+      printf("// member\n");
       gen_addr(node);
       load(node->type);
       return 0;
     case ND_ASSIGN: {
+      printf("// assign\n");
       // case 1
       //    const int  a = 0;
       //    a = 1;
@@ -473,21 +481,26 @@ int gen_expr(struct node *node) {
       return 0;
     }
     case ND_FUNCALL:
+      printf("// funcall\n");
       gen_func(node);
       return 0;
     case ND_COMMA:
+      printf("// comma\n");
       gen_expr(node->lhs);
       gen_expr(node->rhs);
       inc--;
       return 0;
     case ND_ADDR:
+      printf("// addr\n");
       gen_addr(node->lhs);
       return 0;
     case ND_DEREF:
+      printf("// deref\n");
       gen_expr(node->lhs);
       load(node->type);
       return 0;
     case ND_NOT:
+      printf("// not\n");
       gen_expr(node->lhs);
       printf("    cmp %s, 0\n", reg(node->lhs->type, --inc));
       printf("    sete %s\n", reg8[inc]);
@@ -495,10 +508,12 @@ int gen_expr(struct node *node) {
       inc++;
       return 0;
     case ND_BITNOT:
+      printf("// bitnot\n");
       gen_expr(node->lhs);
       printf("    not %s\n", reg(node->lhs->type, inc - 1));
       return 0;
     case ND_LOGOR: {
+      printf("// logor\n");
       // lhs || rhs
       // lhs == 0 ?
       int seq = label_seq++;
@@ -518,6 +533,7 @@ int gen_expr(struct node *node) {
       return 0;
     }
     case ND_LOGAND: {
+      printf("// logand\n");
       // lhs && rhs
       // lhs == 0 ?
       int seq = label_seq++;
@@ -537,12 +553,14 @@ int gen_expr(struct node *node) {
       return 0;
     }
     case ND_STMT_EXPR:
+      printf("// stmt-expr\n");
       for (struct node *n = node->body; n; n = n->next) {
         gen_stmt(n);
       }
       inc++;
       return 0;
     case ND_CAST: {
+      printf("// cast\n");
       gen_expr(node->lhs);
 
       struct type *from = node->lhs->type;
@@ -564,6 +582,7 @@ int gen_expr(struct node *node) {
       return 0;
     }
     case ND_COND: {
+      printf("// cond\n");
       int seq = label_seq++;
       gen_expr(node->cond);
       printf("    cmp %s, 0\n", reg64[inc - 1]);
@@ -584,6 +603,7 @@ int gen_expr(struct node *node) {
       return 0;
     }
     case ND_LIST_EXPR:
+      printf("// list-expr\n");
       for (struct node *n = node->body; n; n = n->next) {
         gen_expr(n);
         inc--;
@@ -591,6 +611,7 @@ int gen_expr(struct node *node) {
       inc++;
       return 0;
     case ND_BINARY:
+      printf("// binary\n");
       gen_expr(node->lhs);
       inc--;
       gen_expr(node->rhs);
