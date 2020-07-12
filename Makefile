@@ -1,7 +1,8 @@
-CC := clang
+CC :=clang
 CFLAGS := -g -O0 -static -std=c11
 SRCS := $(filter-out tmp.c, $(wildcard *.c))
 OBJS := $(SRCS:.c=.o)
+TMP := build
 
 kcc: $(OBJS)
 	$(CC) -o $@ $(OBJS) $(LDFLAGS)
@@ -14,8 +15,8 @@ test: kcc
 	./tmp
 
 self: kcc
-	./self-compile.sh
-	./build/kcc -Itests tests/tests.c > tmp.s
+	./self-compile.sh $(TMP)
+	./$(TMP)/kcc -Itests tests/tests.c > tmp.s
 	cc -static -g -o tmp tmp.s
 	./tmp
 

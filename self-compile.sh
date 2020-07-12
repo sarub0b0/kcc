@@ -1,7 +1,7 @@
 #!/bin/bash
 
 CC=kcc
-TMP=build
+TMP=$1
 
 rm -rf $TMP
 mkdir -p $TMP
@@ -9,15 +9,14 @@ mkdir -p $TMP
 function kcc () {
     asm=${1%.c}.s
     obj=${1%.c}.o
+
     ./$CC $1 > $TMP/$asm
-    gcc -c -o $TMP/$obj $TMP/$asm
+
+    clang -c -o $TMP/$obj $TMP/$asm
 }
 
 function cc () {
-    asm=${1%.c}.s
-    obj=${1%.c}.o
-    # ./$CC $1 > $TMP/$asm
-    gcc -c -o $TMP/$obj $1
+    clang -c -o $TMP/${1%.c}.o $1
 }
 
 cc main.c
@@ -26,8 +25,6 @@ cc tokenize.c
 cc preprocess.c
 cc parse.c
 cc codegen.c
-kcc type.c
+cc type.c
 
-
-gcc -static -o $TMP/kcc $TMP/*.o
-
+clang -static -o $TMP/kcc $TMP/*.o
