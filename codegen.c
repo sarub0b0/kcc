@@ -1,6 +1,9 @@
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "kcc.h"
+
+const char *ar[] = {"al", "ax", "eax", "rax"};
 
 const char *argreg8[] = {"dil", "sil", "dl", "cl", "r8b", "r9b"};
 const char *argreg16[] = {"di", "si", "dx", "cx", "r8w", "r9w"};
@@ -13,7 +16,7 @@ const char *reg32[] = {"r10d", "r11d", "r12d", "r13d", "r14d", "r15d"};
 const char *reg64[] = {"r10", "r11", "r12", "r13", "r14", "r15"};
 
 int inc = 0;
-struct function *current_fn;
+struct function *current_fn = NULL;
 
 int label_seq = 0;
 int continue_seq = 0;
@@ -36,20 +39,19 @@ size_t type_size(struct type *ty) {
 }
 
 const char *areg(struct type *ty) {
-  const char *r[] = {"al", "ax", "eax", "rax"};
 
   // if (ty->kind == TY_ARRAY)
   //   return areg(ty->ptr_to);
 
   switch (size_of(ty)) {
     case 1:
-      return r[0];
+      return ar[0];
     case 2:
-      return r[1];
+      return ar[1];
     case 4:
-      return r[2];
+      return ar[2];
     default:
-      return r[3];
+      return ar[3];
   }
 }
 
@@ -112,11 +114,13 @@ int gen_addr(struct node *n) {
     case ND_DEREF:
       printf("// deref\n");
       offset = gen_expr(n->lhs);
+      printf("// offset %d\n", offset);
       return offset;
     case ND_MEMBER:
       printf("// member\n");
       offset = gen_addr(n->lhs);
       printf("    add %s, %d\n", reg64[inc - 1], n->member->offset);
+      printf("// offset %d\n", offset);
       return offset - n->member->offset;
     default:
       error_tok(n->token, "unknown addr type");
@@ -124,12 +128,15 @@ int gen_addr(struct node *n) {
   }
 }
 
-void func_addr(struct node *n) {
+void func_call(struct node *n) {
+  printf("//func-call\n");
   int offset = gen_addr(n);
   inc--;
 
-  if (n->kind == ND_MEMBER || n->type->kind == TY_PTR)
+  if (n->kind == ND_MEMBER || n->type->kind == TY_PTR) {
+    printf("// offset %d\n", offset);
     printf("    mov %s, [rbp-%d]\n", reg64[inc], offset);
+  }
 
   printf("    call %s\n", reg64[inc]);
 }
@@ -327,71 +334,120 @@ void gen_block(struct node *node) {
   for (struct node *n = node->body; n; n = n->next) gen_stmt(n);
 }
 
+void load_int_args(struct type *ty, int offset, int i) {
+
+  int size = size_of(ty);
+  char *insn = ty->is_unsigned ? "movzx" : "movsx";
+  switch (size) {
+    case 1:
+      printf("    %s %s, BYTE PTR [rbp-%d]\n", insn, argreg32[i], offset);
+      break;
+    case 2:
+      printf("    %s %s, WORD PTR [rbp-%d]\n", insn, argreg32[i], offset);
+      break;
+    case 4:
+      printf("    mov %s, DWORD PTR [rbp-%d]\n", argreg32[i], offset);
+      break;
+    case 8:
+      printf("    mov %s, [rbp-%d]\n", argreg64[i], offset);
+      break;
+    default:
+      error_tok(ty->token, "invalid size %d", size);
+  }
+}
+
+void push_args(struct type *ty, int offset) {
+  int size = size_of(ty);
+  char *insn = ty->is_unsigned ? "movzx" : "movsx";
+  switch (size) {
+    case 1:
+      printf("    %s eax,  BYTE PTR [rbp-%d]\n", insn, offset);
+      printf("    push rax\n");
+      break;
+    case 2:
+      printf("    %s eax, WORD PTR [rbp-%d]\n", insn, offset);
+      printf("    push rax\n");
+      break;
+    case 4:
+      printf("    mov eax, DWORD PTR [rbp-%d]\n", offset);
+      printf("    push rax\n");
+      break;
+    case 8:
+      printf("    push [rbp-%d]\n", offset);
+      break;
+    default:
+      error_tok(ty->token, "invalid size %d", size);
+  }
+}
+
+int load_args(struct node *n) {
+  int stack_size = 0;
+  bool *pass_list = calloc(1, sizeof(bool) * n->nargs);
+
+  for (int i = 0; i < n->nargs; i++) {
+    struct var *arg = n->args[i];
+
+    int size = size_of(arg->type);
+
+    if (i < 6) {
+      load_int_args(arg->type, arg->offset, i);
+      continue;
+    }
+    pass_list[i] = true;
+    stack_size += 8;
+  }
+
+  if (stack_size) {
+    if (stack_size % 16) {
+      printf("    sub rsp, 8\n");
+      stack_size += 8;
+    }
+
+    for (int i = n->nargs - 1; 0 <= i; i--) {
+      if (!pass_list[i]) {
+        continue;
+      }
+      struct var *arg = n->args[i];
+      push_args(arg->type, arg->offset);
+    }
+  }
+
+  // xmmレジスタ使わないなら0
+  printf("    mov rax, 0\n");
+
+  return stack_size;
+}
+
 void gen_func(struct node *node) {
-  struct type *fn_ty = node->func_ty;
+  struct type *ty = node->func_ty;
+
+  printf("    sub rsp, 16\n");
+  printf("    mov [rsp], r10\n");
+  printf("    mov [rsp+8], r11\n");
 
   for (struct node *n = node->body; n; n = n->next) {
     gen_expr(n);
     inc--;
   }
 
-  int push_num = 0;
-  for (int i = node->nargs - 1; 0 <= i; i--) {
-    struct var *arg = node->args[i];
+  int stack_size = load_args(node);
 
-    int size = size_of(arg->type);
-    struct type *arg_ty = arg->type;
+  func_call(node->lhs);
 
-    if (arg_ty->kind == TY_ARRAY)
-      size = 8;
-
-    if (5 < i) {
-      printf("    push [rbp-%d]\n", arg->offset);
-      push_num++;
-      continue;
-    }
-
-    char *insn = arg_ty->is_unsigned ? "movzx" : "movsx";
-    switch (size) {
-      case 1:
-        printf(
-            "    %s %s, BYTE PTR [rbp-%d]\n", insn, argreg32[i], arg->offset);
-        break;
-      case 2:
-        printf(
-            "    %s %s, WORD PTR [rbp-%d]\n", insn, argreg32[i], arg->offset);
-        break;
-      case 4:
-        printf("    mov %s, DWORD PTR [rbp-%d]\n", argreg32[i], arg->offset);
-        break;
-      case 8:
-        printf("    mov %s, [rbp-%d]\n", argreg64[i], arg->offset);
-        break;
-      default:
-        error_tok(node->token, "invalid size %d", size);
-    }
+  if (stack_size) {
+    printf("    add rsp, %d\n", stack_size);
   }
 
-  printf("    push r10\n");
-  printf("    push r11\n");
+  printf("    mov r10, [rsp]\n");
+  printf("    mov r11, [rsp+8]\n");
+  printf("    add rsp, 16\n");
 
-  printf("    mov rax, 0\n");
-
-  func_addr(node->lhs);
-
-  printf("    pop r11\n");
-  printf("    pop r10\n");
-
-  if (push_num) {
-    printf("    add rsp, %d\n", push_num * 8);
-  }
-
-  if (fn_ty->return_type->kind != TY_VOID)
-    printf("    mov %s, %s\n", reg(fn_ty, inc++), areg(fn_ty));
+  if (ty->return_type->kind != TY_VOID)
+    printf("    mov %s, %s\n", reg(ty, inc), areg(ty));
   else {
     printf("    mov rax, 0\n");
-    inc++;
   }
+  inc++;
 
   return;
 }
@@ -409,6 +465,8 @@ void load(struct type *type) {
   printf("    mov %s, %s PTR [%s]\n", r, s, reg64[inc - 1]);
   switch (size_of(type)) {
     case 1:
+      printf("    %s %s, %s\n", insn, reg32[inc - 1], r);
+      break;
     case 2:
       printf("    %s %s, %s\n", insn, reg32[inc - 1], r);
       break;
@@ -437,15 +495,16 @@ int gen_expr(struct node *node) {
   lines_of_code(node);
 
   struct type *ty = node->type;
+  int offset = 0;
   switch (node->kind) {
     case ND_NUM:
       printf("// num\n");
       printf("    mov %s, %lu\n", reg(ty, inc++), node->val);
       return 0;
     case ND_VAR:
-      gen_addr(node);
+      offset = gen_addr(node);
       load(node->type);
-      return 0;
+      return offset;
     case ND_MEMBER:
       printf("// member\n");
       gen_addr(node);
@@ -536,7 +595,7 @@ int gen_expr(struct node *node) {
       gen_expr(node->rhs);
       printf("    cmp %s, 0\n", reg(node->rhs->type, --inc));
       printf("    jne .L.true.%03d\n", seq);
-      printf("    mov %s, 0\n", reg64[inc - 1]);
+      printf("    mov %s, 0\n", reg64[inc]);
       printf("    jmp .L.end.%03d\n", seq);
       printf(".L.true.%03d:\n", seq);
       printf("    mov %s, 1\n", reg64[inc++]);
@@ -556,7 +615,7 @@ int gen_expr(struct node *node) {
       gen_expr(node->rhs);
       printf("    cmp %s, 0\n", reg(node->rhs->type, --inc));
       printf("    je .L.false.%03d\n", seq);
-      printf("    mov %s, 1\n", reg64[inc - 1]);
+      printf("    mov %s, 1\n", reg64[inc]);
       printf("    jmp .L.end.%03d\n", seq);
       printf(".L.false.%03d:\n", seq);
       printf("    mov %s, 0\n", reg64[inc++]);
@@ -587,7 +646,11 @@ int gen_expr(struct node *node) {
         printf("    mov %s, %s\n", reg32[inc - 1], reg32[inc - 1]);
       } else if (is_integer(from) && size_of(from) < 8 &&
                  !from->is_unsigned) {
-        printf("    movsx %s, %s\n", reg64[inc - 1], reg(from, inc - 1));
+        if (size_of(from) == 4) {
+          printf("    movsxd %s, %s\n", reg64[inc - 1], reg(from, inc - 1));
+        } else {
+          printf("    movsx %s, %s\n", reg64[inc - 1], reg(from, inc - 1));
+        }
       }
 
       return 0;
@@ -642,37 +705,45 @@ int gen_expr(struct node *node) {
 
   switch (node->kind) {
     case ND_ADD:
+      printf("//add\n");
       printf("    add %s, %s\n", rd, rs);
       break;
     case ND_SUB:
+      printf("//sub\n");
       printf("    sub %s, %s\n", rd, rs);
       break;
     case ND_MUL:
+      printf("//mul\n");
       printf("    imul %s, %s\n", rd, rs);
       break;
     case ND_DIV:
+      printf("//div\n");
       printf("    mov %s, %s\n", ra, rd);
       printf("    cqo\n");
       printf("    idiv %s\n", rs);
       printf("    mov %s, %s\n", rd, ra);
       break;
     case ND_MOD:
+      printf("//mod\n");
       printf("    mov %s, %s\n", ra, rd);
       printf("    cqo\n");
       printf("    idiv %s\n", rs);
       printf("    mov %s, %s\n", rd, rmod);
       break;
     case ND_EQ:
+      printf("//eq\n");
       printf("    cmp %s, %s\n", rd, rs);
       printf("    sete al\n");
       printf("    movzx %s, al\n", rd);
       break;
     case ND_NE:
+      printf("//ne\n");
       printf("    cmp %s, %s\n", rd, rs);
       printf("    setne al\n");
-      printf("    movzx %s, al\n", rd);
+      printf("    movzx %s, al\n", reg64[inc - 1]);
       break;
     case ND_LE:
+      printf("//le\n");
       printf("    cmp %s, %s\n", rd, rs);
       if (node->lhs->type->is_unsigned) {
         printf("    setbe al\n");
@@ -682,6 +753,7 @@ int gen_expr(struct node *node) {
       printf("    movzx %s, al\n", rd);
       break;
     case ND_LT:
+      printf("//lt\n");
       printf("    cmp %s, %s\n", rd, rs);
       if (node->lhs->type->is_unsigned) {
         printf("    setb al\n");
@@ -691,29 +763,36 @@ int gen_expr(struct node *node) {
       printf("    movzx %s, al\n", rd);
       break;
     case ND_GE:
+      printf("//ge\n");
       printf("    cmp %s, %s\n", rd, rs);
       printf("    setge al\n");
       printf("    movzx %s, al\n", rd);
       break;
     case ND_GT:
+      printf("//gt\n");
       printf("    cmp %s, %s\n", rd, rs);
       printf("    setg al\n");
       printf("    movzx %s, al\n", rd);
       break;
     case ND_BITOR:
+      printf("//or\n");
       printf("    or %s, %s\n", rd, rs);
       break;
     case ND_BITXOR:
+      printf("//bitxor\n");
       printf("    xor %s, %s\n", rd, rs);
       break;
     case ND_BITAND:
+      printf("//bitand\n");
       printf("    and %s, %s\n", rd, rs);
       break;
     case ND_SHL:
+      printf("//shl\n");
       printf("    mov rcx, %s\n", reg64[inc]);
       printf("    shl %s, cl\n", rd);
       break;
     case ND_SHR:
+      printf("//shr\n");
       printf("    mov rcx, %s\n", reg64[inc]);
       if (node->lhs->type->is_unsigned) {
         printf("    shr %s, cl\n", rd);
@@ -733,6 +812,7 @@ void gen_stmt(struct node *node) {
   lines_of_code(node);
   switch (node->kind) {
     case ND_RETURN:
+      printf("//return\n");
       gen_expr(node->lhs);
       if (node->lhs) {
         printf("    mov rax, %s\n", reg64[--inc]);
@@ -740,30 +820,39 @@ void gen_stmt(struct node *node) {
       printf("    jmp .L.return.%s\n", current_fn->name);
       return;
     case ND_IF:
+      printf("//if\n");
       gen_if(node);
       return;
     case ND_FOR:
+      printf("//for\n");
       gen_for(node);
       return;
     case ND_DO:
+      printf("//do\n");
       gen_do(node);
       return;
     case ND_SWITCH:
+      printf("//switch\n");
       gen_switch(node);
       return;
     case ND_CASE:
+      printf("//case\n");
       gen_case(node);
       return;
     case ND_CONTINUE:
+      printf("//continue\n");
       gen_continue(node);
       return;
     case ND_BREAK:
+      printf("//break\n");
       gen_break(node);
       return;
     case ND_BLOCK:
+      printf("//block\n");
       gen_block(node);
       return;
     case ND_EXPR_STMT:
+      printf("//expr-stmt\n");
       gen_expr(node->lhs);
       inc--;
       return;
@@ -809,17 +898,17 @@ void emit_value(int *pos,
 
   struct value *val = *value;
   if (val && val->offset == *pos) {
-    printf("    .quad %s%+ld\n", val->label, val->addend);
-    *value = val->next;
+    printf("    .quad %s+%ld\n", val->label, val->addend);
+    val = val->next;
     *pos += 8;
     return;
   }
 
-  if (type->is_string) {
-    printf("    .string \"%s\"\n", var->data);
-    *pos += var->type->size;
-    return;
-  }
+  // if (type->is_string) {
+  //   printf("    .string \"%s\"\n", var->data);
+  //   *pos += var->type->size;
+  //   return;
+  // }
 
   if (type->kind == TY_ARRAY) {
     for (int i = 0; i < type->array_size; i++) {
@@ -919,18 +1008,23 @@ void epilogue() {
   printf("    ret\n");
 }
 
+int alignment(int offset, int align) {
+  return (offset + align - 1) / align * align;
+}
+
 int stack_size(int offset) {
   return (offset + 15) & ~15;
 }
 
 void set_offset_and_stack_size(struct function *fn) {
-  int offset = 32;
+  int offset = fn->is_variadic ? 128 : 32;
+  offset = 32;
   for (struct var *v = fn->locals; v; v = v->next) {
     offset += size_of(v->type);
     v->offset = offset;
   }
 
-  fn->stack_size = stack_size(offset);
+  fn->stack_size = alignment(offset, 16);
 }
 
 int nargs(struct var *v) {
@@ -967,9 +1061,10 @@ void text_section(struct program *prog) {
     int params_num = nargs(fn->params);
 
     for (struct var *v = fn->params; v; v = v->next) {
+      printf("// var %s\n", v->name);
       if (6 < params_num) {
-        printf("    mov r10, [rbp+%d]\n", (--params_num - 2) * 8);
-        printf("    mov [rbp-%d], r10\n", v->offset);
+        printf("    mov rax, [rbp+%d]\n", (--params_num - 4) * 8);
+        printf("    mov [rbp-%d], rax\n", v->offset);
         continue;
       }
       printf(
