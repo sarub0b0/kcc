@@ -1035,6 +1035,30 @@ int nargs(struct var *v) {
   return n;
 }
 
+void pop_args(struct var *v, int offset) {
+  int size = size_of(v->type);
+  switch (size) {
+    case 1:
+      printf("    mov al,  BYTE PTR [rbp+%d]\n", offset);
+      printf("    mov [rbp-%d], al\n", v->offset);
+      break;
+    case 2:
+      printf("    mov ax, WORD PTR [rbp+%d]\n", offset);
+      printf("    mov [rbp-%d], ax\n", v->offset);
+      break;
+    case 4:
+      printf("    mov eax, DWORD PTR [rbp+%d]\n", offset);
+      printf("    mov [rbp-%d], eax\n", v->offset);
+      break;
+    case 8:
+      printf("    mov rax, QWORD PTR [rbp+%d]\n", offset);
+      printf("    mov [rbp-%d], rax\n", v->offset);
+      break;
+    default:
+      error_tok(v->type->token, "invalid size %d", size);
+  }
+}
+
 void text_section(struct program *prog) {
   printf("    .text\n");
 
@@ -1062,13 +1086,13 @@ void text_section(struct program *prog) {
 
     for (struct var *v = fn->params; v; v = v->next) {
       printf("// var %s\n", v->name);
-      if (6 < params_num) {
-        printf("    mov rax, [rbp+%d]\n", (--params_num - 4) * 8);
-        printf("    mov [rbp-%d], rax\n", v->offset);
+      if (6 < params_num--) {
+        int offset = (params_num - 6) * 8 + 16;
+        pop_args(v, offset);
         continue;
       }
       printf(
-          "    mov [rbp-%d], %s\n", v->offset, argreg(v->type, --params_num));
+          "    mov [rbp-%d], %s\n", v->offset, argreg(v->type, params_num));
     }
     for (struct node *n = fn->stmt; n; n = n->next) {
       gen_stmt(n);

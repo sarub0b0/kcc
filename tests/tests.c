@@ -288,6 +288,24 @@ struct s1 *func3(int x, int y) {
   return s;
 }
 
+int many(
+    int a, int b, int c, int d, int e, int f, int g, int h, int i, int j) {
+
+  return a + b + c + d + e + f + g + h + i + j;
+}
+long many_mixed(char a,
+                short b,
+                long c,
+                char d,
+                long e,
+                int f,
+                int g,
+                short h,
+                long i,
+                long j,
+                long k) {
+  return a + b + c + d + e + f + g + h + i + j + k;
+}
 int main(void) {
   assert(0, 0, "0", false);
   assert(42, 42, "42", false);
@@ -1835,6 +1853,16 @@ int main(void) {
            s.f();
          }),
          "({ struct s1 s; s.f=func_ptr; s.f(); })",
+         false);
+
+  assert(55,
+         ({ many(1, 2, 3, 4, 5, 6, 7, 8, 9, 10); }),
+         "({ many(1,2,3,4,5,6,7,8,9,10); })",
+         false);
+
+  assert(66,
+         ({ many_mixed(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11); }),
+         "({ many_mixed(1,2,3,4,5,6,7,8,9,10,11); })",
          false);
 
   if (success == number)
