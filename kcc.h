@@ -275,7 +275,6 @@ struct token *preprocess(struct token *);
 struct program *parse(struct token *);
 void gen_code(struct program *);
 char **get_input_files();
-
 void skip(struct token **, struct token *, char *);
 bool consume(struct token **, struct token *, char *);
 struct token *consume_ident(struct token **, struct token *);

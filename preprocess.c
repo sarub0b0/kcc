@@ -945,7 +945,6 @@ void pre_defined_macro() {
 }
 
 struct token *preprocess(struct token *tk) {
-  include_paths = include_paths;
 
   pre_defined_macro();
 

@@ -18,3 +18,4 @@ tests/*
 !tests/include3.h
 !tests/extern.h
 build/
+build2/

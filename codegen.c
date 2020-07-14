@@ -443,8 +443,10 @@ void gen_func(struct node *node) {
   printf("    add rsp, 16\n");
 
   if (ty->return_type->kind != TY_VOID)
-    printf("    mov %s, %s\n", reg(ty, inc), areg(ty));
-  else {
+    printf("    mov %s, rax\n", reg(ty, inc));
+  else if (ty->return_type->kind == TY_BOOL) {
+    printf("    movzx eax, al\n");
+  } else {
     printf("    mov rax, 0\n");
   }
   inc++;
@@ -635,6 +637,13 @@ int gen_expr(struct node *node) {
 
       struct type *from = node->lhs->type;
       struct type *to = node->type;
+
+      if (to->kind == TY_BOOL) {
+        printf("    cmp %s, 0\n", reg(from, inc - 1));
+        printf("    setne %s\n", reg8[inc - 1]);
+        printf("    movzb %s, %s\n", reg32[inc - 1], reg8[inc - 1]);
+        return 0;
+      }
 
       char *insn = to->is_unsigned ? "movzx" : "movsx";
       int to_size = size_of(to);

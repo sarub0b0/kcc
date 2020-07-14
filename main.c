@@ -11,19 +11,19 @@
 #include "kcc.h"
 
 #define MAX_LEN 256
-#define STANDARD_INCLUDE_PATH 6
 
 struct token *tk;
 int verbose;
 char **include_paths;
 
-char *standard_include_path[STANDARD_INCLUDE_PATH] = {
+char *standard_include_path[] = {
     "/usr/include",
     "/usr/include/x86_64-linux-gnu",
     "/usr/lib/gcc/x86_64-linux-gnu/9/include",
     "/usr/include/x86_64-linux-gnu/9/include",
     "/usr/local/include",
     "/usr/include/linux",
+    NULL,
 };
 
 struct config {
@@ -44,7 +44,7 @@ void usage(void) {
   fprintf(stderr, "General options:\n");
   fprintf(stderr, "  -h, --help\n");
   fprintf(stderr, "  --ast-dump\n");
-  fprintf(stderr, "  --dump-tokens\n");
+  fprintf(stderr, "  --token-dump\n");
   fprintf(stderr, "  --text-dump\n");
   fprintf(stderr, "  --list-function\n");
   fprintf(stderr, "  --include, -I\n");
@@ -54,7 +54,7 @@ void usage(void) {
 struct option long_options[] = {
     {"help", no_argument, NULL, 'h'},
     {"ast-dump", optional_argument, NULL, 1},
-    {"dump-tokens", no_argument, NULL, 2},
+    {"token-dump", no_argument, NULL, 2},
     {"list-function", no_argument, NULL, 3},
     {"text-dump", no_argument, NULL, 4},
     {"include", required_argument, NULL, 'I'},
@@ -69,7 +69,10 @@ void configure(int argc, char **argv, struct config *cfg) {
     exit(1);
   }
 
-  include_paths = calloc(argc, sizeof(char *) * STANDARD_INCLUDE_PATH);
+  int nincludes = 0;
+  for (int i = 0; standard_include_path[i]; i++) nincludes++;
+
+  include_paths = calloc(argc, sizeof(char *) * nincludes);
 
   int npahts = 0;
   int c;
@@ -110,9 +113,13 @@ void configure(int argc, char **argv, struct config *cfg) {
     exit(1);
   }
 
-  for (int i = 0; i < STANDARD_INCLUDE_PATH; i++) {
+  for (int i = 0; i < nincludes; i++) {
     include_paths[npahts++] = standard_include_path[i];
   }
+
+  // for (int i = 0; include_paths[i]; i++) {
+  //   debug("%s", include_paths[i]);
+  // }
 
   cfg->filename = argv[optind];
 }

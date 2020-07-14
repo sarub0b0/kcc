@@ -3,6 +3,7 @@ CFLAGS := -g -O0 -static -std=c11
 SRCS := $(filter-out tmp.c, $(wildcard *.c))
 OBJS := $(SRCS:.c=.o)
 TMP := build
+TMP2 := build2
 
 kcc: $(OBJS)
 	$(CC) -o $@ $(OBJS) $(LDFLAGS)
@@ -14,14 +15,21 @@ test: kcc
 	cc -static -g -o tmp tmp.s
 	./tmp
 
+self2: self
+	./self-compile.sh $(TMP)/kcc $(TMP2)
+	./$(TMP2)/kcc -Itests tests/tests.c > tmp.s
+	cc -static -g -o tmp tmp.s
+	./tmp
+
 self: kcc
-	./self-compile.sh $(TMP)
+	./self-compile.sh kcc $(TMP)
 	./$(TMP)/kcc -Itests tests/tests.c > tmp.s
 	cc -static -g -o tmp tmp.s
 	./tmp
 
 
+
 clean:
-	rm -f kcc *.o tmp*
+	rm -rf kcc *.o tmp* *.s build/*
 
 .PHONY: test clean
