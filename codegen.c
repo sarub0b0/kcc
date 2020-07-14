@@ -899,7 +899,7 @@ void emit_value(int *pos,
   struct value *val = *value;
   if (val && val->offset == *pos) {
     printf("    .quad %s+%ld\n", val->label, val->addend);
-    val = val->next;
+    *value = val->next;
     *pos += 8;
     return;
   }
