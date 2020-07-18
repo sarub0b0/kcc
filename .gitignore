@@ -17,5 +17,8 @@ tests/*
 !tests/include2.h
 !tests/include3.h
 !tests/extern.h
+dump/
 build/
+build1/
 build2/
+build3/

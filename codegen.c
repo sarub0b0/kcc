@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "kcc.h"
 
@@ -36,6 +37,14 @@ size_t type_size(struct type *ty) {
     return type_size(ty->ptr_to);
 
   return ty->size;
+}
+
+int nargs(struct var *v) {
+  int n = 0;
+  for (struct var *i = v; i; i = i->next) {
+    n++;
+  }
+  return n;
 }
 
 const char *areg(struct type *ty) {
@@ -418,7 +427,37 @@ int load_args(struct node *n) {
   return stack_size;
 }
 
+void builtin_va_start(struct node *node) {
+
+  int n = nargs(current_fn->params);
+
+  int offset = node->args[0]->offset;
+  printf("//ap offset %d\n", offset);
+
+  // printf("    lea rax, [rbp-%d]\n", node->args[0]->offset);
+  // printf("    mov DWORD PTR [rax], %d\n", 8 * n);
+  // printf("    mov DWORD PTR 4[rax], 48\n");
+  // printf("    mov QWORD PTR 16[rax], rbp\n");
+  // printf("    mov QWORD PTR 16[rax], 128\n");
+
+  printf("    mov DWORD PTR -%d[rbp], %d\n", offset + 8, n * 8);
+  printf("    mov DWORD PTR -%d[rbp], 48\n", offset + 4);
+  printf("    lea rax, 16[rbp]\n");
+  printf("    mov QWORD PTR -%d[rbp], rax\n", offset);
+  printf("    lea rax, -80[rbp]\n");
+  printf("    mov QWORD PTR -%d[rbp], rax\n", offset - 8);
+
+  printf("//va_start nargs %d\n", n);
+  inc++;
+}
+
 void gen_func(struct node *node) {
+  if (node->lhs->kind == ND_VAR && !strncmp(node->lhs->var->name,
+                                            "__builtin_va_start",
+                                            strlen("__builtin_va_start"))) {
+    builtin_va_start(node);
+    return;
+  }
   struct type *ty = node->func_ty;
 
   printf("    sub rsp, 16\n");
@@ -457,7 +496,7 @@ void gen_func(struct node *node) {
 void load(struct type *type) {
   printf("// load\n");
   if (type->kind == TY_ARRAY || type->kind == TY_STRUCT ||
-      type->kind == TY_UNION || type->kind == TY_FUNC) {
+      type->kind == TY_UNION || type->kind == TY_FUNC || type->is_va_list) {
     return;
   }
   const char *r = reg(type, inc - 1);
@@ -1027,21 +1066,13 @@ int stack_size(int offset) {
 
 void set_offset_and_stack_size(struct function *fn) {
   int offset = fn->is_variadic ? 128 : 32;
-  offset = 32;
   for (struct var *v = fn->locals; v; v = v->next) {
+    offset = alignment(offset, v->type->align);
     offset += size_of(v->type);
     v->offset = offset;
   }
 
   fn->stack_size = alignment(offset, 16);
-}
-
-int nargs(struct var *v) {
-  int n = 0;
-  for (struct var *i = v; i; i = i->next) {
-    n++;
-  }
-  return n;
 }
 
 void pop_args(struct var *v, int offset) {
@@ -1090,6 +1121,16 @@ void text_section(struct program *prog) {
     printf("    mov [rbp-16], r13\n");
     printf("    mov [rbp-24], r14\n");
     printf("    mov [rbp-32], r15\n");
+
+    if (fn->is_variadic) {
+
+      printf("    mov [rbp-80], rdi\n");
+      printf("    mov [rbp-72], rsi\n");
+      printf("    mov [rbp-64], rdx\n");
+      printf("    mov [rbp-56], rcx\n");
+      printf("    mov [rbp-48], r8\n");
+      printf("    mov [rbp-40], r9\n");
+    }
 
     int params_num = nargs(fn->params);
 

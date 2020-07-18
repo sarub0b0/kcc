@@ -609,7 +609,6 @@ char *add_quotes(char *str) {
   buf[pos++] = '"';
   buf[pos++] = '\0';
 
-  debug("%s", buf);
   return buf;
 }
 
@@ -939,6 +938,7 @@ void pre_defined_macro() {
   def_macro("__x86_64__", "1");
   def_macro("__LP64__", "1");
   def_macro("__restrict", "restrict");
+  def_macro("__builtin_va_list", "char *");
 
   builtin_macro("__FILE__", file_macro);
   builtin_macro("__LINE__", line_macro);

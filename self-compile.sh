@@ -27,7 +27,6 @@ cc message.c
 kcc type.c
 kcc tokenize.c
 kcc preprocess.c
-kcc preprocess2.c
 kcc parse.c
 kcc codegen.c
 

@@ -138,6 +138,7 @@ struct type {
   bool is_unsigned;
   bool is_const;
   bool is_variadic;
+  bool is_va_list;
 
   struct type *ptr_to;
   size_t array_size;

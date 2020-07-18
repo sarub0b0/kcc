@@ -760,7 +760,7 @@ bool is_typename(struct token *tok) {
       "void",     "_Bool",   "char",     "short",  "int",
       "long",     "float",   "double",   "struct", "enum",
       "union",    "typedef", "static",   "extern", "signed",
-      "unsigned", "const",   "volatile", "inline",
+      "unsigned", "const",   "volatile", "inline", "va_list",
   };
 
   for (int i = 0; i < sizeof(keyword) / sizeof(*keyword); i++) {
@@ -1173,6 +1173,7 @@ struct type *typespec(struct token **ret,
   int type = 0;
 
   bool is_const = false;
+  bool is_va_list = false;
 
   while (is_typename(tk)) {
 
@@ -1223,7 +1224,13 @@ struct type *typespec(struct token **ret,
 
     struct type *ty2 = find_typedef(tk);
     if (ty2) {
-      ty = copy_type(ty2);
+      ty = ty2;
+      tk = tk->next;
+      continue;
+    }
+
+    if (equal(tk, "va_list")) {
+      is_va_list = true;
       tk = tk->next;
       continue;
     }
@@ -1319,6 +1326,10 @@ struct type *typespec(struct token **ret,
   if (is_const) {
     ty = copy_type(ty);
     ty->is_const = is_const;
+  }
+  if (is_va_list) {
+    ty = pointer_to(copy_type(ty_char));
+    ty->is_va_list = is_va_list;
   }
 
   *ret = tk;
@@ -2851,6 +2862,9 @@ void gvar_initializer(struct token **ret, struct token *tk, struct var *var) {
 // funcall-args = assign ( "," assign )*
 
 struct program *parse(struct token *tk) {
+
+  new_gvar("__builtin_va_start", func_type(ty_void), true, false);
+
   struct function head = {};
   struct function *cur = &head;
   struct type *type;
