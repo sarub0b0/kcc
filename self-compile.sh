@@ -23,7 +23,7 @@ function cc () {
 }
 
 kcc main.c
-cc message.c
+kcc message.c
 kcc type.c
 kcc tokenize.c
 kcc preprocess.c
