@@ -311,6 +311,7 @@ void add_line_info(struct token *tk) {
 
   do {
     col++;
+
     if (p == tk->loc) {
       tk->at_bol = at_bol;
       tk->has_space = has_space;

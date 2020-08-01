@@ -5,9 +5,6 @@
 
 #include "kcc.h"
 
-char *current_userinput;
-char *current_filename;
-
 #define red(x)                   \
   do {                           \
     fprintf(stderr, "\x1b[31m"); \
@@ -55,7 +52,8 @@ void verror_at(char *loc,
 void error_at(char *loc, char *fmt, ...) {
   int line_num = 1;
   for (char *p = current_userinput; p < loc; p++)
-    if (*p == '\n') line_num++;
+    if (*p == '\n')
+      line_num++;
 
   va_list ap;
   va_start(ap, fmt);

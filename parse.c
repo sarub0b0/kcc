@@ -2337,7 +2337,7 @@ struct node *postfix(struct token **ret, struct token *tk) {
     // new = n;
     // n = n+1;
     //
-    // binari --- n1
+    // binary --- n1
     //        |-- n2
     if (consume(&tk, tk, "++")) {
       n = new_inc_dec(n, tk, 1);
