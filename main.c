@@ -11,19 +11,19 @@
 #include "kcc.h"
 
 #define MAX_LEN 256
+#define MAX_INCLUDE_LEN 128
 
 struct token *tk;
 int verbose;
 char **include_paths;
 
-char *standard_include_path[] = {
-    "/usr/include",
-    "/usr/include/x86_64-linux-gnu",
+char *standard_include_path[MAX_INCLUDE_LEN] = {
     "/usr/lib/gcc/x86_64-linux-gnu/9/include",
+    "/usr/include",
+    "/usr/include/linux",
+    "/usr/include/x86_64-linux-gnu",
     "/usr/include/x86_64-linux-gnu/9/include",
     "/usr/local/include",
-    "/usr/include/linux",
-    NULL,
 };
 
 struct config {
@@ -72,7 +72,7 @@ void configure(int argc, char **argv, struct config *cfg) {
   int nincludes = 0;
   for (int i = 0; standard_include_path[i]; i++) nincludes++;
 
-  include_paths = calloc(argc, sizeof(char *) * nincludes);
+  include_paths = calloc(MAX_INCLUDE_LEN, sizeof(char *));
 
   int npahts = 0;
   int c;
@@ -116,10 +116,6 @@ void configure(int argc, char **argv, struct config *cfg) {
   for (int i = 0; i < nincludes; i++) {
     include_paths[npahts++] = standard_include_path[i];
   }
-
-  // for (int i = 0; include_paths[i]; i++) {
-  //   debug("%s", include_paths[i]);
-  // }
 
   cfg->filename = argv[optind];
 }
